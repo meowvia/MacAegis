@@ -32,7 +32,7 @@ When sharing your screen in meetings or lending your laptop, sensitive files in 
 ## Requirements & Installation
 
 * Built natively in Swift. App size is ~3.5MB, memory footprint is ~20MB, and there are no background daemons.
-* Requires macOS 14.0 (Sonoma) or later. Works on Apple Silicon and Intel Macs.
+* Requires macOS 14.0 (Sonoma) or later. Primarily built and optimized for Apple Silicon (M-series chips); not tested on Intel models.
 * Download the latest build from Releases and move it to your Applications folder.
 
 > **Note**: As an unsigned indie binary, if macOS shows a "damaged" or "unidentified developer" prompt on first launch, run this single line in Terminal to clear the quarantine attribute:

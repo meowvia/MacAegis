@@ -179,13 +179,20 @@ public struct MainView: View {
     // MARK: - Top Studio Header Bar
     private var headerBar: some View {
         HStack(spacing: 20) {
-            // App Brand (Enlarged Luxury Obsidian & Emerald Logo)
+            // App Brand (Seamless implicit click to GitHub)
             HStack(spacing: 9) {
                 MacAegisLogoView(size: 28, isGlowing: true)
                 Text(AppConfig.appName)
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if let url = URL(string: "https://github.com/meowvia/MacAegis") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .help(l10n("点击访问 MacAegis 官方 GitHub 仓库", "Click to visit MacAegis on GitHub"))
 
             Spacer()
 

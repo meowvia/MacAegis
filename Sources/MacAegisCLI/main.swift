@@ -22,7 +22,7 @@ func printBanner() {
  | |  | |/ _` | _/ ___ \\  __/ (_| | \\__ \\
  |_|  |_|\\__,_(_)_/   \\_\\___|\\__, |_|___/
                              |___/       
-\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私保险箱 v0.3.0\(TerminalColor.reset)
+\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私保险箱 v0.1.1\(TerminalColor.reset)
 """)
 }
 

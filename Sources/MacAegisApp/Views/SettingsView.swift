@@ -238,9 +238,15 @@ public struct SettingsView: View {
 
             // Bottom Bar
             HStack {
-                Text(l10n("MacAegis · 极简原生轻量架构", "MacAegis · Pure Native Lightweight Architecture"))
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    Text("\(AppConfig.appName) v\(AppConfig.appVersion)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.primary)
+                    Text("·")
+                        .foregroundColor(.secondary.opacity(0.5))
+                    Link("GitHub", destination: URL(string: "https://github.com/meowvia/MacAegis")!)
+                        .font(.system(size: 11))
+                }
                 Spacer()
                 Button(l10n("完成", "Done")) {
                     dismiss()

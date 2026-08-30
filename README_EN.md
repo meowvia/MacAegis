@@ -6,6 +6,10 @@
 
 Mainly solves two things: checking network proxy routing status at a glance in the menu bar, and quickly hiding private files, with a lightweight developer cache cleaner and uninstaller built in.
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="850" alt="MacAegis Dashboard">
+</p>
+
 ---
 
 ## What it does
@@ -18,6 +22,10 @@ When using proxy utilities, it's often unclear whether your traffic is currently
 
 Reads routing states directly from the macOS system layer, independent of which proxy client you use.
 
+<p align="center">
+  <img src="docs/screenshots/menubar.png" width="360" alt="Menu Bar Status Card">
+</p>
+
 ### 2. Fast File & Folder Concealment
 Avoid having sensitive desktop or Finder files peeked during screen sharing, external displays, or when lending your laptop:
 * Drag and drop files or folders to hide them instantly—hidden from Finder and disabled from Spacebar QuickLook.
@@ -25,9 +33,17 @@ Avoid having sensitive desktop or Finder files peeked during screen sharing, ext
 * Supports Touch ID + custom password to create local accounts, and Touch ID + password for quick unlocking and automatic Finder reveal.
 * Credentials are saved in system Keychain: if the App is accidentally deleted, reinstalling it safely reclaims your existing files to prevent loss.
 
+<p align="center">
+  <img src="docs/screenshots/vault.png" width="850" alt="Privacy Vault">
+</p>
+
 ### 3. Quick Cleaner & Uninstaller
 * Easily clean Xcode build caches (DerivedData), developer temporary files, system logs, and browser caches.
 * Drag and drop any App to find and remove scattered config leftovers across Library folders.
+
+<p align="center">
+  <img src="docs/screenshots/uninstaller.png" width="850" alt="Uninstaller & Clean View">
+</p>
 
 ---
 

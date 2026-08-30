@@ -6,6 +6,10 @@
 
 主要解决两件事：在菜单栏看清楚网络代理状态、快速藏文件，顺便带了个轻量的开发缓存清理和卸载功能。
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="850" alt="MacAegis 主控台">
+</p>
+
 ---
 
 ## 做了什么
@@ -18,6 +22,10 @@
 
 直接从 macOS 系统底层读取网络状态，不依赖具体用的是哪一款代理客户端。
 
+<p align="center">
+  <img src="docs/screenshots/menubar.png" width="360" alt="菜单栏状态卡片">
+</p>
+
 ### 2. 快速隐藏私密文件
 避免投屏、外接显示器或者他人借用电脑，桌面和访达里的私密文件容易被瞄到：
 * 把文件或文件夹拖进去就直接隐藏，访达里不显示，空格键快速预览也看不了。
@@ -25,9 +33,17 @@
 * 支持 TouchID 指纹+自设密码创建本地账户，TouchID+输入自设密码快速解锁，解锁后自动在访达中定位打开。
 * 凭证保存在系统钥匙串中， 误删App，重新安装也能自动认领原先的文件，防止丢失。
 
+<p align="center">
+  <img src="docs/screenshots/vault.png" width="850" alt="隐私保险箱">
+</p>
+
 ### 3. 随手清理与卸载
 * 顺手清理 Xcode 编译缓存（DerivedData）、开发临时文件、日常日志和浏览器缓存。
 * 拖入 App 自动找出散落在 Library 各个目录里的关联配置文件一起删除。
+
+<p align="center">
+  <img src="docs/screenshots/uninstaller.png" width="850" alt="应用卸载与清理">
+</p>
 
 ---
 

@@ -20,3 +20,8 @@ DerivedData/
 *.swp
 *~
 *.lock
+
+# App Bundles & Release Archives
+*.app/
+*.zip
+*.icns

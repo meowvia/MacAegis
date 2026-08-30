@@ -382,6 +382,7 @@ import Foundation
     #expect(setup == true)
     let added = vault1.addItem(url: testFolder, type: .hidden)
     #expect(added != nil)
+    #expect(vault1.hasVaultXattr(at: testFolder.path) == true)
 
     // 2. Simulate complete disaster: configDir1 is completely wiped (Third party uninstaller simulation)
     try? FileManager.default.removeItem(at: configDir1)
@@ -396,7 +397,8 @@ import Foundation
     #expect(vault2.verifyMasterPassword("MySecretPass2026!") == true)
     #expect(vault2.getPasswordHint() == "RecoveryHint")
 
-    // 4. User drags the locked folder back into the new MacAegis (Re-claiming)
+    // 4. User drags the locked folder back into the new MacAegis (Re-claiming via xattr)
+    #expect(vault2.isItemLockedOnDisk(at: testFolder) == true)
     let recovered = vault2.addItem(url: testFolder, type: .hidden)
     #expect(recovered != nil)
     #expect(recovered?.status == .hidden)
@@ -404,9 +406,10 @@ import Foundation
     // 5. User unlocks it with their password/Touch ID in the new app
     vault2.openAndHighlightInFinder(path: testFolder.path, revealInFinder: false)
 
-    // 6. Verify full bit-perfect recovery
+    // 6. Verify full bit-perfect recovery & xattr cleanup
     let restoredText = (try? String(contentsOf: testFile, encoding: .utf8)) ?? ""
     #expect(restoredText == originalText)
+    #expect(vault2.hasVaultXattr(at: testFolder.path) == false)
 
     // Reset Keychain state
     vault2.resetMasterAuth(clearKeychain: true)

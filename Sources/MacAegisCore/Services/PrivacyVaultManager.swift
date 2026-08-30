@@ -2,6 +2,7 @@ import Foundation
 import LocalAuthentication
 import AppKit
 import CryptoKit
+import CommonCrypto
 
 public enum VaultItemType: String, Codable, Sendable {
     case hidden = "极速隐形"
@@ -55,6 +56,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
     public static let defaultKeychainService = "com.meowvia.MacAegis.vault"
     public static let defaultKeychainAccount = "master_auth"
+    public static let xattrVaultKey = "com.meowvia.macaegis.vault"
 
     private let metadataURL: URL
     private let authConfigURL: URL
@@ -62,6 +64,8 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     private let keychainAccount: String
     private let isTestIsolation: Bool
     private var items: [VaultItem] = []
+    private var activeDerivedKey: Data?
+    private var activeSaltHex: String = ""
     private let lock = NSLock()
 
     public init(
@@ -85,6 +89,37 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         self.metadataURL = appSupportURL.appendingPathComponent("vault_metadata.json")
         self.authConfigURL = appSupportURL.appendingPathComponent("vault_auth.json")
         loadMetadata()
+    }
+
+    // MARK: - Cryptographic Key Derivation (PBKDF2-HMAC-SHA256, 100,000 Iterations)
+    public static func generateRandomSalt(length: Int = 16) -> Data {
+        var salt = [UInt8](repeating: 0, count: length)
+        _ = SecRandomCopyBytes(kSecRandomDefault, length, &salt)
+        return Data(salt)
+    }
+
+    public static func deriveKeyPBKDF2(password: String, salt: Data, iterations: UInt32 = 100_000) -> Data? {
+        guard let passwordData = password.data(using: .utf8) else { return nil }
+        var derivedKey = [UInt8](repeating: 0, count: 32)
+        
+        let result = salt.withUnsafeBytes { saltBytes in
+            passwordData.withUnsafeBytes { passwordBytes in
+                CCKeyDerivationPBKDF(
+                    CCPBKDFAlgorithm(kCCPBKDF2),
+                    passwordBytes.baseAddress?.assumingMemoryBound(to: Int8.self),
+                    passwordData.count,
+                    saltBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                    salt.count,
+                    CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
+                    iterations,
+                    &derivedKey,
+                    derivedKey.count
+                )
+            }
+        }
+        
+        guard result == kCCSuccess else { return nil }
+        return Data(derivedKey)
     }
 
     // MARK: - Keychain-Backed Master Password Management
@@ -112,12 +147,20 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         defer { lock.unlock() }
 
         guard !password.isEmpty else { return false }
-        let salt = UUID().uuidString
-        let hash = hashPassword(password, salt: salt)
+        let saltData = Self.generateRandomSalt(length: 16)
+        let saltHex = saltData.map { String(format: "%02hhx", $0) }.joined()
+
+        guard let derivedKey = Self.deriveKeyPBKDF2(password: password, salt: saltData, iterations: 100_000) else {
+            return false
+        }
+        self.activeDerivedKey = derivedKey
+        self.activeSaltHex = saltHex
+
+        let keyHash = derivedKey.map { String(format: "%02hhx", $0) }.joined()
 
         let authData: [String: String] = [
-            "salt": salt,
-            "hash": hash,
+            "salt": saltHex,
+            "hash": keyHash,
             "hint": hint ?? ""
         ]
 
@@ -128,7 +171,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         // 1. Save to local Application Support
         try? data.write(to: authConfigURL, options: .atomic)
 
-        // 2. Save to macOS System Keychain
+        // 2. Save permanently to macOS System Keychain
         if !isTestIsolation {
             KeychainHelper.shared.save(service: keychainService, account: keychainAccount, data: data)
         }
@@ -150,13 +193,23 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         guard let data = authData,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: String],
-              let salt = json["salt"],
+              let saltHex = json["salt"],
               let expectedHash = json["hash"] else {
             return false
         }
 
-        let computedHash = hashPassword(password, salt: salt)
-        return computedHash == expectedHash
+        guard let saltData = Data(hexString: saltHex),
+              let derivedKey = Self.deriveKeyPBKDF2(password: password, salt: saltData, iterations: 100_000) else {
+            return false
+        }
+
+        let computedHash = derivedKey.map { String(format: "%02hhx", $0) }.joined()
+        if computedHash == expectedHash {
+            self.activeDerivedKey = derivedKey
+            self.activeSaltHex = saltHex
+            return true
+        }
+        return false
     }
 
     public func getPasswordHint() -> String? {
@@ -183,16 +236,12 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         try? FileManager.default.removeItem(at: authConfigURL)
         try? "[]".write(to: metadataURL, atomically: true, encoding: .utf8)
         self.items = []
+        self.activeDerivedKey = nil
+        self.activeSaltHex = ""
 
         if clearKeychain && !isTestIsolation {
             KeychainHelper.shared.delete(service: keychainService, account: keychainAccount)
         }
-    }
-
-    private func hashPassword(_ pass: String, salt: String) -> String {
-        let combined = "\(salt):\(pass):MacAegisVaultSecureSalt2026"
-        let digest = SHA256.hash(data: combined.data(using: .utf8) ?? Data())
-        return digest.map { String(format: "%02hhx", $0) }.joined()
     }
 
     // MARK: - Biometric / Touch ID Authentication
@@ -209,6 +258,56 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             }
         }
         return false
+    }
+
+    // MARK: - macOS Native Extended Attributes (xattr) Management
+    @discardableResult
+    private func setVaultXattr(at path: String, saltHex: String) -> Bool {
+        guard let data = saltHex.data(using: .utf8) else { return false }
+        return data.withUnsafeBytes { bytes in
+            let res = setxattr(path, Self.xattrVaultKey, bytes.baseAddress, data.count, 0, 0)
+            return res == 0
+        }
+    }
+
+    public func getVaultXattr(at path: String) -> String? {
+        var length = getxattr(path, Self.xattrVaultKey, nil, 0, 0, 0)
+        if length < 0 && (errno == EACCES || errno == EPERM) {
+            var statBuf = stat()
+            if lstat(path, &statBuf) == 0 {
+                let originalMode = statBuf.st_mode
+                _ = runProcess("/usr/bin/chflags", args: ["nouchg", path])
+                chmod(path, 0o700)
+                length = getxattr(path, Self.xattrVaultKey, nil, 0, 0, 0)
+                if length > 0 {
+                    var data = Data(count: length)
+                    _ = data.withUnsafeMutableBytes { bytes in
+                        getxattr(path, Self.xattrVaultKey, bytes.baseAddress, length, 0, 0)
+                    }
+                    chmod(path, originalMode)
+                    _ = runProcess("/usr/bin/chflags", args: ["uchg,hidden", path])
+                    return String(data: data, encoding: .utf8)
+                }
+                chmod(path, originalMode)
+                _ = runProcess("/usr/bin/chflags", args: ["uchg,hidden", path])
+            }
+        }
+        guard length > 0 else { return nil }
+        var data = Data(count: length)
+        let readLen = data.withUnsafeMutableBytes { bytes in
+            getxattr(path, Self.xattrVaultKey, bytes.baseAddress, length, 0, 0)
+        }
+        guard readLen > 0 else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    public func hasVaultXattr(at path: String) -> Bool {
+        return getVaultXattr(at: path) != nil
+    }
+
+    @discardableResult
+    private func removeVaultXattr(at path: String) -> Bool {
+        return removexattr(path, Self.xattrVaultKey, 0) == 0
     }
 
     // MARK: - Metadata Persistence (Standard Atomic Writes)
@@ -249,7 +348,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let isExternal = path.hasPrefix("/Volumes/") && !path.hasPrefix("/Volumes/Macintosh HD")
         let name = url.lastPathComponent
 
-        // Check if this item is already locked on disk (Re-claiming after metadata reset/reinstallation)
+        // Strict Check: Primary criterion is presence of MacAegis xattr signature
         let isAlreadyLocked = isItemLockedOnDisk(at: url)
 
         if !isAlreadyLocked {
@@ -275,13 +374,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let path = url.path
         guard FileManager.default.fileExists(atPath: path) else { return false }
 
-        // Check 1: Is file system marked hidden?
-        if let values = try? url.resourceValues(forKeys: [.isHiddenKey]), values.isHidden == true {
+        // Primary Criterion: Strict Apple Extended Attribute Signature
+        if hasVaultXattr(at: path) {
             return true
         }
 
-        // Check 2: Are POSIX permissions 000?
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+        // Secondary Fallback Verification: POSIX 000 permissions AND isHidden
+        if let values = try? url.resourceValues(forKeys: [.isHiddenKey]), values.isHidden == true,
+           let attrs = try? FileManager.default.attributesOfItem(atPath: path),
            let perms = attrs[.posixPermissions] as? NSNumber, perms.intValue == 0 {
             return true
         }
@@ -372,17 +472,21 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         }
     }
 
-    // MARK: - In-Place 4KB Cryptographic Header Obfuscation (Zero-Copy)
-    private static let headerXORMask: UInt8 = 0xA5
+    // MARK: - In-Place 4KB Dynamic PBKDF2 Key-Derived Header Stream Obfuscation
+    private static let fallbackHeaderMask: UInt8 = 0xA5
 
-    private func transformHeader(at fileURL: URL) {
+    private func transformHeader(at fileURL: URL, derivedKey: Data?) {
         guard let handle = try? FileHandle(forUpdating: fileURL) else { return }
         defer { try? handle.close() }
 
         guard let headerData = try? handle.read(upToCount: 4096), !headerData.isEmpty else { return }
         var bytes = [UInt8](headerData)
+        let keyBytes = derivedKey != nil && !derivedKey!.isEmpty ? [UInt8](derivedKey!) : [Self.fallbackHeaderMask]
+        let keyLen = keyBytes.count
+
         for i in 0..<bytes.count {
-            bytes[i] ^= (Self.headerXORMask ^ UInt8(i % 251))
+            let mask = keyBytes[i % keyLen]
+            bytes[i] ^= mask
         }
         let transformed = Data(bytes)
         try? handle.seek(toOffset: 0)
@@ -390,18 +494,19 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     }
 
     private func applyHeaderTransformation(at url: URL) {
+        let key = activeDerivedKey
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
             if isDir.boolValue {
                 if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
                     for case let fileURL as URL in enumerator {
                         if (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
-                            transformHeader(at: fileURL)
+                            transformHeader(at: fileURL, derivedKey: key)
                         }
                     }
                 }
             } else {
-                transformHeader(at: url)
+                transformHeader(at: url, derivedKey: key)
             }
         }
     }
@@ -412,10 +517,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return }
 
         if hidden {
-            // 1. In-place 4KB header transformation to break binary magic signatures
+            // 1. In-place 4KB header transformation using PBKDF2 derived stream
             applyHeaderTransformation(at: url)
 
-            // 2. Clear uchg if any, set POSIX 000 permissions, then set uchg + hidden
+            // 2. Mark native macOS Extended Attribute (xattr) BEFORE changing permissions
+            let salt = activeSaltHex.isEmpty ? "MacAegisLocked" : activeSaltHex
+            setVaultXattr(at: path, saltHex: salt)
+
+            // 3. Clear uchg if any, set POSIX 000 permissions, then set uchg + hidden
             _ = runProcess("/usr/bin/chflags", args: ["nouchg", path])
             let perms: NSNumber = 0o000
             try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
@@ -433,16 +542,19 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             let perms: NSNumber = isDir.boolValue ? 0o755 : 0o644
             try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
 
+            // 3. Remove native macOS Extended Attribute (xattr) AFTER restoring permissions
+            removeVaultXattr(at: path)
+
             var resourceValues = URLResourceValues()
             resourceValues.isHidden = false
             var mutableURL = url
             try? mutableURL.setResourceValues(resourceValues)
 
-            // 3. Reverse header transformation to restore exact original binary signature
+            // 4. Reverse header transformation to restore exact original binary signature
             applyHeaderTransformation(at: url)
         }
 
-        // 4. Force notify Finder to refresh caches
+        // 5. Force notify Finder to refresh caches
         NSWorkspace.shared.noteFileSystemChanged(path)
         let parentPath = url.deletingLastPathComponent().path
         NSWorkspace.shared.noteFileSystemChanged(parentPath)
@@ -467,5 +579,25 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         } catch {
             return false
         }
+    }
+}
+
+// MARK: - Data HexString Helper
+extension Data {
+    init?(hexString: String) {
+        let len = hexString.count / 2
+        var data = Data(capacity: len)
+        var index = hexString.startIndex
+        for _ in 0..<len {
+            let nextIndex = hexString.index(index, offsetBy: 2)
+            let bytes = hexString[index..<nextIndex]
+            if let num = UInt8(bytes, radix: 16) {
+                data.append(num)
+            } else {
+                return nil
+            }
+            index = nextIndex
+        }
+        self = data
     }
 }

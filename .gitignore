@@ -1,0 +1,22 @@
+# Xcode & SPM Build Artifacts
+.build/
+Packages/
+Package.resolved
+Package.pins
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# User / Local Data
+*.swp
+*~
+*.lock

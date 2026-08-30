@@ -1,44 +1,40 @@
 # MacAegis
 
-A lightweight, native macOS utility built for personal everyday use. Created to solve a few common Mac annoyances: **seeing your network routing/proxy status at a glance in the menu bar**, **instantly hiding private files before sharing your screen**, and **quickly cleaning up dev caches and leftover app files**.
+A simple Mac utility built for personal everyday use. It mainly does two things: showing your network proxy routing status at a glance in the menu bar, and quickly hiding private files before sharing your screen, with a lightweight cache cleaner and uninstaller built in.
 
-Built 100% natively in Swift. Weighs only 3.5MB, uses ~20MB of RAM, has zero background daemons, and is completely free with no paywalls.
-
----
-
-## 💡 What it does
-
-### 1. Menu Bar Network Speed & Proxy Status
-When running proxy tools, it's often confusing whether your current connection is going direct or through a proxy:
-* Shows real-time upload and download speeds right in the macOS menu bar.
-* Includes a simple status dot:
-  * 🔵 **Blue**: Direct connection (no proxy).
-  * 🟢 **Green**: Rule-based routing (smart split tunneling).
-  * 🔴 **Red**: Global proxy active.
-* Reads directly from macOS network states, independent of whichever proxy client you use.
-
-### 2. Instant File/Folder Concealment (No More Screen-Sharing Awkwardness)
-When sharing your screen in meetings or lending your laptop, sensitive contracts or personal photos in Finder can be accidentally visible:
-* Drag and drop any file or folder to hide it immediately from Finder.
-* Blocks QuickLook (spacebar preview) and standard app opening.
-* Operates in-place: even a 100GB video or project directory is hidden in milliseconds with zero file copying.
-* Unlock instantly with Touch ID or master password to reveal the file in Finder.
-* Reclaiming resilience: even if the app is uninstalled, reinstalling automatically recognizes your keychain and lets you recover your files safely.
-
-### 3. Quick Caches & Leftover Uninstaller
-* Easily cleans Xcode build caches (`DerivedData`), developer artifacts, logs, and browser caches.
-* Drag and drop any `.app` to discover and remove scattered leftover configs in `~/Library`.
-* Unlike bulky cleaners, it uses virtually zero idle CPU and stays out of your way.
+I originally wrote it for my own workflow. After polishing it for a bit, I decided to open-source it to see if anyone else finds it useful.
 
 ---
 
-## 🛠️ Requirements & Build
+## What it does
 
-* **macOS**: 14.0 (Sonoma) or later
-* **Hardware**: Apple Silicon (M1/M2/M3/M4) & Intel Macs
+### 1. Menu Bar Proxy Routing Status
+When running proxy utilities, it's often hard to tell whether your connection is currently going direct or through a proxy. MacAegis displays real-time transfer speeds in the menu bar along with a status dot:
+* Blue: Direct connection (no proxy).
+* Green: Rule routing (smart split tunneling).
+* Red: Global proxy active.
+
+It reads network states directly from the macOS system layer, independent of whichever proxy client you use.
+
+### 2. Fast File and Folder Concealment
+When sharing your screen in meetings or lending your laptop, sensitive files in Finder can be accidentally seen:
+* Drag and drop files or folders to hide them immediately from Finder. Spacebar QuickLook is also disabled.
+* Operates in-place: large directories and video files hide instantly without waiting for file copying.
+* Unlock quickly using Touch ID or your master password to reveal the file in Finder.
+* Credentials are tied to macOS Keychain, so if you ever delete and reinstall the app, your locked items can be safely recognized and recovered.
+
+### 3. Quick Cleaner & Uninstaller
+* Easily cleans Xcode build caches (DerivedData), developer temporary files, logs, and browser caches.
+* Drag and drop any `.app` to find and delete leftover configs across Library directories.
+
+---
+
+## Technical Notes & Build
+
+* Built natively in Swift 6 / SwiftUI. Single binary size is ~3.5MB, memory footprint is ~20MB, and there are no background daemons.
+* Requires macOS 14.0 (Sonoma) or later. Works on Apple Silicon and Intel Macs.
 
 ```bash
-# Build and run locally
 git clone https://github.com/meowvia/MacAegis.git
 cd MacAegis
 swift build -c release
@@ -47,6 +43,4 @@ swift build -c release
 
 ---
 
-## ☕ Note & Feedback
-
-This is an indie side project made for personal daily workflow. If you spot a bug or have an idea, feel free to open a discussion on [GitHub Issues](https://github.com/meowvia/MacAegis/issues)!
+MIT License · If you run into issues or have ideas, feel free to open an issue.

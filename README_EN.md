@@ -2,7 +2,7 @@
 
 A simple Mac utility built for personal everyday use. It mainly does two things: showing your network proxy routing status at a glance in the menu bar, and quickly hiding private files before sharing your screen, with a lightweight cache cleaner and uninstaller built in.
 
-I originally wrote it for my own workflow. After polishing it for a bit, I decided to open-source it to see if anyone else finds it useful.
+I originally wrote it for my own workflow. After polishing it for a bit, I decided to share it to see if anyone else finds it useful.
 
 ---
 
@@ -29,18 +29,12 @@ When sharing your screen in meetings or lending your laptop, sensitive files in 
 
 ---
 
-## Technical Notes & Build
+## System Requirements & Download
 
-* Built natively in Swift 6 / SwiftUI. Single binary size is ~3.5MB, memory footprint is ~20MB, and there are no background daemons.
+* Built natively in Swift. App size is ~3.5MB, memory footprint is ~20MB, and there are no background daemons.
 * Requires macOS 14.0 (Sonoma) or later. Works on Apple Silicon and Intel Macs.
-
-```bash
-git clone https://github.com/meowvia/MacAegis.git
-cd MacAegis
-swift build -c release
-.build/arm64-apple-macosx/release/MacAegisApp
-```
+* Download the latest build from the Releases page and move it to your Applications folder.
 
 ---
 
-MIT License · If you run into issues or have ideas, feel free to open an issue.
+If you run into issues or have ideas, feel free to open an issue.

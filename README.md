@@ -2,7 +2,7 @@
 
 自己用的 Mac 工具，主要解决两件事：在菜单栏看清楚网络代理状态、投屏时快速藏文件，顺便带了个轻量的开发缓存清理和卸载功能。
 
-原本是写给自己日常用的，断断续续花了一点时间打磨，现在开源出来，看看有没有人也正好用得上。
+原本是写给自己日常用的，断断续续花了一点时间打磨，现在打包分享出来，看看有没有人也正好用得上。
 
 ---
 
@@ -29,18 +29,12 @@
 
 ---
 
-## 技术说明与编译
+## 系统要求与使用
 
-* 纯 Swift 6 / SwiftUI 原生开发，单二进制体积约 3.5MB，运行内存约 20MB，无后台常驻进程。
+* 纯 Swift 原生开发，单文件约 3.5MB，运行内存约 20MB，无后台常驻进程。
 * 支持 macOS 14.0 (Sonoma) 及以上系统，适配 Apple Silicon 与 Intel 芯片。
-
-```bash
-git clone https://github.com/meowvia/MacAegis.git
-cd MacAegis
-swift build -c release
-.build/arm64-apple-macosx/release/MacAegisApp
-```
+* 前往 Releases 页面下载最新版本，解压后直接拖入“应用程序”即可使用。
 
 ---
 
-MIT License · 发现问题或有建议欢迎提 Issue 交流。
+发现问题或有建议欢迎提 Issue 交流。

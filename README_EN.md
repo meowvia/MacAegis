@@ -4,39 +4,37 @@
   <a href="README.md">简体中文</a> | <b>English</b>
 </p>
 
-A simple Mac utility built for personal everyday use. It mainly does two things: showing your network proxy routing status at a glance in the menu bar, and quickly hiding private files before sharing your screen, with a lightweight cache cleaner and uninstaller built in.
-
-I originally wrote it for my own workflow. After polishing it for a bit, I decided to share it to see if anyone else finds it useful.
+Mainly solves two things: checking network proxy routing status at a glance in the menu bar, and quickly hiding private files, with a lightweight developer cache cleaner and uninstaller built in.
 
 ---
 
 ## What it does
 
 ### 1. Menu Bar Proxy Routing Status
-When running proxy utilities, it's often hard to tell whether your connection is currently going direct or through a proxy. MacAegis displays real-time transfer speeds in the menu bar along with a status dot:
-* Blue: Direct connection (no proxy).
-* Green: Rule routing (smart split tunneling).
-* Red: Global proxy active.
+When using proxy utilities, it's often unclear whether your traffic is currently direct or routed through a proxy. MacAegis displays real-time upload/download speeds in the menu bar:
+* Blue: Direct connection
+* Green: Rule-based routing
+* Red: Global proxy
 
-It reads network states directly from the macOS system layer, independent of whichever proxy client you use.
+Reads routing states directly from the macOS system layer, independent of which proxy client you use.
 
-### 2. Fast File and Folder Concealment
-When sharing your screen in meetings or lending your laptop, sensitive files in Finder can be accidentally seen:
-* Drag and drop files or folders to hide them immediately from Finder. Spacebar QuickLook is also disabled.
-* Operates in-place: large directories and video files hide instantly without waiting for file copying.
-* Unlock quickly using Touch ID or your master password to reveal the file in Finder.
-* Credentials are tied to macOS Keychain, so if you ever delete and reinstall the app, your locked items can be safely recognized and recovered.
+### 2. Fast File & Folder Concealment
+Avoid having sensitive desktop or Finder files peeked during screen sharing, external displays, or when lending your laptop:
+* Drag and drop files or folders to hide them instantly—hidden from Finder and disabled from Spacebar QuickLook.
+* Operates in-place: whether dozens of megabytes or 100GB+ folders, items are hidden instantaneously without copying files.
+* Supports Touch ID + custom password to create local accounts, and Touch ID + password for quick unlocking and automatic Finder reveal.
+* Credentials are saved in system Keychain: if the App is accidentally deleted, reinstalling it safely reclaims your existing files to prevent loss.
 
 ### 3. Quick Cleaner & Uninstaller
-* Easily cleans Xcode build caches (DerivedData), developer temporary files, logs, and browser caches.
-* Drag and drop any `.app` to find and delete leftover configs across Library directories.
+* Easily clean Xcode build caches (DerivedData), developer temporary files, system logs, and browser caches.
+* Drag and drop any App to find and remove scattered config leftovers across Library folders.
 
 ---
 
 ## Requirements & Installation
 
-* Built natively in Swift. App size is ~3.5MB, memory footprint is ~20MB, and there are no background daemons.
-* Requires macOS 14.0 (Sonoma) or later. Primarily built and optimized for Apple Silicon (M-series chips); not tested on Intel models.
+* Built purely in native Swift, extremely lightweight, and friendly to older machines.
+* Requires macOS 14.0 (Sonoma) or later. Primarily built for Apple Silicon (M-series chips); not tested on Intel models.
 * Download the latest build from Releases and move it to your Applications folder.
 
 > **Note**: As an unsigned indie binary, if macOS shows a "damaged" or "unidentified developer" prompt on first launch, run this single line in Terminal to clear the quarantine attribute:

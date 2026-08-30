@@ -15,6 +15,9 @@ public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var passwordHint: String?
     @Published public var toastMessage: String?
     @Published public var searchText: String = ""
+    @Published public var isPasswordError: Bool = false
+    @Published public var passwordErrorMessage: String?
+    @Published public var shakeAttempts: Int = 0
 
     private let vaultManager = PrivacyVaultManager.shared
 
@@ -53,22 +56,41 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.isSettingUpMasterPassword = false
             self.isUnlocked = true
             self.passwordInput = ""
-            self.showToast(l10n("已设定金库密码并解锁", "Master password configured & unlocked"))
+            self.showToast(l10n("已设定主密码并解锁", "Master password configured & unlocked"))
         } else {
             self.showToast(l10n("密码设置失败，请重试", "Failed to setup password. Try again."))
         }
     }
 
     public func unlockWithPassword() {
-        guard !passwordInput.isEmpty else { return }
-        if vaultManager.verifyMasterPassword(passwordInput) {
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
-                self.isUnlocked = true
-                self.passwordInput = ""
-                self.reloadItems()
+        let trimmed = passwordInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || !vaultManager.verifyMasterPassword(trimmed) {
+            triggerPasswordError()
+            return
+        }
+
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
+            self.isUnlocked = true
+            self.passwordInput = ""
+            self.isPasswordError = false
+            self.passwordErrorMessage = nil
+            self.reloadItems()
+        }
+    }
+
+    public func triggerPasswordError() {
+        NSSound.beep()
+        self.passwordInput = ""
+        self.passwordErrorMessage = l10n("请输入正确密码", "Enter correct password")
+        self.isPasswordError = true
+        self.shakeAttempts += 1
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self = self else { return }
+            withAnimation(.easeOut(duration: 0.15)) {
+                self.isPasswordError = false
+                self.passwordErrorMessage = nil
             }
-        } else {
-            showToast(l10n("密码错误，请重新输入", "Incorrect password. Try again."))
         }
     }
 

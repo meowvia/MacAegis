@@ -20,11 +20,23 @@ private final class DroppedURLBox: @unchecked Sendable {
     }
 }
 
+public struct VaultShakeEffect: GeometryEffect {
+    public var amount: CGFloat = 7
+    public var shakesPerUnit: CGFloat = 4
+    public var animatableData: CGFloat
+
+    public func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX:
+            amount * sin(animatableData * .pi * shakesPerUnit),
+            y: 0
+        ))
+    }
+}
+
 public struct PrivacyVaultView: View {
     @StateObject private var viewModel = PrivacyVaultViewModel()
     var onBack: (() -> Void)? = nil
     @State private var isTargeted: Bool = false
-    @State private var bubbleAnimationPhase: CGFloat = 0
 
     // Password Setup States
     @State private var newPasswordInput: String = ""
@@ -68,11 +80,6 @@ public struct PrivacyVaultView: View {
 
                     Spacer()
                 }
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
-                bubbleAnimationPhase = 1.0
             }
         }
     }
@@ -579,7 +586,7 @@ public struct PrivacyVaultView: View {
         }
     }
 
-    // MARK: - 3D Luminous Vault Sphere (呼应首页大气泡灵魂)
+    // MARK: - 3D Luminous Vault Sphere (GPU Hardware Composited · Zero CPU Overhead)
     private var luminousVaultSphereHero: some View {
         ZStack {
             // Layer 1: Ambient Outer Aura Glow
@@ -587,76 +594,57 @@ public struct PrivacyVaultView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color(hex: "C084FC").opacity(0.35),
-                            Color(hex: "38BDF8").opacity(0.20),
-                            Color(hex: "6366F1").opacity(0.12),
+                            Color(hex: "38BDF8").opacity(0.25),
+                            Color(hex: "818CF8").opacity(0.18),
                             Color.clear
                         ],
-                        center: .topLeading,
-                        startRadius: 30,
-                        endRadius: 130
+                        center: .center,
+                        startRadius: 20,
+                        endRadius: 100
                     )
                 )
-                .frame(width: 220, height: 220)
-                .blur(radius: 16)
+                .frame(width: 190, height: 190)
+                .blur(radius: 14)
 
-            // Layer 2: Orbiting Sparkle Particles
-            ForEach(0..<8) { i in
-                let angle = Double(i) * (Double.pi * 2 / 8) + Double(bubbleAnimationPhase * 0.4)
-                let radius: CGFloat = 100 + CGFloat(sin(Double(i) + Double(bubbleAnimationPhase * 2))) * 5
-                Circle()
-                    .fill(i % 2 == 0 ? Color.white : Color(hex: "38BDF8"))
-                    .frame(width: i % 2 == 0 ? 3 : 2, height: i % 2 == 0 ? 3 : 2)
-                    .position(
-                        x: 110 + radius * CGFloat(cos(angle)),
-                        y: 110 + radius * CGFloat(sin(angle))
-                    )
-                    .blur(radius: 0.3)
-                    .opacity(0.7 + 0.3 * sin(Double(i) + Double(bubbleAnimationPhase * 3)))
-            }
-            .frame(width: 220, height: 220)
-
-            // Layer 3: Glass Sphere Core Body
+            // Layer 2: Glass Sphere Core Body
             Circle()
                 .fill(.ultraThinMaterial)
-                .frame(width: 180, height: 180)
+                .frame(width: 150, height: 150)
+                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
 
-            // Layer 4: 3D Iridescent Optical Glass Rim Border
+            // Layer 3: 3D Iridescent Rim Border
             Circle()
                 .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [
-                            Color.white,
-                            Color(hex: "F472B6"),
-                            Color(hex: "C084FC"),
-                            Color(hex: "818CF8"),
-                            Color(hex: "38BDF8"),
-                            Color.white
-                        ]),
-                        center: .center,
-                        angle: .degrees(bubbleAnimationPhase * 360)
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.85),
+                            Color(hex: "38BDF8").opacity(0.60),
+                            Color(hex: "818CF8").opacity(0.40),
+                            Color.white.opacity(0.20)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     ),
-                    lineWidth: 2.2
+                    lineWidth: 1.8
                 )
-                .frame(width: 180, height: 180)
-                .shadow(color: Color(hex: "38BDF8").opacity(0.6), radius: 10, x: 0, y: 0)
+                .frame(width: 150, height: 150)
 
-            // Layer 5: Top-Left Specular Shine
+            // Layer 4: Top-Left Specular Shine
             Ellipse()
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.90), Color.white.opacity(0.15), Color.clear],
+                        colors: [Color.white.opacity(0.80), Color.white.opacity(0.10), Color.clear],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 50, height: 20)
+                .frame(width: 44, height: 18)
                 .rotationEffect(.degrees(-35))
-                .offset(x: -45, y: -45)
+                .offset(x: -36, y: -36)
 
-            // Center Holographic Lock Shield Icon Only (极简纯净发光盾牌)
+            // Center Holographic Lock Shield Icon
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 46))
+                .font(.system(size: 42))
                 .foregroundStyle(
                     LinearGradient(
                         colors: [Color.white, Color(hex: "38BDF8"), Color(hex: "818CF8")],
@@ -664,9 +652,9 @@ public struct PrivacyVaultView: View {
                         endPoint: .bottom
                     )
                 )
-                .shadow(color: Color(hex: "38BDF8").opacity(0.65), radius: 12, x: 0, y: 2)
+                .shadow(color: Color(hex: "38BDF8").opacity(0.55), radius: 10, x: 0, y: 2)
         }
-        .frame(width: 220, height: 220)
+        .frame(width: 190, height: 190)
     }
 
     // MARK: - First Time Setup Content
@@ -768,11 +756,33 @@ public struct PrivacyVaultView: View {
             // Glass Unlock Card
             VStack(spacing: 12) {
                 HStack(spacing: 8) {
-                    SecureField(l10n("输入密码", "Enter password"), text: $viewModel.passwordInput)
-                        .textFieldStyle(.plain)
-                        .padding(10)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
-                        .frame(width: 200)
+                    ZStack(alignment: .leading) {
+                        if let errorMsg = viewModel.passwordErrorMessage {
+                            Text(errorMsg)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(Color(hex: "EF4444"))
+                                .padding(.horizontal, 10)
+                                .transition(.opacity)
+                        } else {
+                            SecureField(l10n("输入密码", "Enter password"), text: $viewModel.passwordInput)
+                                .textFieldStyle(.plain)
+                                .padding(10)
+                                .onSubmit {
+                                    viewModel.unlockWithPassword()
+                                }
+                        }
+                    }
+                    .frame(width: 200, height: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(viewModel.isPasswordError ? Color(hex: "EF4444").opacity(0.12) : Color.secondary.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(viewModel.isPasswordError ? Color(hex: "EF4444") : Color.clear, lineWidth: 1.5)
+                    )
+                    .modifier(VaultShakeEffect(animatableData: CGFloat(viewModel.shakeAttempts)))
+                    .animation(.default, value: viewModel.shakeAttempts)
 
                     Button(action: { viewModel.unlockWithPassword() }) {
                         Text(l10n("解锁", "Unlock"))
@@ -790,7 +800,7 @@ public struct PrivacyVaultView: View {
                                         )
                                     )
                                     .shadow(color: Color.blue.opacity(0.35), radius: 6, x: 0, y: 2)
-                                    )
+                            )
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)

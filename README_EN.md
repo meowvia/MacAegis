@@ -1,5 +1,9 @@
 # MacAegis
 
+<p align="left">
+  <a href="README.md">简体中文</a> | <b>English</b>
+</p>
+
 A simple Mac utility built for personal everyday use. It mainly does two things: showing your network proxy routing status at a glance in the menu bar, and quickly hiding private files before sharing your screen, with a lightweight cache cleaner and uninstaller built in.
 
 I originally wrote it for my own workflow. After polishing it for a bit, I decided to share it to see if anyone else finds it useful.

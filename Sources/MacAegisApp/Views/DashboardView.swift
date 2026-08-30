@@ -12,7 +12,6 @@ public struct DashboardView: View {
     @State private var activeCategoryFilter: [CleanCategory]? = nil
     @State private var activeDetailTitle: String = "全盘智能扫描明细"
     @State private var expandedCategories: Set<CleanCategory> = Set(CleanCategory.allCases)
-    @State private var bubbleAnimationPhase: CGFloat = 0
 
     public init(
         viewModel: DashboardViewModel,
@@ -57,11 +56,6 @@ public struct DashboardView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
-                bubbleAnimationPhase = 1.0
-            }
         }
     }
 
@@ -171,7 +165,7 @@ public struct DashboardView: View {
                         iconBgGradient: [Color(hex: "94A3B8"), Color(hex: "64748B")],
                         title: l10n("系统缓存与日志", "System Caches & Logs"),
                         sizeString: ByteFormatter.format(systemSize),
-                        yOffset: -6 * bubbleAnimationPhase
+                        yOffset: 0
                     ) {
                         activeCategoryFilter = [.appCaches, .systemCaches, .systemLogs]
                         activeDetailTitle = l10n("系统缓存与日志明细", "System Caches & Logs Details")
@@ -189,7 +183,7 @@ public struct DashboardView: View {
                         iconBgGradient: [Color(hex: "A78BFA"), Color(hex: "7C3AED")],
                         title: l10n("大文件与安装包", "Large Files & Packages"),
                         sizeString: ByteFormatter.format(downloadsSize),
-                        yOffset: 6 * bubbleAnimationPhase
+                        yOffset: 0
                     ) {
                         activeCategoryFilter = [.downloadsAndPackages, .developerCaches]
                         activeDetailTitle = l10n("大文件与安装包明细", "Large Files & Packages Details")
@@ -215,7 +209,7 @@ public struct DashboardView: View {
                         iconBgGradient: [Color(hex: "FBBF24"), Color(hex: "D97706")],
                         title: l10n("隐私痕迹与通讯", "Privacy & Messaging"),
                         sizeString: ByteFormatter.format(privacySize),
-                        yOffset: 6 * bubbleAnimationPhase
+                        yOffset: 0
                     ) {
                         activeCategoryFilter = [.messagingMedia, .browserCaches]
                         activeDetailTitle = l10n("隐私痕迹与通讯数据明细", "Privacy & Messaging Traces Details")
@@ -232,7 +226,7 @@ public struct DashboardView: View {
                         iconBgGradient: [Color(hex: "34D399"), Color(hex: "059669")],
                         title: l10n("已卸载残留文件", "Uninstalled App Leftovers"),
                         sizeString: ByteFormatter.format(leftoversSize),
-                        yOffset: -6 * bubbleAnimationPhase
+                        yOffset: 0
                     ) {
                         activeCategoryFilter = [.orphanLeftovers]
                         activeDetailTitle = l10n("已卸载应用残留明细", "Uninstalled App Leftovers Details")
@@ -302,19 +296,18 @@ public struct DashboardView: View {
                     .frame(width: 270, height: 270)
                     .blur(radius: 20)
 
-                // Layer 2: Orbiting Glowing Sparkle Particles (Stardust)
-                ForEach(0..<12) { i in
-                    let angle = Double(i) * (Double.pi * 2 / 12) + Double(bubbleAnimationPhase * 0.4)
-                    let radius: CGFloat = 135 + CGFloat(sin(Double(i) + Double(bubbleAnimationPhase * 2))) * 6
+                // Layer 2: Ambient Glowing Sparkle Accents
+                ForEach(0..<8) { i in
+                    let angle = Double(i) * (Double.pi * 2 / 8)
+                    let radius: CGFloat = 135
                     Circle()
-                        .fill(i % 2 == 0 ? Color.white : Color(hex: "38BDF8"))
-                        .frame(width: i % 3 == 0 ? 4 : (i % 2 == 0 ? 3 : 2), height: i % 3 == 0 ? 4 : (i % 2 == 0 ? 3 : 2))
+                        .fill(i % 2 == 0 ? Color.white.opacity(0.8) : Color(hex: "38BDF8").opacity(0.7))
+                        .frame(width: i % 3 == 0 ? 3.5 : 2.5, height: i % 3 == 0 ? 3.5 : 2.5)
                         .position(
                             x: 135 + radius * CGFloat(cos(angle)),
                             y: 135 + radius * CGFloat(sin(angle))
                         )
                         .blur(radius: 0.3)
-                        .opacity(0.75 + 0.25 * sin(Double(i) + Double(bubbleAnimationPhase * 3)))
                 }
                 .frame(width: 270, height: 270)
 
@@ -341,35 +334,32 @@ public struct DashboardView: View {
                         )
                         .frame(width: 230, height: 230)
 
-                    // Internal Liquid Wave Membrane (底部的柔和液体波浪)
+                    // Internal Liquid Wave Membrane
                     liquidWaveMembrane
                         .frame(width: 210, height: 80)
                         .offset(y: 55)
                         .clipShape(Circle().size(width: 230, height: 230).offset(x: -10, y: -95))
                 }
 
-                // Layer 4: 3D Iridescent Optical Glass Rim Border (彩虹高光边缘)
+                // Layer 4: 3D Iridescent Optical Glass Rim Border
                 Circle()
                     .stroke(
-                        AngularGradient(
-                            gradient: Gradient(colors: [
+                        LinearGradient(
+                            colors: [
                                 Color.white,
                                 Color(hex: "F472B6"),
                                 Color(hex: "C084FC"),
                                 Color(hex: "818CF8"),
                                 Color(hex: "38BDF8"),
-                                Color.white,
-                                Color(hex: "38BDF8"),
-                                Color(hex: "C084FC"),
                                 Color.white
-                            ]),
-                            center: .center,
-                            angle: .degrees(bubbleAnimationPhase * 360)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         ),
-                        lineWidth: 2.8
+                        lineWidth: 2.4
                     )
                     .frame(width: 230, height: 230)
-                    .shadow(color: Color(hex: "38BDF8").opacity(0.75), radius: 14, x: 0, y: 0)
+                    .shadow(color: Color(hex: "38BDF8").opacity(0.60), radius: 12, x: 0, y: 0)
 
                 // Layer 5: Top-Left Crescent Specular Shine (光斑高光)
                 Ellipse()
@@ -455,8 +445,8 @@ public struct DashboardView: View {
                 path.move(to: CGPoint(x: 0, y: height * 0.4))
                 path.addCurve(
                     to: CGPoint(x: width, y: height * 0.4),
-                    control1: CGPoint(x: width * 0.35, y: height * (0.1 + 0.3 * bubbleAnimationPhase)),
-                    control2: CGPoint(x: width * 0.65, y: height * (0.7 - 0.3 * bubbleAnimationPhase))
+                    control1: CGPoint(x: width * 0.35, y: height * 0.25),
+                    control2: CGPoint(x: width * 0.65, y: height * 0.55)
                 )
                 path.addLine(to: CGPoint(x: width, y: height))
                 path.addLine(to: CGPoint(x: 0, y: height))

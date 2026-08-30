@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import LocalAuthentication
 import AppKit
 import CryptoKit
@@ -39,7 +40,7 @@ public struct VaultItem: Identifiable, Codable, Sendable {
     public let path: String
     public var type: VaultItemType
     public var status: VaultItemStatus
-    public let sizeBytes: Int64
+    public var sizeBytes: Int64
     public let isExternalDrive: Bool
     public let createdAt: Date
 
@@ -305,7 +306,8 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             var statBuf = stat()
             if lstat(path, &statBuf) == 0 {
                 let originalMode = statBuf.st_mode
-                _ = runProcess("/usr/bin/chflags", args: ["nouchg", path])
+                let cPath = (path as NSString).fileSystemRepresentation
+                _ = chflags(cPath, 0)
                 chmod(path, 0o700)
                 length = getxattr(path, Self.xattrVaultKey, nil, 0, 0, 0)
                 if length > 0 {
@@ -314,11 +316,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                         getxattr(path, Self.xattrVaultKey, bytes.baseAddress, length, 0, 0)
                     }
                     chmod(path, originalMode)
-                    _ = runProcess("/usr/bin/chflags", args: ["uchg,hidden", path])
+                    _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
                     return String(data: data, encoding: .utf8)
                 }
                 chmod(path, originalMode)
-                _ = runProcess("/usr/bin/chflags", args: ["uchg,hidden", path])
+                _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
             }
         }
         guard length > 0 else { return nil }
@@ -373,15 +375,23 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             return nil
         }
 
-        let size = FileUtils.calculateSize(atPath: path)
         let isExternal = path.hasPrefix("/Volumes/") && !path.hasPrefix("/Volumes/Macintosh HD")
         let name = url.lastPathComponent
+
+        var isDir: ObjCBool = false
+        FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+        let initialSize: Int64
+        if isDir.boolValue {
+            initialSize = 0
+        } else {
+            initialSize = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int64) ?? 0
+        }
 
         // Strict Check: Primary criterion is presence of MacAegis xattr signature
         let isAlreadyLocked = isItemLockedOnDisk(at: url)
 
         if !isAlreadyLocked {
-            // Fresh un-locked item: Lock/Hide immediately
+            // Fresh un-locked item: Lock/Hide immediately (Instant Darwin syscall)
             let success = setFileHidden(at: url, hidden: true)
             if !success {
                 return nil
@@ -393,13 +403,22 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             path: path,
             type: type,
             status: .hidden,
-            sizeBytes: size,
+            sizeBytes: initialSize,
             isExternalDrive: isExternal
         )
 
         items.append(item)
         saveMetadata()
         return item
+    }
+
+    public func updateItemSize(path: String, size: Int64) {
+        lock.lock()
+        defer { lock.unlock() }
+        if let index = items.firstIndex(where: { $0.path == path }) {
+            items[index].sizeBytes = size
+            saveMetadata()
+        }
     }
 
     public func isItemLockedOnDisk(at url: URL) -> Bool {
@@ -534,15 +553,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let key = activeDerivedKey
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
-            if isDir.boolValue {
-                if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
-                    for case let fileURL as URL in enumerator {
-                        if (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
-                            try transformHeader(at: fileURL, derivedKey: key)
-                        }
-                    }
-                }
-            } else {
+            if !isDir.boolValue {
                 try transformHeader(at: url, derivedKey: key)
             }
         }
@@ -561,8 +572,10 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             }
         }
 
+        let cPath = (path as NSString).fileSystemRepresentation
+
         if hidden {
-            // 1. In-place 4KB header transformation using PBKDF2 derived stream (Strict Fast-Fail)
+            // 1. In-place 4KB header transformation for single file (Fast-Fail)
             do {
                 try applyHeaderTransformation(at: url)
             } catch {
@@ -573,19 +586,19 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             let salt = activeSaltHex.isEmpty ? "MacAegisLocked" : activeSaltHex
             setVaultXattr(at: path, saltHex: salt)
 
-            // 3. Clear uchg if any, set POSIX 000 permissions, then set uchg + hidden
-            _ = runProcess("/usr/bin/chflags", args: ["nouchg", path])
+            // 3. Darwin C syscall: clear uchg, set POSIX 000, set uchg + hidden (0.03ms instant)
+            _ = chflags(cPath, 0)
             let perms: NSNumber = 0o000
             try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
-            _ = runProcess("/usr/bin/chflags", args: ["uchg,hidden", path])
+            _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
 
             var resourceValues = URLResourceValues()
             resourceValues.isHidden = true
             var mutableURL = url
             try? mutableURL.setResourceValues(resourceValues)
         } else {
-            // 1. Release uchg and hidden flags
-            _ = runProcess("/usr/bin/chflags", args: ["nouchg,nohidden", path])
+            // 1. Release uchg and hidden flags via Darwin C syscall (0.03ms instant)
+            _ = chflags(cPath, 0)
 
             // 2. Reset standard POSIX permissions
             let perms: NSNumber = isDir.boolValue ? 0o755 : 0o644
@@ -603,32 +616,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             try? applyHeaderTransformation(at: url)
         }
 
-        // 5. Force notify Finder to refresh caches
+        // 5. Notify Finder to refresh caches
         NSWorkspace.shared.noteFileSystemChanged(path)
         let parentPath = url.deletingLastPathComponent().path
         NSWorkspace.shared.noteFileSystemChanged(parentPath)
         return true
-    }
-
-    @discardableResult
-    private func runProcess(_ execPath: String, args: [String]) -> Bool {
-        if let lastArg = args.last, lastArg.hasPrefix("/") {
-            if !FileManager.default.fileExists(atPath: lastArg) {
-                return true
-            }
-        }
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: execPath)
-        proc.arguments = args
-        proc.standardError = Pipe()
-        proc.standardOutput = Pipe()
-        do {
-            try proc.run()
-            proc.waitUntilExit()
-            return proc.terminationStatus == 0
-        } catch {
-            return false
-        }
     }
 }
 

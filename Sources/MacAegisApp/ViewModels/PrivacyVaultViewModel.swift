@@ -125,42 +125,83 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func unlockAndOpenInFinder(item: VaultItem) {
-        vaultManager.unlockItem(item: item)
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-            reloadItems()
-            showToast(l10n("已解除隐匿并在访达中定位「\(item.name)」", "Revealed '\(item.name)' in Finder"))
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            self.vaultManager.unlockItem(item: item)
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.showToast(l10n("已解除隐匿并在访达中定位「\(item.name)」", "Revealed '\(item.name)' in Finder"))
+                }
+            }
         }
     }
 
     public func lockItem(item: VaultItem) {
-        vaultManager.lockItem(item: item)
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-            reloadItems()
-            showToast(l10n("已将「\(item.name)」在访达中安全隐匿 🔒", "Safely hidden '\(item.name)' in Finder 🔒"))
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            self.vaultManager.lockItem(item: item)
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.showToast(l10n("已将「\(item.name)」在访达中安全隐匿 🔒", "Safely hidden '\(item.name)' in Finder 🔒"))
+                }
+            }
         }
     }
 
     public func openAndHighlightInFinder(item: VaultItem) {
-        vaultManager.openAndHighlightInFinder(path: item.path)
-        reloadItems()
-        showToast(l10n("已在访达中打开「\(item.name)」", "Opened '\(item.name)' in Finder"))
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            self.vaultManager.openAndHighlightInFinder(path: item.path)
+            DispatchQueue.main.async {
+                self.reloadItems()
+                self.showToast(l10n("已在访达中打开「\(item.name)」", "Opened '\(item.name)' in Finder"))
+            }
+        }
     }
 
     public func addFiles(urls: [URL], type: VaultItemType) {
-        for url in urls {
-            _ = vaultManager.addItem(url: url, type: type)
-        }
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-            reloadItems()
-            showToast(l10n("已将 \(urls.count) 个项目加密上锁入库", "Encrypted & locked \(urls.count) items into Vault"))
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            var addedCount = 0
+            for url in urls {
+                if let _ = self.vaultManager.addItem(url: url, type: type) {
+                    addedCount += 1
+                }
+            }
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    if addedCount > 0 {
+                        self.showToast(l10n("已将 \(addedCount) 个项目加密上锁入库", "Encrypted & locked \(addedCount) items into Vault"))
+                    }
+                }
+            }
+            // Background async calculation of folder size if any
+            for url in urls {
+                var isDir: ObjCBool = false
+                if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+                    let dirSize = FileUtils.calculateSize(atPath: url.path)
+                    self.vaultManager.updateItemSize(path: url.path, size: dirSize)
+                    DispatchQueue.main.async {
+                        self.reloadItems()
+                    }
+                }
+            }
         }
     }
 
     public func removeProtection(item: VaultItem) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-            vaultManager.removeItem(id: item.id)
-            reloadItems()
-            showToast(l10n("已解除「\(item.name)」保护（文件原件完好保留）", "Protection removed for '\(item.name)' (file intact)"))
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            self.vaultManager.removeItem(id: item.id)
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.showToast(l10n("已解除「\(item.name)」保护（文件原件完好保留）", "Protection removed for '\(item.name)' (file intact)"))
+                }
+            }
         }
     }
 

@@ -26,10 +26,7 @@ public final class StatusBarController: NSObject {
         popover.contentViewController = NSHostingController(
             rootView: MenuBarCardView(viewModel: dashboardVM) {
                 self.hidePopover()
-                NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
-                    window.makeKeyAndOrderFront(nil)
-                }
+                AppDelegate.showMainWindow()
             }
         )
         self.popover = popover

@@ -146,7 +146,7 @@ public struct PrivacyVaultView: View {
                             .font(.system(size: 13))
                             .foregroundColor(Color(hex: "10B981"))
                     }
-                    Text(l10n("深度私密隐匿保护，彻底隐藏私人敏感文件与文件夹。", "Deep privacy stealth protection, completely hiding sensitive folders & files."))
+                    Text(l10n("拖入文件或文件夹即可在访达中隐藏并禁止预览。", "Drag files or folders to hide them from Finder."))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
@@ -156,7 +156,7 @@ public struct PrivacyVaultView: View {
                     Circle()
                         .fill(Color(hex: "10B981"))
                         .frame(width: 6, height: 6)
-                    Text(l10n("\(viewModel.items.count) 个受保护项目", "\(viewModel.items.count) Protected Items"))
+                    Text(l10n("\(viewModel.items.count) 个已隐藏项目", "\(viewModel.items.count) Hidden Items"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.secondary)
                 }
@@ -172,7 +172,7 @@ public struct PrivacyVaultView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    TextField(l10n("搜索保险箱项目...", "Search vault items..."), text: $viewModel.searchText)
+                    TextField(l10n("搜索已隐藏项目...", "Search hidden items..."), text: $viewModel.searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 11))
                     if !viewModel.searchText.isEmpty {
@@ -540,17 +540,17 @@ public struct PrivacyVaultView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(l10n("拖拽私人文件夹或重要敏感文件至此处", "Drag private folders or sensitive files here"))
+                    Text(l10n("拖入文件或文件夹到此处", "Drop files or folders here"))
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.primary)
-                    Text(l10n("自动执行深度隐私保护，在访达与系统视图中完全隐形", "Auto stealth protection, completely hidden in Finder & system views"))
+                    Text(l10n("将在访达中隐形并禁止空格键预览", "Hidden from Finder and QuickLook previews"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
 
                 Spacer()
 
-                Text(l10n("松开即收纳", "Drop to Hide"))
+                Text(l10n("松开添加", "Drop to add"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(Color(hex: "38BDF8"))
                     .padding(.horizontal, 10)
@@ -678,23 +678,23 @@ public struct PrivacyVaultView: View {
             luminousVaultSphereHero
 
             VStack(spacing: 6) {
-                Text(l10n("初次使用 · 初始化隐私保险箱", "First Setup · Init Privacy Vault"))
+                Text(l10n("设置主密码", "Set Master Password"))
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
-                Text(l10n("主密码仅保存在本地设备，请妥善保管", "Master password stored locally on device only"))
+                Text(l10n("用于解锁已隐藏的文件，请妥善保管", "Used to unlock hidden files. Please keep it safe."))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
 
             // Glass Setup Card
             VStack(spacing: 12) {
-                SecureField(l10n("输入主密码 (至少 6 位)", "Enter master password (6+ chars)"), text: $newPasswordInput)
+                SecureField(l10n("主密码 (至少 6 位)", "Password (6+ chars)"), text: $newPasswordInput)
                     .textFieldStyle(.plain)
                     .padding(10)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
                     .frame(width: 280)
 
-                SecureField(l10n("确认主密码", "Confirm master password"), text: $confirmPasswordInput)
+                SecureField(l10n("确认密码", "Confirm password"), text: $confirmPasswordInput)
                     .textFieldStyle(.plain)
                     .padding(10)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
@@ -711,7 +711,7 @@ public struct PrivacyVaultView: View {
                         viewModel.setupMasterPassword(password: newPasswordInput, hint: passwordHintInput)
                     }
                 }) {
-                    Text(l10n("创建专属隐私金库", "Create Privacy Vault"))
+                    Text(l10n("完成设置", "Done"))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .frame(width: 280, height: 38)
@@ -757,10 +757,10 @@ public struct PrivacyVaultView: View {
             luminousVaultSphereHero
 
             VStack(spacing: 6) {
-                Text(l10n("隐私保险箱已安全锁定", "Privacy Vault is Locked"))
+                Text(l10n("保险箱已锁定", "Vault is Locked"))
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
-                Text(l10n("请输入金库主密码或使用 Touch ID 指纹一键解锁", "Enter master password or use Touch ID to unlock"))
+                Text(l10n("输入密码或使用 Touch ID 解锁", "Enter password or use Touch ID to unlock"))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -768,7 +768,7 @@ public struct PrivacyVaultView: View {
             // Glass Unlock Card
             VStack(spacing: 12) {
                 HStack(spacing: 8) {
-                    SecureField(l10n("输入主密码", "Enter master password"), text: $viewModel.passwordInput)
+                    SecureField(l10n("输入密码", "Enter password"), text: $viewModel.passwordInput)
                         .textFieldStyle(.plain)
                         .padding(10)
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
@@ -812,7 +812,7 @@ public struct PrivacyVaultView: View {
                 }
 
                 if let hint = viewModel.passwordHint, !hint.isEmpty {
-                    Text(l10n("💡 密码提示: \(hint)", "💡 Hint: \(hint)"))
+                    Text(l10n("密码提示: \(hint)", "Hint: \(hint)"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
@@ -837,7 +837,7 @@ public struct PrivacyVaultView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
-        panel.prompt = l10n("导入并加密", "Import & Protect")
+        panel.prompt = l10n("隐藏", "Hide")
         if panel.runModal() == .OK {
             viewModel.addFiles(urls: panel.urls, type: .hidden)
         }

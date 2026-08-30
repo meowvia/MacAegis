@@ -236,41 +236,23 @@ public struct MainView: View {
 
             Spacer()
 
-            // Right Quick Controls (Appearance + Network Speed + Settings)
-            HStack(spacing: 8) {
-                // Appearance Quick Toggle
-                Button(action: {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-                        switch appearanceMode {
-                        case .system: appearanceMode = .light
-                        case .light: appearanceMode = .dark
-                        case .dark: appearanceMode = .system
-                        }
-                    }
-                }) {
-                    Image(systemName: appearanceMode.icon)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color.blue)
-                        .padding(4)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.secondary.opacity(0.08)))
-                }
-                .buttonStyle(PureButtonStyle())
-                .focusable(false)
-                .focusEffectDisabled()
-
-                Divider().frame(height: 12).opacity(0.4)
-
-                // Network Speed & Proxy Mode (杀手功能)
-                HStack(spacing: 4) {
+            // Right Quick Controls (Network Speed + Settings)
+            HStack(spacing: 10) {
+                // Network Speed & Proxy Mode Indicator
+                HStack(spacing: 5) {
                     Circle()
                         .fill(Color(hex: dashboardVM.networkSpeed.proxyMode.colorHex))
-                        .frame(width: 5, height: 5)
+                        .frame(width: 6, height: 6)
                     Text(dashboardVM.networkSpeed.menuBarDisplayString)
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: dashboardVM.networkSpeed.proxyMode.colorHex))
                 }
-
-                Divider().frame(height: 12).opacity(0.4)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.08))
+                )
 
                 // Settings Button
                 Button(action: {
@@ -279,16 +261,17 @@ public struct MainView: View {
                     showingSettingsModal = true
                 }) {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
-                        .padding(4)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.secondary.opacity(0.08)))
+                        .padding(5)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
                 }
                 .buttonStyle(PureButtonStyle())
                 .focusable(false)
                 .focusEffectDisabled()
+                .help(l10n("打开偏好设置", "Open Settings"))
             }
-            .padding(.horizontal, 4)
+            .padding(.trailing, 2)
         }
     }
 }

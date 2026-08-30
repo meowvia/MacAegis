@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @AppStorage("tempUnitCelsius") private var tempUnitCelsius: Bool = true
     @AppStorage("menuBarMonitor") private var menuBarMonitor: Bool = true
     @AppStorage("trashWatcher") private var trashWatcher: Bool = true
+    @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("keepInMemoryOnClose") private var keepInMemoryOnClose: Bool = true
 
     @Environment(\.dismiss) private var dismiss
@@ -45,20 +46,43 @@ public struct SettingsView: View {
 
             ScrollView {
                 VStack(spacing: 16) {
-                    // 1. 语言设置 (Language Preferences)
-                    settingsSection(title: l10n("语言设置", "Language Preferences"), icon: "globe", color: Color(hex: "38BDF8")) {
+                    // 1. 通用与外观 (General & Appearance)
+                    settingsSection(title: l10n("通用与外观", "General & Appearance"), icon: "macwindow", color: Color(hex: "38BDF8")) {
+                        // Appearance
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(l10n("外观模式", "Appearance Mode"))
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text(l10n("自动跟随系统、浅色或深色", "Match system, light or dark mode"))
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer(minLength: 16)
+
+                            Picker("", selection: $appearanceMode) {
+                                Text(l10n("跟随系统", "System")).tag(AppearanceMode.system)
+                                Text(l10n("浅色", "Light")).tag(AppearanceMode.light)
+                                Text(l10n("深色", "Dark")).tag(AppearanceMode.dark)
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: controlWidth)
+                        }
+
+                        Divider().opacity(0.18)
+
+                        // Interface Language
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(l10n("界面显示语言", "Interface Language"))
                                     .font(.system(size: 12, weight: .semibold))
-                                Text(l10n("切换应用界面语言（立即生效）", "Choose language (takes effect immediately)"))
+                                Text(l10n("切换应用语言（立即生效）", "Choose language (takes effect immediately)"))
                                     .font(.system(size: 10))
                                     .foregroundColor(.secondary)
                             }
                             Spacer(minLength: 16)
 
                             Picker("", selection: $appLanguage) {
-                                Text(l10n("简体中文 (Chinese)", "Simplified Chinese")).tag(AppLanguage.zh.rawValue)
+                                Text("简体中文").tag(AppLanguage.zh.rawValue)
                                 Text("English").tag(AppLanguage.en.rawValue)
                             }
                             .pickerStyle(.segmented)

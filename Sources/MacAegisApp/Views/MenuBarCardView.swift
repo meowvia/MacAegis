@@ -118,40 +118,45 @@ public struct MenuBarCardView: View {
 
             Divider().opacity(0.4)
 
-            // 4. Quick Actions
-            VStack(spacing: 7) {
-                Button(action: {
-                    viewModel.startScan()
-                    onOpenMainWindow()
-                }) {
+            // 4. Quick Actions (Open Main Interface + Clean Quit)
+            VStack(spacing: 6) {
+                Button(action: onOpenMainWindow) {
                     HStack {
-                        Image(systemName: "sparkles")
-                        Text(l10n("一键全盘扫描", "One-Click Scan"))
+                        Image(systemName: "macwindow")
+                            .font(.system(size: 11))
+                        Text(l10n("打开主界面", "Open MacAegis"))
+                            .font(.system(size: 11, weight: .medium))
                         Spacer()
                     }
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(MacAegisTheme.primaryGradient)
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(Color.primary.opacity(0.06))
                     )
                 }
                 .buttonStyle(.plain)
 
-                Button(action: onOpenMainWindow) {
+                Button(action: {
+                    NSApplication.shared.terminate(nil)
+                }) {
                     HStack {
-                        Image(systemName: "macwindow")
-                        Text(l10n("打开主控台...", "Open MacAegis..."))
+                        Image(systemName: "power")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "EF4444"))
+                        Text(l10n("退出 MacAegis", "Quit MacAegis"))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
                         Spacer()
+                        Text("⌘Q")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary.opacity(0.6))
                     }
-                    .font(.system(size: 11, weight: .medium))
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.06))
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(Color.secondary.opacity(0.04))
                     )
                 }
                 .buttonStyle(.plain)

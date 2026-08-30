@@ -4,6 +4,23 @@ import AppKit
 import CryptoKit
 import CommonCrypto
 
+public enum VaultError: LocalizedError, Sendable {
+    case keyDerivationFailed
+    case fileNotFound(String)
+    case authenticationRequired
+
+    public var errorDescription: String? {
+        switch self {
+        case .keyDerivationFailed:
+            return "主密码密钥派生失败，拒绝执行操作以防止弱混淆保护。"
+        case .fileNotFound(let path):
+            return "目标文件不存在：\(path)"
+        case .authenticationRequired:
+            return "尚未验证主密码或凭据已过期。"
+        }
+    }
+}
+
 public enum VaultItemType: String, Codable, Sendable {
     case hidden = "极速隐形"
     case encrypted = "军工加密"
@@ -56,6 +73,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
     public static let defaultKeychainService = "com.meowvia.MacAegis.vault"
     public static let defaultKeychainAccount = "master_auth"
+    public static let derivedKeyAccount = "derived_master_key"
     public static let xattrVaultKey = "com.meowvia.macaegis.vault"
 
     private let metadataURL: URL
@@ -174,6 +192,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         // 2. Save permanently to macOS System Keychain
         if !isTestIsolation {
             KeychainHelper.shared.save(service: keychainService, account: keychainAccount, data: data)
+            KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: derivedKey)
         }
 
         return true
@@ -207,6 +226,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if computedHash == expectedHash {
             self.activeDerivedKey = derivedKey
             self.activeSaltHex = saltHex
+            if !isTestIsolation {
+                KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: derivedKey)
+            }
             return true
         }
         return false
@@ -241,6 +263,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         if clearKeychain && !isTestIsolation {
             KeychainHelper.shared.delete(service: keychainService, account: keychainAccount)
+            KeychainHelper.shared.delete(service: keychainService, account: Self.derivedKeyAccount)
         }
     }
 
@@ -252,7 +275,13 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             do {
-                return try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+                let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+                if success && !isTestIsolation {
+                    if let key = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount) {
+                        self.activeDerivedKey = key
+                    }
+                }
+                return success
             } catch {
                 return false
             }
@@ -353,7 +382,10 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         if !isAlreadyLocked {
             // Fresh un-locked item: Lock/Hide immediately
-            setFileHidden(at: url, hidden: true)
+            let success = setFileHidden(at: url, hidden: true)
+            if !success {
+                return nil
+            }
         }
 
         let item = VaultItem(
@@ -395,7 +427,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
         let url = URL(fileURLWithPath: items[index].path)
-        setFileHidden(at: url, hidden: false)
+        _ = setFileHidden(at: url, hidden: false)
         items[index].status = .visible
         saveMetadata()
 
@@ -410,7 +442,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
         let url = URL(fileURLWithPath: items[index].path)
-        setFileHidden(at: url, hidden: true)
+        _ = setFileHidden(at: url, hidden: true)
         items[index].status = .hidden
         saveMetadata()
     }
@@ -421,7 +453,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         for i in 0..<items.count {
             let url = URL(fileURLWithPath: items[i].path)
-            setFileHidden(at: url, hidden: true)
+            _ = setFileHidden(at: url, hidden: true)
             items[i].status = .hidden
         }
         saveMetadata()
@@ -435,7 +467,10 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let url = URL(fileURLWithPath: items[index].path)
         let willHide = items[index].status != .hidden
 
-        setFileHidden(at: url, hidden: willHide)
+        let success = setFileHidden(at: url, hidden: willHide)
+        if !success && willHide {
+            return items[index].status
+        }
         let newStatus: VaultItemStatus = willHide ? .hidden : .visible
         items[index].status = newStatus
         saveMetadata()
@@ -454,7 +489,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         if let index = items.firstIndex(where: { $0.id == id }) {
             let item = items[index]
-            setFileHidden(at: URL(fileURLWithPath: item.path), hidden: false)
+            _ = setFileHidden(at: URL(fileURLWithPath: item.path), hidden: false)
             items.remove(at: index)
             saveMetadata()
         }
@@ -466,22 +501,24 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         guard FileManager.default.fileExists(atPath: expanded) else { return }
 
         let url = URL(fileURLWithPath: expanded)
-        setFileHidden(at: url, hidden: false)
+        _ = setFileHidden(at: url, hidden: false)
         if revealInFinder {
             NSWorkspace.shared.activateFileViewerSelecting([url])
         }
     }
 
-    // MARK: - In-Place 4KB Dynamic PBKDF2 Key-Derived Header Stream Obfuscation
-    private static let fallbackHeaderMask: UInt8 = 0xA5
-
-    private func transformHeader(at fileURL: URL, derivedKey: Data?) {
+    // MARK: - In-Place 4KB Dynamic PBKDF2 Key-Derived Header Stream Obfuscation (Fast-Fail)
+    private func transformHeader(at fileURL: URL, derivedKey: Data?) throws {
+        guard let derivedKey = derivedKey, !derivedKey.isEmpty else {
+            // Fast-Fail: 拒绝降级为弱混淆，抛出错误中止
+            throw VaultError.keyDerivationFailed
+        }
         guard let handle = try? FileHandle(forUpdating: fileURL) else { return }
         defer { try? handle.close() }
 
         guard let headerData = try? handle.read(upToCount: 4096), !headerData.isEmpty else { return }
         var bytes = [UInt8](headerData)
-        let keyBytes = derivedKey != nil && !derivedKey!.isEmpty ? [UInt8](derivedKey!) : [Self.fallbackHeaderMask]
+        let keyBytes = [UInt8](derivedKey)
         let keyLen = keyBytes.count
 
         for i in 0..<bytes.count {
@@ -493,7 +530,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         try? handle.write(contentsOf: transformed)
     }
 
-    private func applyHeaderTransformation(at url: URL) {
+    private func applyHeaderTransformation(at url: URL) throws {
         let key = activeDerivedKey
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
@@ -501,24 +538,36 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                 if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
                     for case let fileURL as URL in enumerator {
                         if (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
-                            transformHeader(at: fileURL, derivedKey: key)
+                            try transformHeader(at: fileURL, derivedKey: key)
                         }
                     }
                 }
             } else {
-                transformHeader(at: url, derivedKey: key)
+                try transformHeader(at: url, derivedKey: key)
             }
         }
     }
 
-    private func setFileHidden(at url: URL, hidden: Bool) {
+    @discardableResult
+    private func setFileHidden(at url: URL, hidden: Bool) -> Bool {
         let path = url.path
         var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return }
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return false }
+
+        // Auto-recover activeDerivedKey from Keychain if needed
+        if activeDerivedKey == nil && !isTestIsolation {
+            if let key = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount) {
+                self.activeDerivedKey = key
+            }
+        }
 
         if hidden {
-            // 1. In-place 4KB header transformation using PBKDF2 derived stream
-            applyHeaderTransformation(at: url)
+            // 1. In-place 4KB header transformation using PBKDF2 derived stream (Strict Fast-Fail)
+            do {
+                try applyHeaderTransformation(at: url)
+            } catch {
+                return false
+            }
 
             // 2. Mark native macOS Extended Attribute (xattr) BEFORE changing permissions
             let salt = activeSaltHex.isEmpty ? "MacAegisLocked" : activeSaltHex
@@ -551,13 +600,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             try? mutableURL.setResourceValues(resourceValues)
 
             // 4. Reverse header transformation to restore exact original binary signature
-            applyHeaderTransformation(at: url)
+            try? applyHeaderTransformation(at: url)
         }
 
         // 5. Force notify Finder to refresh caches
         NSWorkspace.shared.noteFileSystemChanged(path)
         let parentPath = url.deletingLastPathComponent().path
         NSWorkspace.shared.noteFileSystemChanged(parentPath)
+        return true
     }
 
     @discardableResult

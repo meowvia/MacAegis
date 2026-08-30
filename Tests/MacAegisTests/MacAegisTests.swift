@@ -278,7 +278,9 @@ import Foundation
     try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: tempDir) }
 
-    let vault = PrivacyVaultManager(customBaseDirectory: tempDir)
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, isTestIsolation: true)
+    let passwordSet = vault.setMasterPassword("SecurePassword2026!", hint: "Test")
+    #expect(passwordSet == true)
 
     let testFile = tempDir.appendingPathComponent("confidential.pdf")
     var originalData = "%PDF-1.4\n%âãÏÓ\nThis is proprietary confidential financial statement data.".data(using: .utf8)!

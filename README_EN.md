@@ -29,11 +29,17 @@ When sharing your screen in meetings or lending your laptop, sensitive files in 
 
 ---
 
-## System Requirements & Download
+## Requirements & Installation
 
 * Built natively in Swift. App size is ~3.5MB, memory footprint is ~20MB, and there are no background daemons.
 * Requires macOS 14.0 (Sonoma) or later. Works on Apple Silicon and Intel Macs.
-* Download the latest build from the Releases page and move it to your Applications folder.
+* Download the latest build from Releases and move it to your Applications folder.
+
+> **Note**: As an unsigned indie binary, if macOS shows a "damaged" or "unidentified developer" prompt on first launch, run this single line in Terminal to clear the quarantine attribute:
+> ```bash
+> xattr -cr /Applications/MacAegis.app
+> ```
+> (Or right-click the App -> select "Open" -> click "Open Anyway" in System Settings -> Privacy & Security)
 
 ---
 

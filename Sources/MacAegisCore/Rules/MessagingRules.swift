@@ -52,7 +52,7 @@ public struct MessagingRules: CleanRuleProtocol {
 
         for target in targets {
             let fullPath = FileUtils.expandPath(target.path)
-            if fileManager.fileExists(atPath: fullPath) && !whitelist.isProtected(path: fullPath) {
+            if fileManager.fileExists(atPath: fullPath) && !whitelist.isProtected(path: fullPath, mode: .cacheOnly) {
                 let size = FileUtils.calculateSize(atPath: fullPath)
                 if size > 1_000_000 { // > 1MB
                     let item = CleanItem(

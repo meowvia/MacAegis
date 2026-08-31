@@ -18,6 +18,7 @@ public struct SystemCacheRules: CleanRuleProtocol {
             ("系统底层运行日志与转储", "/private/var/log", "系统底层守护进程生成的轮替日志", .systemLogs, .safe),
             ("系统崩溃与故障诊断报告", "~/Library/DiagnosticReports", "历史程序崩溃转储报告文件，清理后不影响任何软件正常运行", .systemLogs, .safe),
             ("系统诊断流水线与排错数据", "/private/var/db/DiagnosticPipeline", "macOS 自动收集的系统诊断与性能度量中间包", .systemLogs, .safe),
+            ("系统全局组件运行缓存", "/Library/Caches", "macOS 系统底层服务与共享组件的临时运行缓存", .systemCaches, .safe),
 
             // 2. iOS 同步与升级包
             ("iOS 固件恢复与升级包 (IPSW)", "~/Library/iTunes/iPhone Software Updates", "Mac 连接 iPhone/iPad 刷机或系统更新时下载的固件安装包", .systemCaches, .safe),

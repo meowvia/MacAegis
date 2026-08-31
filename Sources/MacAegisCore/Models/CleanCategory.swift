@@ -9,6 +9,7 @@ public enum CleanCategory: String, CaseIterable, Codable, Sendable {
     case systemCaches = "system_caches"
     case systemLogs = "system_logs"
     case orphanLeftovers = "orphan_leftovers"
+    case largeFiles = "large_files"
 
     public var displayName: String {
         switch self {
@@ -20,6 +21,7 @@ public enum CleanCategory: String, CaseIterable, Codable, Sendable {
         case .systemCaches: return l10n("系统缓存与快照", "System Caches & Snapshots")
         case .systemLogs: return l10n("系统日志与诊断报告", "System Logs & Crash Reports")
         case .orphanLeftovers: return l10n("已卸载应用残留", "Uninstalled App Leftovers")
+        case .largeFiles: return l10n("超大文件与老旧镜像 (>500MB)", "Large Files & Old Images (>500MB)")
         }
     }
 
@@ -33,6 +35,7 @@ public enum CleanCategory: String, CaseIterable, Codable, Sendable {
         case .systemCaches: return "⚙️"
         case .systemLogs: return "📝"
         case .orphanLeftovers: return "👻"
+        case .largeFiles: return "📦"
         }
     }
 
@@ -77,6 +80,11 @@ public enum CleanCategory: String, CaseIterable, Codable, Sendable {
             return l10n(
                 "已在访达中删除的软件遗留在 ~/Library 中的配置、数据与自启项残留。",
                 "Orphaned configuration files, data containers, and launch agents left behind in ~/Library."
+            )
+        case .largeFiles:
+            return l10n(
+                "桌面、下载、文档与视频目录中超过 500MB 的大体积文件、虚拟机与镜像包（默认不勾选，需手动确认）。",
+                "Files over 500MB in Desktop, Downloads, and Documents (unselected by default for safety)."
             )
         }
     }

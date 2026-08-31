@@ -44,9 +44,21 @@ public final class AppUninstaller: Sendable {
             associatedAppName: appName
         ))
 
-        // Collect names and identifiers to search for
+        // Extract Info.plist extra tokens
         var searchTokens = Set<String>()
         searchTokens.insert(appName.lowercased())
+        if let infoDict = bundle?.infoDictionary {
+            if let cfName = infoDict["CFBundleName"] as? String {
+                searchTokens.insert(cfName.lowercased())
+            }
+            if let dispName = infoDict["CFBundleDisplayName"] as? String {
+                searchTokens.insert(dispName.lowercased())
+            }
+            if let execName = infoDict["CFBundleExecutable"] as? String {
+                searchTokens.insert(execName.lowercased())
+            }
+        }
+
         if let bId = bundleId?.lowercased() {
             searchTokens.insert(bId)
             let subTokens = bId.split(separator: ".")
@@ -55,18 +67,23 @@ public final class AppUninstaller: Sendable {
             }
         }
 
-        // Directories to inspect for app-specific leftovers
+        // Directories to inspect for app-specific leftovers (User & System-wide)
         let candidateDirectories: [(dir: String, cat: String, safety: SafetyLevel)] = [
-            ("~/Library/Application Support", "配置与核心数据", .safe),
+            ("~/Library/Application Support", "配置与核心数据", .caution),
             ("~/Library/Caches", "运行缓存", .safe),
-            ("~/Library/Containers", "沙盒隔离容器", .safe),
+            ("~/Library/Containers", "沙盒隔离容器", .caution),
             ("~/Library/Group Containers", "共享数据组", .caution),
-            ("~/Library/Preferences", "偏好设置文件", .safe),
+            ("~/Library/Preferences", "偏好设置文件", .caution),
             ("~/Library/Saved Application State", "退出窗口镜像", .safe),
             ("~/Library/WebKit", "内置网页缓存", .safe),
             ("~/Library/HTTPStorages", "网络缓存", .safe),
             ("~/Library/Logs", "运行日志", .safe),
-            ("~/Library/LaunchAgents", "自启守护脚本", .safe)
+            ("~/Library/LaunchAgents", "自启守护脚本", .safe),
+            ("/Library/Application Support", "系统级配置与数据", .caution),
+            ("/Library/Caches", "系统级运行缓存", .safe),
+            ("/Library/Preferences", "系统级偏好设置", .caution),
+            ("/Library/LaunchAgents", "全局启动服务", .safe),
+            ("/Library/LaunchDaemons", "系统级守护脚本", .safe)
         ]
 
         for candidate in candidateDirectories {
@@ -99,9 +116,17 @@ public final class AppUninstaller: Sendable {
                     }
                 }
 
+                let fullPath = (expandedDir as NSString).appendingPathComponent(sub)
+
+                // Extra check for LaunchAgents / LaunchDaemons plist content targeting this app
+                if !isMatch && (candidate.dir.contains("LaunchAgents") || candidate.dir.contains("LaunchDaemons")) && sub.hasSuffix(".plist") {
+                    if isPlistTargetingApp(plistPath: fullPath, appPath: appURL.path, bundleId: bundleId) {
+                        isMatch = true
+                    }
+                }
+
                 if isMatch {
-                    let fullPath = (expandedDir as NSString).appendingPathComponent(sub)
-                    if whitelist.isProtected(path: fullPath) || fullPath == appURL.path {
+                    if whitelist.isProtected(path: fullPath, mode: .strict) || fullPath == appURL.path {
                         continue
                     }
 
@@ -113,7 +138,8 @@ public final class AppUninstaller: Sendable {
                         category: .orphanLeftovers,
                         safetyLevel: candidate.safety,
                         itemDescription: "\(appName) 关联的 \(candidate.cat)",
-                        associatedAppName: appName
+                        associatedAppName: appName,
+                        isSelected: candidate.safety == .safe
                     ))
                 }
             }
@@ -125,5 +151,34 @@ public final class AppUninstaller: Sendable {
             appURL: appURL,
             associatedItems: items
         )
+    }
+
+    private func isPlistTargetingApp(plistPath: String, appPath: String, bundleId: String?) -> Bool {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            return false
+        }
+
+        if let program = dict["Program"] as? String, program.hasPrefix(appPath) {
+            return true
+        }
+        if let args = dict["ProgramArguments"] as? [String], let first = args.first, first.hasPrefix(appPath) {
+            return true
+        }
+        if let bId = bundleId, let label = dict["Label"] as? String, label.contains(bId) {
+            return true
+        }
+        return false
+    }
+
+    /// Automatically unloads and terminates launch daemons/agents before file removal
+    public func preUninstallCleanup(items: [CleanItem]) {
+        for item in items where item.path.hasSuffix(".plist") && (item.path.contains("LaunchAgents") || item.path.contains("LaunchDaemons")) {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            task.arguments = ["unload", "-w", item.path]
+            try? task.run()
+            task.waitUntilExit()
+        }
     }
 }

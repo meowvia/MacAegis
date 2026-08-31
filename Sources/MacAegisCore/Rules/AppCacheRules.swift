@@ -30,7 +30,7 @@ public struct AppCacheRules: CleanRuleProtocol {
             let fullPath = FileUtils.expandPath(target.subpath)
             scannedPaths.insert(fullPath)
 
-            if fileManager.fileExists(atPath: fullPath) && !whitelist.isProtected(path: fullPath) {
+            if fileManager.fileExists(atPath: fullPath) && !whitelist.isProtected(path: fullPath, mode: .cacheOnly) {
                 let size = FileUtils.calculateSize(atPath: fullPath)
                 if size > 10_000_000 { // > 10MB
                     let item = CleanItem(
@@ -51,7 +51,7 @@ public struct AppCacheRules: CleanRuleProtocol {
         if let subdirs = try? fileManager.contentsOfDirectory(atPath: userCachesPath) {
             for sub in subdirs {
                 let subPath = (userCachesPath as NSString).appendingPathComponent(sub)
-                if scannedPaths.contains(subPath) || whitelist.isProtected(path: subPath) {
+                if scannedPaths.contains(subPath) || whitelist.isProtected(path: subPath, mode: .cacheOnly) {
                     continue
                 }
 

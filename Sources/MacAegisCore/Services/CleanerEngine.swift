@@ -62,6 +62,16 @@ public final class CleanerEngine: Sendable {
             }
         }
 
+        let cleanedPaths = items.filter { $0.isSelected }.map { $0.path }
+        if !dryRun && successCount > 0 {
+            CleanHistoryManager.shared.recordClean(
+                reclaimedBytes: reclaimedBytes,
+                itemCount: successCount,
+                useTrash: useTrash,
+                cleanedPaths: cleanedPaths
+            )
+        }
+
         return CleanExecutionReport(
             successfulCount: successCount,
             failedCount: failCount,

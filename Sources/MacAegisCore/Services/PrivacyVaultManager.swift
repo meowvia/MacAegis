@@ -84,6 +84,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     private let keychainAccount: String
     private let isTestIsolation: Bool
     private var items: [VaultItem] = []
+    private var activeDEK: Data?
     private var activeDerivedKey: Data?
     private var activeSaltHex: String = ""
     private let lock = NSLock()
@@ -109,6 +110,26 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         self.metadataURL = appSupportURL.appendingPathComponent("vault_metadata.json")
         self.authConfigURL = appSupportURL.appendingPathComponent("vault_auth.json")
         loadMetadata()
+    }
+
+    // MARK: - Key Wrapping Cryptographic Engine (DEK + KEK via AES-GCM & PBKDF2)
+    public static func wrapDEK(dek: Data, usingKEK kek: Data) -> (encryptedDEKHex: String, ivHex: String, tagHex: String)? {
+        let symKey = SymmetricKey(data: kek)
+        guard let sealed = try? AES.GCM.seal(dek, using: symKey) else { return nil }
+        let encHex = sealed.ciphertext.map { String(format: "%02hhx", $0) }.joined()
+        let ivHex = sealed.nonce.withUnsafeBytes { Data($0) }.map { String(format: "%02hhx", $0) }.joined()
+        let tagHex = sealed.tag.map { String(format: "%02hhx", $0) }.joined()
+        return (encHex, ivHex, tagHex)
+    }
+
+    public static func unwrapDEK(encryptedDEKHex: String, ivHex: String, tagHex: String, usingKEK kek: Data) -> Data? {
+        guard let ct = Data(hexString: encryptedDEKHex),
+              let iv = Data(hexString: ivHex),
+              let tag = Data(hexString: tagHex),
+              let nonce = try? AES.GCM.Nonce(data: iv) else { return nil }
+        guard let sealedBox = try? AES.GCM.SealedBox(nonce: nonce, ciphertext: ct, tag: tag) else { return nil }
+        let symKey = SymmetricKey(data: kek)
+        return try? AES.GCM.open(sealedBox, using: symKey)
     }
 
     // MARK: - Cryptographic Key Derivation (PBKDF2-HMAC-SHA256, 100,000 Iterations)
@@ -174,18 +195,31 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let saltData = Self.generateRandomSalt(length: 16)
         let saltHex = saltData.map { String(format: "%02hhx", $0) }.joined()
 
-        guard let derivedKey = Self.deriveKeyPBKDF2(password: password, salt: saltData, iterations: 100_000) else {
+        guard let kek = Self.deriveKeyPBKDF2(password: password, salt: saltData, iterations: 100_000) else {
             return false
         }
-        self.activeDerivedKey = derivedKey
+
+        // Generate permanent random 32-byte DEK (Data Encryption Key)
+        var randomDEK = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, randomDEK.count, &randomDEK)
+        let dekData = Data(randomDEK)
+
+        guard let wrapped = Self.wrapDEK(dek: dekData, usingKEK: kek) else { return false }
+
+        self.activeDEK = dekData
+        self.activeDerivedKey = dekData
         self.activeSaltHex = saltHex
 
-        let keyHash = derivedKey.map { String(format: "%02hhx", $0) }.joined()
+        let keyHash = kek.map { String(format: "%02hhx", $0) }.joined()
 
         let authData: [String: String] = [
             "salt": saltHex,
             "hash": keyHash,
-            "hint": hint ?? ""
+            "hint": hint ?? "",
+            "encrypted_dek": wrapped.encryptedDEKHex,
+            "dek_iv": wrapped.ivHex,
+            "dek_tag": wrapped.tagHex,
+            "schema_version": "2"
         ]
 
         guard let data = try? JSONSerialization.data(withJSONObject: authData, options: .prettyPrinted) else {
@@ -198,7 +232,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         // 2. Save permanently to macOS System Keychain
         if !isTestIsolation {
             KeychainHelper.shared.save(service: keychainService, account: keychainAccount, data: data)
-            KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: derivedKey)
+            KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: dekData)
         }
 
         return true
@@ -224,16 +258,28 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         }
 
         guard let saltData = Data(hexString: saltHex),
-              let derivedKey = Self.deriveKeyPBKDF2(password: password, salt: saltData, iterations: 100_000) else {
+              let kek = Self.deriveKeyPBKDF2(password: password, salt: saltData, iterations: 100_000) else {
             return false
         }
 
-        let computedHash = derivedKey.map { String(format: "%02hhx", $0) }.joined()
+        let computedHash = kek.map { String(format: "%02hhx", $0) }.joined()
         if computedHash == expectedHash {
-            self.activeDerivedKey = derivedKey
+            // Decrypt DEK if wrapped format exists
+            if let encDEK = json["encrypted_dek"], let iv = json["dek_iv"], let tag = json["dek_tag"] {
+                if let dek = Self.unwrapDEK(encryptedDEKHex: encDEK, ivHex: iv, tagHex: tag, usingKEK: kek) {
+                    self.activeDEK = dek
+                    self.activeDerivedKey = dek
+                }
+            } else {
+                // Fallback for legacy v1
+                self.activeDEK = kek
+                self.activeDerivedKey = kek
+            }
             self.activeSaltHex = saltHex
             if !isTestIsolation {
-                KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: derivedKey)
+                if let dek = self.activeDEK {
+                    KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: dek)
+                }
             }
             return true
         }
@@ -271,30 +317,48 @@ public final class PrivacyVaultManager: @unchecked Sendable {
               let oldSaltHex = json["salt"],
               let expectedHash = json["hash"],
               let oldSaltData = Data(hexString: oldSaltHex),
-              let oldDerivedKey = Self.deriveKeyPBKDF2(password: oldPassword, salt: oldSaltData, iterations: 100_000) else {
+              let oldKEK = Self.deriveKeyPBKDF2(password: oldPassword, salt: oldSaltData, iterations: 100_000) else {
             return false
         }
 
-        let computedHash = oldDerivedKey.map { String(format: "%02hhx", $0) }.joined()
+        let computedHash = oldKEK.map { String(format: "%02hhx", $0) }.joined()
         guard computedHash == expectedHash else {
             return false
         }
 
-        // 2. Generate new salt and derived key
+        // 1. Decrypt current DEK using old KEK
+        let currentDEK: Data
+        if let encDEK = json["encrypted_dek"], let iv = json["dek_iv"], let tag = json["dek_tag"] {
+            guard let dek = Self.unwrapDEK(encryptedDEKHex: encDEK, ivHex: iv, tagHex: tag, usingKEK: oldKEK) else {
+                return false
+            }
+            currentDEK = dek
+        } else {
+            // Legacy upgrade: use activeDEK or oldKEK
+            currentDEK = self.activeDEK ?? oldKEK
+        }
+
+        // 2. Generate new salt and new KEK
         var newSalt = [UInt8](repeating: 0, count: 16)
         _ = SecRandomCopyBytes(kSecRandomDefault, newSalt.count, &newSalt)
         let newSaltData = Data(newSalt)
         let newSaltHex = newSaltData.map { String(format: "%02hhx", $0) }.joined()
 
-        guard let newDerivedKey = Self.deriveKeyPBKDF2(password: newPassword, salt: newSaltData, iterations: 100_000) else {
+        guard let newKEK = Self.deriveKeyPBKDF2(password: newPassword, salt: newSaltData, iterations: 100_000) else {
             return false
         }
-        let newHashHex = newDerivedKey.map { String(format: "%02hhx", $0) }.joined()
+        let newHashHex = newKEK.map { String(format: "%02hhx", $0) }.joined()
 
-        // 3. Save new auth credentials to disk and keychain
+        // 3. Re-wrap the SAME DEK with the NEW KEK (Zero touches to locked files!)
+        guard let wrapped = Self.wrapDEK(dek: currentDEK, usingKEK: newKEK) else { return false }
+
         var authDict: [String: String] = [
             "salt": newSaltHex,
-            "hash": newHashHex
+            "hash": newHashHex,
+            "encrypted_dek": wrapped.encryptedDEKHex,
+            "dek_iv": wrapped.ivHex,
+            "dek_tag": wrapped.tagHex,
+            "schema_version": "2"
         ]
         if let h = hint, !h.isEmpty {
             authDict["hint"] = h
@@ -309,10 +373,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         try? newJsonData.write(to: authConfigURL, options: .atomic)
         if !isTestIsolation {
             KeychainHelper.shared.save(service: keychainService, account: keychainAccount, data: newJsonData)
-            KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: newDerivedKey)
+            KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: currentDEK)
         }
 
-        self.activeDerivedKey = newDerivedKey
+        self.activeDEK = currentDEK
+        self.activeDerivedKey = currentDEK
         self.activeSaltHex = newSaltHex
         return true
     }
@@ -321,9 +386,16 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
+        // Automatically unlock and restore all currently locked files before destroying credentials!
+        for item in items where item.status == .hidden {
+            let url = URL(fileURLWithPath: item.path)
+            _ = setFileHidden(at: url, hidden: false)
+        }
+
         try? FileManager.default.removeItem(at: authConfigURL)
         try? "[]".write(to: metadataURL, atomically: true, encoding: .utf8)
         self.items = []
+        self.activeDEK = nil
         self.activeDerivedKey = nil
         self.activeSaltHex = ""
 
@@ -622,14 +694,13 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
-        let url = URL(fileURLWithPath: items[index].path)
-        _ = setFileHidden(at: url, hidden: false)
-        items[index].status = .visible
-        saveMetadata()
-
-        DispatchQueue.main.async {
-            NSWorkspace.shared.activateFileViewerSelecting([url])
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            let url = URL(fileURLWithPath: items[index].path)
+            let success = setFileHidden(at: url, hidden: false)
+            if success {
+                items[index].status = .visible
+                saveMetadata()
+            }
         }
     }
 
@@ -637,11 +708,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
-        let url = URL(fileURLWithPath: items[index].path)
-        _ = setFileHidden(at: url, hidden: true)
-        items[index].status = .hidden
-        saveMetadata()
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            let url = URL(fileURLWithPath: items[index].path)
+            let success = setFileHidden(at: url, hidden: true)
+            if success {
+                items[index].status = .hidden
+                saveMetadata()
+            }
+        }
     }
 
     public func lockAll() {
@@ -650,8 +724,10 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         for i in 0..<items.count {
             let url = URL(fileURLWithPath: items[i].path)
-            _ = setFileHidden(at: url, hidden: true)
-            items[i].status = .hidden
+            let success = setFileHidden(at: url, hidden: true)
+            if success {
+                items[i].status = .hidden
+            }
         }
         saveMetadata()
     }
@@ -665,7 +741,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let willHide = items[index].status != .hidden
 
         let success = setFileHidden(at: url, hidden: willHide)
-        if !success && willHide {
+        if !success {
             return items[index].status
         }
         let newStatus: VaultItemStatus = willHide ? .hidden : .visible
@@ -704,7 +780,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         }
     }
 
-    // MARK: - In-Place 4KB Dynamic PBKDF2 Key-Derived Header Stream Obfuscation (Fast-Fail)
+    // MARK: - In-Place 4KB Dynamic DEK Key-Derived Header Stream Obfuscation (Fast-Fail)
     private func transformHeader(at fileURL: URL, derivedKey: Data?) throws {
         guard let derivedKey = derivedKey, !derivedKey.isEmpty else {
             // Fast-Fail: 拒绝降级为弱混淆，抛出错误中止
@@ -728,7 +804,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     }
 
     private func applyHeaderTransformation(at url: URL) throws {
-        let key = activeDerivedKey
+        let key = activeDEK ?? activeDerivedKey
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
             if !isDir.boolValue {
@@ -743,9 +819,10 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return false }
 
-        // Auto-recover activeDerivedKey from Keychain if needed
-        if activeDerivedKey == nil && !isTestIsolation {
+        // Auto-recover activeDEK / activeDerivedKey from Keychain if needed
+        if activeDEK == nil && activeDerivedKey == nil && !isTestIsolation {
             if let key = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount) {
+                self.activeDEK = key
                 self.activeDerivedKey = key
             }
         }
@@ -775,26 +852,35 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             var mutableURL = url
             try? mutableURL.setResourceValues(resourceValues)
         } else {
-            // 1. Release uchg and hidden flags via Darwin C syscall (0.03ms instant)
+            // Defensive Unlocking Order:
+            // 1. First temporarily clear immutable flag and grant read-write permission for restoration
             _ = chflags(cPath, 0)
+            let tempPerms: NSNumber = isDir.boolValue ? 0o700 : 0o600
+            try? FileManager.default.setAttributes([.posixPermissions: tempPerms], ofItemAtPath: path)
 
-            // 2. Reset standard POSIX permissions
+            // 2. Reverse header transformation to restore exact original binary signature BEFORE removing lock markers!
+            do {
+                try applyHeaderTransformation(at: url)
+            } catch {
+                // Restoration failed: Immediately re-lock item and abort to prevent data corruption!
+                let lockPerms: NSNumber = 0o000
+                try? FileManager.default.setAttributes([.posixPermissions: lockPerms], ofItemAtPath: path)
+                _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+                return false
+            }
+
+            // 3. Header successfully restored: Now reset standard POSIX permissions and remove xattr
             let perms: NSNumber = isDir.boolValue ? 0o755 : 0o644
             try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
-
-            // 3. Remove native macOS Extended Attribute (xattr) AFTER restoring permissions
             removeVaultXattr(at: path)
 
             var resourceValues = URLResourceValues()
             resourceValues.isHidden = false
             var mutableURL = url
             try? mutableURL.setResourceValues(resourceValues)
-
-            // 4. Reverse header transformation to restore exact original binary signature
-            try? applyHeaderTransformation(at: url)
         }
 
-        // 5. Notify Finder to refresh caches
+        // 4. Notify Finder to refresh caches
         NSWorkspace.shared.noteFileSystemChanged(path)
         let parentPath = url.deletingLastPathComponent().path
         NSWorkspace.shared.noteFileSystemChanged(parentPath)

@@ -20,6 +20,9 @@ public struct DeveloperRules: CleanRuleProtocol {
 
             // 2. Xcode 衍生构建与编译索引
             ("Xcode 编译衍生数据 (DerivedData)", "~/Library/Developer/Xcode/DerivedData", "Xcode 项目构建和代码索引产生的衍生中间文件，删除后可在下次构建时自动重新生成", "Xcode", .safe),
+            ("Xcode 历史应用打包归档 (Archives)", "~/Library/Developer/Xcode/Archives", "历史打包发布的 App 归档包 (可能占用数 GB 至数十 GB)", "Xcode", .caution),
+            ("Xcode 编译产物包 (Products)", "~/Library/Developer/Xcode/Products", "历史编译生成的 App 与 Framework 调试产物", "Xcode", .safe),
+            ("Xcode 真机日志 (iOS Device Logs)", "~/Library/Developer/Xcode/iOS Device Logs", "连接真机测试时收集的历史崩溃日志与调试转储", "Xcode", .safe),
             ("Xcode 模块与索引缓存", "~/Library/Caches/com.apple.dt.Xcode", "Xcode 内部代码高亮、编译诊断与自动补全索引缓存", "Xcode", .safe),
             ("Xcode 旧版真机调试符号 (iOS DeviceSupport)", "~/Library/Developer/Xcode/iOS DeviceSupport", "连接旧款真机测试时下载的符号缓存，可随时安全清理", "Xcode", .safe),
 

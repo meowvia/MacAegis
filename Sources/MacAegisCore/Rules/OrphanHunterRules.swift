@@ -17,28 +17,43 @@ public struct OrphanHunterRules: CleanRuleProtocol {
         // Ensure installed apps are indexed
         _ = appDetector.indexInstalledApps()
 
-        // 1. Check ~/Library/Application Support/
-        let appSupportPath = FileUtils.expandPath("~/Library/Application Support")
-        if let subdirs = try? fileManager.contentsOfDirectory(atPath: appSupportPath) {
+        // 10 candidate directories across macOS user Library
+        let candidateRoots: [(dir: String, nameSuffix: String, descSuffix: String, minBytes: Int64, safety: SafetyLevel)] = [
+            ("~/Library/Application Support", "配置与支持数据", "已卸载软件的历史配置与核心支持数据", 500_000, .safe),
+            ("~/Library/Containers", "沙盒残留容器", "沙盒应用卸载后未清理的独立运行沙盒目录", 500_000, .safe),
+            ("~/Library/Caches", "运行缓存残留", "已卸载软件遗留的离线缓存与编译包", 1_000_000, .safe),
+            ("~/Library/Preferences", "偏好设置残留", "已卸载软件的历史偏好设置属性文件", 1_000, .caution),
+            ("~/Library/Saved Application State", "退出窗口状态镜像", "已卸载软件的窗口历史恢复快照", 10_000, .safe),
+            ("~/Library/WebKit", "网页离线残留", "已卸载软件内置 Web 视图生成的离线缓存", 500_000, .safe),
+            ("~/Library/HTTPStorages", "网络存储残留", "已卸载软件遗留的 HTTP 离线存储与 Cookie 镜像", 100_000, .safe),
+            ("~/Library/Logs", "历史日志残留", "已卸载软件的历史运行排错文本", 50_000, .safe),
+            ("~/Library/Group Containers", "共享数据残留", "已卸载应用组的共享媒体与离线数据", 1_000_000, .caution)
+        ]
+
+        for candidate in candidateRoots {
+            let expandedRoot = FileUtils.expandPath(candidate.dir)
+            guard let subdirs = try? fileManager.contentsOfDirectory(atPath: expandedRoot) else { continue }
+
             for sub in subdirs {
-                if sub.hasPrefix(".") || sub.lowercased() == "apple" || sub.hasPrefix("com.apple.") {
+                if sub.hasPrefix(".") || sub.lowercased() == "apple" || sub.hasPrefix("com.apple.") || sub.hasPrefix("group.com.apple.") {
                     continue
                 }
-                let fullPath = (appSupportPath as NSString).appendingPathComponent(sub)
-                if whitelist.isProtected(path: fullPath) { continue }
+                let fullPath = (expandedRoot as NSString).appendingPathComponent(sub)
+                if whitelist.isProtected(path: fullPath, mode: .strict) { continue }
 
-                // Check if the app is truly an orphan across all system registries
-                if isRealAppOrphan(directoryName: sub, path: fullPath, appDetector: appDetector) {
+                let checkName = sub.hasSuffix(".plist") ? (sub as NSString).deletingPathExtension : sub
+                if isRealAppOrphan(directoryName: checkName, path: fullPath, appDetector: appDetector) {
                     let size = FileUtils.calculateSize(atPath: fullPath)
-                    if size > 500_000 { // > 500KB
+                    if size >= candidate.minBytes {
                         let item = CleanItem(
-                            name: "\(sub) 遗留数据",
+                            name: "\(sub) \(candidate.nameSuffix)",
                             path: fullPath,
-                            sizeBytes: size,
+                            sizeBytes: max(size, 4096),
                             category: .orphanLeftovers,
-                            safetyLevel: .safe,
-                            itemDescription: "该软件肉身已在系统应用列表中被移除，但历史配置与支持数据仍留在电脑深层。",
-                            associatedAppName: sub
+                            safetyLevel: candidate.safety,
+                            itemDescription: "\(candidate.descSuffix)，软件已被卸载，清理可释放宝贵磁盘空间。",
+                            associatedAppName: checkName,
+                            isSelected: candidate.safety == .safe
                         )
                         items.append(item)
                         onFoundItem?(item)
@@ -47,43 +62,19 @@ public struct OrphanHunterRules: CleanRuleProtocol {
             }
         }
 
-        // 2. Check ~/Library/Containers/
-        let containersPath = FileUtils.expandPath("~/Library/Containers")
-        if let subdirs = try? fileManager.contentsOfDirectory(atPath: containersPath) {
-            for sub in subdirs {
-                if sub.hasPrefix("com.apple.") { continue }
-                let fullPath = (containersPath as NSString).appendingPathComponent(sub)
-                if whitelist.isProtected(path: fullPath) { continue }
-
-                if isRealAppOrphan(directoryName: sub, path: fullPath, appDetector: appDetector) {
-                    let size = FileUtils.calculateSize(atPath: fullPath)
-                    if size > 1_000_000 { // > 1MB
-                        let item = CleanItem(
-                            name: "\(sub) 沙盒残留容器",
-                            path: fullPath,
-                            sizeBytes: size,
-                            category: .orphanLeftovers,
-                            safetyLevel: .safe,
-                            itemDescription: "沙盒应用卸载后未清理的独立运行沙盒残留目录。",
-                            associatedAppName: sub
-                        )
-                        items.append(item)
-                        onFoundItem?(item)
-                    }
-                }
-            }
-        }
-
-        // 3. Check ~/Library/LaunchAgents/ for dead startup daemons
+        // 10. Check ~/Library/LaunchAgents/ for dead startup daemons (with deep plist validation)
         let launchAgentsPath = FileUtils.expandPath("~/Library/LaunchAgents")
         if let agentFiles = try? fileManager.contentsOfDirectory(atPath: launchAgentsPath) {
             for file in agentFiles {
                 if file.hasPrefix("com.apple.") || !file.hasSuffix(".plist") { continue }
                 let fullPath = (launchAgentsPath as NSString).appendingPathComponent(file)
-                if whitelist.isProtected(path: fullPath) { continue }
+                if whitelist.isProtected(path: fullPath, mode: .strict) { continue }
 
                 let baseName = (file as NSString).deletingPathExtension
-                if isRealAppOrphan(directoryName: baseName, path: fullPath, appDetector: appDetector) {
+                let isOrphanByApp = isRealAppOrphan(directoryName: baseName, path: fullPath, appDetector: appDetector)
+                let isBrokenPlist = isBrokenLaunchAgent(plistPath: fullPath)
+
+                if isOrphanByApp || isBrokenPlist {
                     let size = FileUtils.calculateSize(atPath: fullPath)
                     let item = CleanItem(
                         name: "\(file) 自启守护残留",
@@ -92,7 +83,8 @@ public struct OrphanHunterRules: CleanRuleProtocol {
                         category: .orphanLeftovers,
                         safetyLevel: .safe,
                         itemDescription: "已卸载软件遗留的开机自启脚本配置，清理可防止无效的后台自启报错。",
-                        associatedAppName: baseName
+                        associatedAppName: baseName,
+                        isSelected: true
                     )
                     items.append(item)
                     onFoundItem?(item)
@@ -101,6 +93,21 @@ public struct OrphanHunterRules: CleanRuleProtocol {
         }
 
         return items
+    }
+
+    private func isBrokenLaunchAgent(plistPath: String) -> Bool {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            return false
+        }
+
+        if let program = dict["Program"] as? String {
+            return !FileManager.default.fileExists(atPath: program)
+        }
+        if let args = dict["ProgramArguments"] as? [String], let first = args.first {
+            return !FileManager.default.fileExists(atPath: first)
+        }
+        return false
     }
 
     private func isRealAppOrphan(directoryName: String, path: String, appDetector: AppDetector) -> Bool {

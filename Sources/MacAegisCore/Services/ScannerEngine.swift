@@ -14,25 +14,35 @@ public final class ScannerEngine: Sendable {
                 DownloadsRules(),
                 AppCacheRules(),
                 SystemCacheRules(),
-                OrphanHunterRules()
+                OrphanHunterRules(),
+                LargeFileRules()
             ]
         }
     }
 
-    /// Perform a full system and app scan
+    /// Perform a full system and app scan in parallel
     public func scan(onFoundItem: (@Sendable (CleanItem) -> Void)? = nil) async -> ScanResult {
         let startTime = Date()
-        var allItems: [CleanItem] = []
 
-        for rule in rules {
-            let items = await rule.scan(onFoundItem: onFoundItem)
-            allItems.append(contentsOf: items)
+        let allItems = await withTaskGroup(of: [CleanItem].self, returning: [CleanItem].self) { group in
+            for rule in rules {
+                group.addTask {
+                    await rule.scan(onFoundItem: onFoundItem)
+                }
+            }
+
+            var combined: [CleanItem] = []
+            for await items in group {
+                combined.append(contentsOf: items)
+            }
+            return combined
         }
 
+        var sortedItems = allItems
         // Strict 0-9, A-Z natural deterministic sorting (cannot be manually overridden)
-        allItems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        sortedItems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
         let duration = Date().timeIntervalSince(startTime)
-        return ScanResult(items: allItems, durationSeconds: duration)
+        return ScanResult(items: sortedItems, durationSeconds: duration)
     }
 }

@@ -196,7 +196,7 @@ import Foundation
 
 @Test func testCleanCategoryDrillDownIntegrity() async throws {
     let dim1: Set<CleanCategory> = [.appCaches, .systemCaches, .systemLogs]
-    let dim2: Set<CleanCategory> = [.downloadsAndPackages, .developerCaches]
+    let dim2: Set<CleanCategory> = [.downloadsAndPackages, .developerCaches, .largeFiles]
     let dim3: Set<CleanCategory> = [.messagingMedia, .browserCaches]
     let dim4: Set<CleanCategory> = [.orphanLeftovers]
 
@@ -211,7 +211,7 @@ import Foundation
     // 2. Full Exhaustiveness: Union of the 4 dimensions covers 100% of CleanCategory.allCases
     let totalCovered = dim1.union(dim2).union(dim3).union(dim4)
     #expect(totalCovered == Set(CleanCategory.allCases))
-    #expect(totalCovered.count == 8)
+    #expect(totalCovered.count == 9)
 }
 
 @Test func testBilingualLocalizationManager() async throws {
@@ -417,28 +417,38 @@ import Foundation
     vault2.resetMasterAuth(clearKeychain: true)
 }
 
-@Test func testChangeMasterPasswordWithPBKDF2() async throws {
-    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_pass_test_\(UUID().uuidString)")
+@Test func testChangeMasterPasswordWithPBKDF2AndKeyWrappingIntegrity() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_pwchange_\(UUID().uuidString)")
     try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: tempDir) }
 
-    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.passchange", isTestIsolation: true)
-    
-    // Set Initial Password
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.pwchange", isTestIsolation: true)
     #expect(vault.setMasterPassword("OldPassword123!", hint: "OldHint") == true)
-    #expect(vault.verifyMasterPassword("OldPassword123!") == true)
     #expect(vault.getPasswordHint() == "OldHint")
+
+    // 1. Lock a sensitive file with Old Password
+    let sampleFile = tempDir.appendingPathComponent("confidential_contract.pdf")
+    let originalData = Data("CONFIDENTIAL_TOP_SECRET_BINARY_STREAM_HEADER_DATA_1234567890".utf8)
+    try originalData.write(to: sampleFile)
+
+    let lockedItem = vault.addItem(url: sampleFile, type: .hidden)
+    #expect(lockedItem != nil)
 
     // Fail change with incorrect old password
     #expect(vault.changeMasterPassword(oldPassword: "WrongPassword!", newPassword: "NewPassword456!", hint: "NewHint") == false)
 
-    // Successful change
+    // 2. Successful change with Key Wrapping (DEK preserved, re-wrapped with new KEK)
     #expect(vault.changeMasterPassword(oldPassword: "OldPassword123!", newPassword: "NewPassword456!", hint: "NewHint") == true)
 
     // Old password no longer works, new password works
     #expect(vault.verifyMasterPassword("OldPassword123!") == false)
     #expect(vault.verifyMasterPassword("NewPassword456!") == true)
     #expect(vault.getPasswordHint() == "NewHint")
+
+    // 3. Unlock file using the new session - File must be 100% BIT-PERFECT and restored!
+    vault.openAndHighlightInFinder(path: sampleFile.path, revealInFinder: false)
+    let restoredData = try Data(contentsOf: sampleFile)
+    #expect(restoredData == originalData)
 }
 
 @Test func testAppUpgradeMigrationAndItemPreservation() async throws {
@@ -475,3 +485,27 @@ import Foundation
     #expect(FileManager.default.fileExists(atPath: testPhoto.path) == true)
 }
 
+@Test func testCleanHistoryManagerOperations() async throws {
+    let tempFile = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_history_\(UUID().uuidString).json")
+    defer { try? FileManager.default.removeItem(at: tempFile) }
+
+    let historyMgr = CleanHistoryManager(customFileURL: tempFile)
+    #expect(historyMgr.fetchHistory().isEmpty)
+
+    historyMgr.recordClean(
+        reclaimedBytes: 1024 * 1024 * 500,
+        itemCount: 12,
+        useTrash: true,
+        cleanedPaths: ["/path/a", "/path/b"]
+    )
+
+    let records = historyMgr.fetchHistory()
+    #expect(records.count == 1)
+    #expect(records[0].totalReclaimedBytes == 1024 * 1024 * 500)
+    #expect(records[0].useTrash == true)
+    #expect(records[0].itemCount == 12)
+    #expect(records[0].cleanedPaths.count == 2)
+
+    historyMgr.clearHistory()
+    #expect(historyMgr.fetchHistory().isEmpty)
+}

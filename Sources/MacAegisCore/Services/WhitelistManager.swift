@@ -1,19 +1,28 @@
 import Foundation
 
+public enum ProtectionMode: Sendable {
+    case strict
+    case cacheOnly
+}
+
 public final class WhitelistManager: @unchecked Sendable {
     public static let shared = WhitelistManager()
 
-    /// Directories whose whole tree must NEVER be touched under any circumstances
-    private let systemProtectedPaths: Set<String> = [
-        // User Personal Data Directories
-        "~/Desktop",
-        "~/Documents",
-        "~/Pictures",
-        "~/Music",
-        "~/Movies",
-        "~/Public",
+    /// Absolute protected system paths - NEVER touched under any circumstance or mode
+    private let absoluteProtectedPaths: Set<String> = [
+        "/System",
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/etc",
+        "/var",
+        "/private",
+        "/Library/Security",
+        "/Library/Keychains",
+        "/Library/Apple",
+        "/Volumes/Macintosh HD",
 
-        // Apple Critical System & Cloud Storage
+        // Critical user identity and cloud files
         "~/Library/Keychains",
         "~/Library/Safari",
         "~/Library/IdentityServices",
@@ -21,18 +30,22 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Mail",
         "~/Library/Messages",
         "~/Library/Photos",
+        "~/Library/Cookies",
+        "~/Library/Passes",
         "~/Library/Mobile Documents", // iCloud Drive
         "~/Library/CloudStorage",
         "~/Library/HomeKit",
         "~/Library/Calendars",
         "~/Library/Reminders",
         "~/Library/Notes",
-        "~/Library/Cookies",
-        "~/Library/Passes",
         "~/Library/PersonalizationPortrait",
         "~/Library/Suggestions",
+        "~/Library/Application Support/MacAegis"
+    ]
 
-        // Essential App Data & IDEs (NEVER consider as trash or orphan)
+    /// Essential app data directories that must not be deleted as an entire bundle,
+    /// but whose specific cache/temp subpaths can be cleaned under .cacheOnly mode.
+    private let protectedContainers: Set<String> = [
         "~/Library/Application Support/Code",
         "~/Library/Application Support/Cursor",
         "~/Library/Application Support/Google",
@@ -45,33 +58,35 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Application Support/Docker Desktop",
         "~/Library/Application Support/v2rayN",
         "~/Library/Application Support/Telegram Desktop",
-        "~/Library/Application Support/MacAegis",
         "~/Library/Containers/com.tencent.xinWeChat",
-
-        // Root & System Directories
-        "/System",
-        "/usr",
-        "/bin",
-        "/sbin",
-        "/etc",
-        "/var",
-        "/private",
-        "/Library/Security",
-        "/Library/Keychains",
-        "/Library/Apple",
-        "/Volumes/Macintosh HD"
+        "~/Library/Group Containers"
     ]
 
-    /// Specific folder paths that cannot be deleted itself, but individual cache/installer files inside may be cleaned
+    /// Specific folder roots that cannot be deleted themselves
     private let protectedContainerRoots: Set<String> = [
+        "~/Desktop",
+        "~/Documents",
+        "~/Pictures",
+        "~/Music",
+        "~/Movies",
         "~/Downloads",
         "~/Library/Caches",
         "~/Library/Logs",
         "~/Library/Group Containers",
-        "~/Library/Preferences"
+        "~/Library/Preferences",
+        "~/Library/Containers",
+        "~/Library/Application Support"
     ]
 
-    /// Critical file extensions and names that must never be deleted
+    /// Recognized safe cache subpath indicators that are permitted to be cleaned inside protected containers
+    private let allowedCacheSubpathKeywords: [String] = [
+        "/Cache/", "/Caches/", "/GPUCache/", "/Code Cache/", "/ScriptCache/",
+        "/CacheStorage/", "/tmp/", "/temp/", "/Crashpad/", "/Logs/",
+        "/HTTPStorages/", "/Service Worker/CacheStorage/", "/tdata/user_data/cache",
+        "/tdata/temp", "/Data/Library/Caches/"
+    ]
+
+    /// Critical file extensions and names that must never be deleted anywhere
     private let protectedFileExtensions: Set<String> = [
         "db", "sqlite", "sqlite3", "sqlite-wal", "sqlite-shm",
         "keychain", "keychain-db",
@@ -101,8 +116,8 @@ public final class WhitelistManager: @unchecked Sendable {
         }
     }
 
-    /// Absolute check whether a given path is protected
-    public func isProtected(path: String) -> Bool {
+    /// Check whether a given path is protected under specified protection mode
+    public func isProtected(path: String, mode: ProtectionMode = .strict) -> Bool {
         lock.lock()
         defer { lock.unlock() }
 
@@ -113,7 +128,7 @@ public final class WhitelistManager: @unchecked Sendable {
             return true
         }
 
-        // 2. Prevent deleting container roots themselves (e.g. wiping the entire ~/Downloads folder)
+        // 2. Prevent deleting container roots themselves (e.g. wiping entire ~/Downloads or ~/Library/Caches)
         for root in protectedContainerRoots {
             if expanded == FileUtils.expandPath(root) {
                 return true
@@ -126,18 +141,36 @@ public final class WhitelistManager: @unchecked Sendable {
             return true
         }
 
-        // 4. Check protected system paths (full subtree protection)
-        for sysPath in systemProtectedPaths {
+        // 4. Check absolute protected system paths (full subtree protection under all modes)
+        for sysPath in absoluteProtectedPaths {
             let expandedSys = FileUtils.expandPath(sysPath)
             if expanded == expandedSys || expanded.hasPrefix(expandedSys + "/") {
                 return true
             }
         }
 
-        // 5. Check custom whitelist
+        // 5. Check custom user whitelist
         for customPath in customWhitelist {
             if expanded == customPath || expanded.hasPrefix(customPath + "/") {
                 return true
+            }
+        }
+
+        // 6. Check protected containers according to mode
+        for container in protectedContainers {
+            let expContainer = FileUtils.expandPath(container)
+            if expanded == expContainer {
+                return true
+            }
+            if expanded.hasPrefix(expContainer + "/") {
+                if mode == .cacheOnly {
+                    // Under .cacheOnly mode, verify if this specific target path is a safe cache subpath
+                    let containsCacheKeyword = allowedCacheSubpathKeywords.contains { expanded.contains($0) }
+                    if containsCacheKeyword || expanded.hasSuffix("/Cache") || expanded.hasSuffix("/Caches") || expanded.hasSuffix("/GPUCache") || expanded.hasSuffix("/Code Cache") {
+                        return false // Allow cleaning safe cache subpaths!
+                    }
+                }
+                return true // Protect user configs and non-cache data
             }
         }
 

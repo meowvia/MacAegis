@@ -470,8 +470,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         defer { lock.unlock() }
 
         var recovered: [VaultItem] = []
+        let fm = FileManager.default
         let home = NSHomeDirectory()
-        let scanDirs = [
+        var scanDirs = [
             home + "/Desktop",
             home + "/Documents",
             home + "/Downloads",
@@ -480,7 +481,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             home
         ]
 
-        let fm = FileManager.default
+        if let volContents = try? fm.contentsOfDirectory(atPath: "/Volumes") {
+            for volName in volContents {
+                let vPath = "/Volumes/" + volName
+                if vPath != "/Volumes/Macintosh HD" && !volName.hasPrefix(".") && !scanDirs.contains(vPath) {
+                    scanDirs.append(vPath)
+                }
+            }
+        }
         for dirPath in scanDirs {
             let dirURL = URL(fileURLWithPath: dirPath)
             guard let contents = try? fm.contentsOfDirectory(at: dirURL, includingPropertiesForKeys: nil, options: [.skipsPackageDescendants]) else {

@@ -24,6 +24,9 @@ public final class ScannerEngine: Sendable {
     public func scan(onFoundItem: (@Sendable (CleanItem) -> Void)? = nil) async -> ScanResult {
         let startTime = Date()
 
+        // Force fresh indexing of installed applications to accurately identify live apps and orphans
+        _ = AppDetector.shared.indexInstalledApps(forceRefresh: true)
+
         let threadSafeCallback: (@Sendable (CleanItem) -> Void)?
         if let originalCallback = onFoundItem {
             let callbackLock = NSLock()

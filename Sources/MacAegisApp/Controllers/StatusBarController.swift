@@ -33,7 +33,8 @@ public final class StatusBarController: NSObject {
 
         if let button = statusItem?.button {
             button.target = self
-            button.action = #selector(togglePopover(_:))
+            button.action = #selector(handleStatusBarClick(_:))
+            button.sendAction(on: [.leftMouseUp])
         }
 
         // Listen to updates from DashboardViewModel
@@ -47,8 +48,16 @@ public final class StatusBarController: NSObject {
         updateStatusItemTitle()
     }
 
-    @objc private func togglePopover(_ sender: AnyObject?) {
+    @objc private func handleStatusBarClick(_ sender: AnyObject?) {
         guard let button = statusItem?.button, let popover = popover else { return }
+        let clickCount = NSApp.currentEvent?.clickCount ?? 1
+
+        if clickCount >= 2 {
+            hidePopover()
+            AppDelegate.showMainWindow()
+            return
+        }
+
         if popover.isShown {
             popover.performClose(sender)
         } else {

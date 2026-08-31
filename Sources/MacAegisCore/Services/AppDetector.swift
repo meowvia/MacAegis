@@ -12,7 +12,7 @@ public final class AppDetector: @unchecked Sendable {
     }
 
     private var cachedApps: [InstalledApp] = []
-    private var isIndexed: Bool = false
+    private var lastIndexTime: Date = .distantPast
     private let lock = NSLock()
 
     // Common directory alias mapping to real applications
@@ -40,7 +40,8 @@ public final class AppDetector: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        if isIndexed && !forceRefresh {
+        let now = Date()
+        if !forceRefresh && !cachedApps.isEmpty && now.timeIntervalSince(lastIndexTime) < 5.0 {
             return cachedApps
         }
 
@@ -107,7 +108,7 @@ public final class AppDetector: @unchecked Sendable {
         }
 
         self.cachedApps = apps
-        self.isIndexed = true
+        self.lastIndexTime = Date()
         return apps
     }
 

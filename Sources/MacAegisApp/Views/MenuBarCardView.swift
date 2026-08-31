@@ -118,25 +118,8 @@ public struct MenuBarCardView: View {
 
             Divider().opacity(0.4)
 
-            // 4. Quick Actions (Open Main Interface + Clean Quit)
+            // 4. Quick Actions (Clean Quit)
             VStack(spacing: 6) {
-                Button(action: onOpenMainWindow) {
-                    HStack {
-                        Image(systemName: "macwindow")
-                            .font(.system(size: 11))
-                        Text(l10n("打开主界面", "Open MacAegis"))
-                            .font(.system(size: 11, weight: .medium))
-                        Spacer()
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7)
-                            .fill(Color.primary.opacity(0.06))
-                    )
-                }
-                .buttonStyle(.plain)
-
                 Button(action: {
                     NSApplication.shared.terminate(nil)
                 }) {

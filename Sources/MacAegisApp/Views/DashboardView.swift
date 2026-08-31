@@ -12,6 +12,8 @@ public struct DashboardView: View {
     @State private var activeCategoryFilter: [CleanCategory]? = nil
     @State private var activeDetailTitle: String = "全盘智能扫描明细"
     @State private var expandedCategories: Set<CleanCategory> = Set(CleanCategory.allCases)
+    @State private var isOrbHovered: Bool = false
+    @State private var isBreathingGlow: Bool = false
 
     public init(
         viewModel: DashboardViewModel,
@@ -240,7 +242,7 @@ public struct DashboardView: View {
 
             Spacer(minLength: 8)
 
-            // Bottom Clickable Full Scan / GitHub Footer
+            // Bottom Clickable Full Scan / List Entrance
             Button(action: {
                 activeCategoryFilter = nil
                 activeDetailTitle = l10n("全盘智能扫描明细", "All Scan Results")
@@ -249,167 +251,211 @@ public struct DashboardView: View {
                 }
                 showingScanDetail = true
             }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkle")
-                        .foregroundColor(Color(hex: "38BDF8"))
-                        .font(.system(size: 10))
-                    Text(l10n("查看全盘深度扫描明细清单 ↗", "View All Scan Results ↗"))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color(hex: "38BDF8"))
+                        .frame(width: 8, height: 8)
+                        .shadow(color: Color(hex: "38BDF8"), radius: isBreathingGlow ? 6 : 1)
+                        .scaleEffect(isBreathingGlow ? 1.25 : 0.85)
+
+                    Text(l10n("查看全盘深度扫描列表 ↗", "View Full Disk Deep Scan List ↗"))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
                 .background(
                     Capsule()
                         .fill(.ultraThinMaterial)
-                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.8))
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(hex: "38BDF8").opacity(isBreathingGlow ? 0.85 : 0.35),
+                                            Color(hex: "818CF8").opacity(isBreathingGlow ? 0.65 : 0.20)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    lineWidth: isBreathingGlow ? 1.4 : 0.8
+                                )
+                        )
+                        .shadow(color: Color(hex: "38BDF8").opacity(isBreathingGlow ? 0.35 : 0.08), radius: isBreathingGlow ? 10 : 3, x: 0, y: 2)
                 )
             }
             .buttonStyle(PureButtonStyle())
             .focusable(false)
             .focusEffectDisabled()
             .padding(.bottom, 16)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                    isBreathingGlow = true
+                }
+            }
         }
     }
 
-    // MARK: - Grand 3D Luminous Aqua Glass Sphere Bubble (参考图真实发光球体)
+    // MARK: - Grand 3D Luminous Aqua Glass Sphere Bubble (可点击真·扫描按钮)
     private var luminousAquaGlassSphereHero: some View {
         VStack(spacing: 0) {
-            ZStack {
-                // Layer 1: Ambient Multi-Spectral Outer Bloom (Outer Glow Aura)
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color(hex: "C084FC").opacity(0.40),
-                                Color(hex: "38BDF8").opacity(0.25),
-                                Color(hex: "6366F1").opacity(0.15),
-                                Color.clear
-                            ],
-                            center: .topLeading,
-                            startRadius: 40,
-                            endRadius: 150
-                        )
-                    )
-                    .frame(width: 270, height: 270)
-                    .blur(radius: 20)
-
-                // Layer 2: Ambient Glowing Sparkle Accents
-                ForEach(0..<8) { i in
-                    let angle = Double(i) * (Double.pi * 2 / 8)
-                    let radius: CGFloat = 135
-                    Circle()
-                        .fill(i % 2 == 0 ? Color.white.opacity(0.8) : Color(hex: "38BDF8").opacity(0.7))
-                        .frame(width: i % 3 == 0 ? 3.5 : 2.5, height: i % 3 == 0 ? 3.5 : 2.5)
-                        .position(
-                            x: 135 + radius * CGFloat(cos(angle)),
-                            y: 135 + radius * CGFloat(sin(angle))
-                        )
-                        .blur(radius: 0.3)
-                }
-                .frame(width: 270, height: 270)
-
-                // Layer 3: Glass Sphere Core Body with Liquid Wave
+            Button(action: {
+                viewModel.startScan()
+            }) {
                 ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 230, height: 230)
-
-                    // Inner Radial Specular Caustics
+                    // Layer 1: Ambient Multi-Spectral Outer Bloom (Outer Glow Aura)
                     Circle()
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    Color.white.opacity(0.20),
-                                    Color(hex: "38BDF8").opacity(0.08),
-                                    Color(hex: "818CF8").opacity(0.15),
+                                    Color(hex: "C084FC").opacity(isOrbHovered ? 0.55 : 0.40),
+                                    Color(hex: "38BDF8").opacity(isOrbHovered ? 0.38 : 0.25),
+                                    Color(hex: "6366F1").opacity(0.15),
                                     Color.clear
                                 ],
                                 center: .topLeading,
-                                startRadius: 0,
-                                endRadius: 140
+                                startRadius: 40,
+                                endRadius: 150
                             )
                         )
-                        .frame(width: 230, height: 230)
+                        .frame(width: 270, height: 270)
+                        .blur(radius: isOrbHovered ? 24 : 20)
 
-                    // Internal Liquid Wave Membrane
-                    liquidWaveMembrane
-                        .frame(width: 210, height: 80)
-                        .offset(y: 55)
-                        .clipShape(Circle().size(width: 230, height: 230).offset(x: -10, y: -95))
-                }
+                    // Layer 2: Ambient Glowing Sparkle Accents
+                    ForEach(0..<8) { i in
+                        let angle = Double(i) * (Double.pi * 2 / 8)
+                        let radius: CGFloat = 135
+                        Circle()
+                            .fill(i % 2 == 0 ? Color.white.opacity(0.8) : Color(hex: "38BDF8").opacity(0.7))
+                            .frame(width: i % 3 == 0 ? 3.5 : 2.5, height: i % 3 == 0 ? 3.5 : 2.5)
+                            .position(
+                                x: 135 + radius * CGFloat(cos(angle)),
+                                y: 135 + radius * CGFloat(sin(angle))
+                            )
+                            .blur(radius: 0.3)
+                    }
+                    .frame(width: 270, height: 270)
 
-                // Layer 4: 3D Iridescent Optical Glass Rim Border
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white,
-                                Color(hex: "F472B6"),
-                                Color(hex: "C084FC"),
-                                Color(hex: "818CF8"),
-                                Color(hex: "38BDF8"),
-                                Color.white
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 2.4
-                    )
-                    .frame(width: 230, height: 230)
-                    .shadow(color: Color(hex: "38BDF8").opacity(0.60), radius: 12, x: 0, y: 0)
+                    // Layer 3: Glass Sphere Core Body with Liquid Wave
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 230, height: 230)
 
-                // Layer 5: Top-Left Crescent Specular Shine (光斑高光)
-                Ellipse()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.95), Color.white.opacity(0.2), Color.clear],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                        // Inner Radial Specular Caustics
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        Color.white.opacity(0.20),
+                                        Color(hex: "38BDF8").opacity(0.08),
+                                        Color(hex: "818CF8").opacity(0.15),
+                                        Color.clear
+                                    ],
+                                    center: .topLeading,
+                                    startRadius: 0,
+                                    endRadius: 140
+                                )
+                            )
+                            .frame(width: 230, height: 230)
+
+                        // Internal Liquid Wave Membrane
+                        liquidWaveMembrane
+                            .frame(width: 210, height: 80)
+                            .offset(y: 55)
+                            .clipShape(Circle().size(width: 230, height: 230).offset(x: -10, y: -95))
+                    }
+
+                    // Layer 4: 3D Iridescent Optical Glass Rim Border
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white,
+                                    Color(hex: "F472B6"),
+                                    Color(hex: "C084FC"),
+                                    Color(hex: "818CF8"),
+                                    Color(hex: "38BDF8"),
+                                    Color.white
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: isOrbHovered ? 3.0 : 2.4
                         )
-                    )
-                    .frame(width: 70, height: 28)
-                    .rotationEffect(.degrees(-35))
-                    .offset(x: -60, y: -60)
+                        .frame(width: 230, height: 230)
+                        .shadow(color: Color(hex: "38BDF8").opacity(isOrbHovered ? 0.85 : 0.60), radius: isOrbHovered ? 16 : 12, x: 0, y: 0)
 
-                // Layer 6: Center Big Numbers & Typography Inside the Sphere
-                VStack(spacing: 2) {
-                    Text(viewModel.selectedFormattedSize)
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-                        .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 2)
+                    // Layer 5: Top-Left Crescent Specular Shine (光斑高光)
+                    Ellipse()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.95), Color.white.opacity(0.2), Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 70, height: 28)
+                        .rotationEffect(.degrees(-35))
+                        .offset(x: -60, y: -60)
 
-                    Text(l10n("可释放空间", "Space Reclaimable"))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
+                    // Layer 6: Center Big Numbers & Typography Inside the Sphere
+                    VStack(spacing: 3) {
+                        if viewModel.isScanning {
+                            ProgressView()
+                                .scaleEffect(1.1)
+                                .padding(.bottom, 4)
 
-                    if viewModel.isScanning {
-                        Text(l10n("正在深度净化分析...", "Analyzing & Purifying..."))
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color(hex: "38BDF8"))
-                            .padding(.top, 4)
+                            Text(l10n("正在极速全盘分析...", "Scanning Full Disk..."))
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundColor(Color(hex: "38BDF8"))
+                        } else {
+                            Text(viewModel.selectedFormattedSize)
+                                .font(.system(size: 38, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                                .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 2)
+
+                            Text(l10n("可释放空间", "Space Reclaimable"))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+
+                            if isOrbHovered {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text(l10n("点击再次扫描", "Click to Rescan"))
+                                }
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color(hex: "38BDF8"))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color(hex: "38BDF8").opacity(0.18)))
+                                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                            }
+                        }
                     }
                 }
+                .frame(width: 270, height: 270)
+                .scaleEffect(isOrbHovered ? 1.025 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isOrbHovered)
             }
-            .frame(width: 270, height: 270)
+            .buttonStyle(PureButtonStyle())
+            .focusable(false)
+            .focusEffectDisabled()
+            .onHover { isOrbHovered = $0 }
 
-            // Primary Liquid Glass Pill Action Button (智能扫描 / 一键清理)
+            // Primary Liquid Glass Pill Action Button (专职一键清理)
             Button(action: {
-                if viewModel.scanResult != nil && !viewModel.selectedItemIds.isEmpty {
-                    viewModel.executeClean()
-                } else {
-                    viewModel.startScan()
-                }
+                viewModel.executeClean()
             }) {
                 HStack(spacing: 8) {
-                    Image(systemName: viewModel.scanResult != nil ? "trash.fill" : "sparkles")
-                    Text(viewModel.scanResult != nil ? l10n("一键清理 (\(viewModel.selectedFormattedSize))", "Clean Now (\(viewModel.selectedFormattedSize))") : l10n("智能扫描", "Smart Scan"))
+                    Image(systemName: "trash.fill")
+                    Text(l10n("一键极速清理 (\(viewModel.selectedFormattedSize))", "Clean Now (\(viewModel.selectedFormattedSize))"))
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
                 }
                 .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
-                .frame(width: 210, height: 42)
+                .frame(width: 230, height: 42)
                 .background(
                     Capsule()
                         .fill(
@@ -429,6 +475,8 @@ public struct DashboardView: View {
             .buttonStyle(PureButtonStyle())
             .focusable(false)
             .focusEffectDisabled()
+            .disabled(viewModel.isScanning || viewModel.selectedItemIds.isEmpty)
+            .opacity(viewModel.isScanning || viewModel.selectedItemIds.isEmpty ? 0.5 : 1.0)
             .offset(y: -14)
         }
     }

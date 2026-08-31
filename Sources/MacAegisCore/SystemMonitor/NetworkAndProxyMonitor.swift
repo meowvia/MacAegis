@@ -141,11 +141,20 @@ public final class NetworkAndProxyMonitor: @unchecked Sendable {
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let current = cursor {
             let name = String(cString: current.pointee.ifa_name)
-            if !name.hasPrefix("lo") {
-                if let data = current.pointee.ifa_data {
-                    let ifData = data.assumingMemoryBound(to: if_data.self)
-                    totalIn += UInt64(ifData.pointee.ifi_ibytes)
-                    totalOut += UInt64(ifData.pointee.ifi_obytes)
+
+            // Only inspect AF_LINK link-layer socket structures with valid if_data
+            if let addr = current.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK) {
+                let lower = name.lowercased()
+                let isLoopback = lower.hasPrefix("lo")
+                // Exclude virtual tunnels and auxiliary peer-to-peer links that duplicate physical bytes
+                let isDuplicateVirtual = lower.hasPrefix("utun") || lower.hasPrefix("gif") || lower.hasPrefix("stf") || lower.hasPrefix("bridge") || lower.hasPrefix("llw") || lower.hasPrefix("awdl")
+
+                if !isLoopback && !isDuplicateVirtual {
+                    if let data = current.pointee.ifa_data {
+                        let ifData = data.assumingMemoryBound(to: if_data.self)
+                        totalIn += UInt64(ifData.pointee.ifi_ibytes)
+                        totalOut += UInt64(ifData.pointee.ifi_obytes)
+                    }
                 }
             }
             cursor = current.pointee.ifa_next

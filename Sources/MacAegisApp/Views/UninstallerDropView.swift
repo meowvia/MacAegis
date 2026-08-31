@@ -59,6 +59,9 @@ public struct UninstallerDropView: View {
             }
         }
         .background(MacAegisTheme.canvasBackground.ignoresSafeArea())
+        .onAppear {
+            viewModel.loadInstalledApps()
+        }
         .alert("卸载提示", isPresented: Binding(
             get: { viewModel.alertMessage != nil },
             set: { if !$0 { viewModel.alertMessage = nil } }

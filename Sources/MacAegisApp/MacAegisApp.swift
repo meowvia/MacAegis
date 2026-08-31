@@ -41,7 +41,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     public static func showMainWindow() {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
+        if let window = NSApp.windows.first(where: { !($0 is NSPanel) && $0.className.contains("Window") }) {
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+            window.setIsVisible(true)
+            window.makeKeyAndOrderFront(nil)
+        } else if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+            window.setIsVisible(true)
             window.makeKeyAndOrderFront(nil)
         }
     }

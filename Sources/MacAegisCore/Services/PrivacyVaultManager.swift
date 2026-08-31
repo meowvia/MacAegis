@@ -147,13 +147,17 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         defer { lock.unlock() }
 
         // 1. Check local file
-        if FileManager.default.fileExists(atPath: authConfigURL.path) {
+        if let data = try? Data(contentsOf: authConfigURL),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+           json["salt"] != nil, json["hash"] != nil {
             return true
         }
 
         // 2. Fallback to macOS System Keychain (Immune to app uninstallation/cleanup)
         if !isTestIsolation,
-           let keychainData = KeychainHelper.shared.load(service: keychainService, account: keychainAccount) {
+           let keychainData = KeychainHelper.shared.load(service: keychainService, account: keychainAccount),
+           let json = try? JSONSerialization.jsonObject(with: keychainData) as? [String: String],
+           json["salt"] != nil, json["hash"] != nil {
             try? keychainData.write(to: authConfigURL, options: .atomic)
             return true
         }

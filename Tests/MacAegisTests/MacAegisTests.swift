@@ -140,8 +140,8 @@ import Foundation
         thermalStateDescription: "清凉",
         thermalBadge: "🟢"
     )
-    #expect(status0.formattedTemperature(isCelsius: true) == "0.0 ℃")
-    #expect(status0.formattedTemperature(isCelsius: false) == "32.0 ℉")
+    #expect(status0.formattedTemperature(isCelsius: true) == "0°C")
+    #expect(status0.formattedTemperature(isCelsius: false) == "32°F")
 
     let status100 = ThermalAndFanStatus(
         chipTemperatureCelsius: 100.0,
@@ -150,8 +150,8 @@ import Foundation
         thermalStateDescription: "高温",
         thermalBadge: "🔴"
     )
-    #expect(status100.formattedTemperature(isCelsius: true) == "100.0 ℃")
-    #expect(status100.formattedTemperature(isCelsius: false) == "212.0 ℉")
+    #expect(status100.formattedTemperature(isCelsius: true) == "100°C")
+    #expect(status100.formattedTemperature(isCelsius: false) == "212°F")
 
     let status45 = ThermalAndFanStatus(
         chipTemperatureCelsius: 45.0,
@@ -160,8 +160,8 @@ import Foundation
         thermalStateDescription: "正常",
         thermalBadge: "🟢"
     )
-    #expect(status45.formattedTemperature(isCelsius: true) == "45.0 ℃")
-    #expect(status45.formattedTemperature(isCelsius: false) == "113.0 ℉")
+    #expect(status45.formattedTemperature(isCelsius: true) == "45°C")
+    #expect(status45.formattedTemperature(isCelsius: false) == "113°F")
 }
 
 @Test func testProxyModeAndNetworkSpeed() async throws {
@@ -415,5 +415,47 @@ import Foundation
 
     // Reset Keychain state
     vault2.resetMasterAuth(clearKeychain: true)
+}
+
+@Test func testChangeMasterPasswordWithPBKDF2() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_pass_test_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.passchange", isTestIsolation: true)
+    
+    // Set Initial Password
+    #expect(vault.setMasterPassword("OldPassword123!", hint: "OldHint") == true)
+    #expect(vault.verifyMasterPassword("OldPassword123!") == true)
+    #expect(vault.getPasswordHint() == "OldHint")
+
+    // Fail change with incorrect old password
+    #expect(vault.changeMasterPassword(oldPassword: "WrongPassword!", newPassword: "NewPassword456!", hint: "NewHint") == false)
+
+    // Successful change
+    #expect(vault.changeMasterPassword(oldPassword: "OldPassword123!", newPassword: "NewPassword456!", hint: "NewHint") == true)
+
+    // Old password no longer works, new password works
+    #expect(vault.verifyMasterPassword("OldPassword123!") == false)
+    #expect(vault.verifyMasterPassword("NewPassword456!") == true)
+    #expect(vault.getPasswordHint() == "NewHint")
+}
+
+@Test func testFolderSizeDetectionOnAdd() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_dir_size_\(UUID().uuidString)")
+    let subFolder = tempDir.appendingPathComponent("MyPrivateFolder")
+    try? FileManager.default.createDirectory(at: subFolder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let testFile = subFolder.appendingPathComponent("data.bin")
+    let dummyData = Data(repeating: 0x41, count: 1024 * 100) // 100 KB
+    try? dummyData.write(to: testFile)
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.dirsize", isTestIsolation: true)
+    _ = vault.setMasterPassword("Password123!")
+
+    let addedItem = vault.addItem(url: subFolder, type: .hidden)
+    #expect(addedItem != nil)
+    #expect(addedItem!.sizeBytes >= 102400) // Accurately measured folder size!
 }
 

@@ -81,7 +81,135 @@ public struct PrivacyVaultView: View {
                     Spacer()
                 }
             }
+
+            // Change Password Modal Overlay
+            if viewModel.isChangingPassword {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                viewModel.isChangingPassword = false
+                            }
+                        }
+
+                    changePasswordCard
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .zIndex(1000)
+            }
         }
+    }
+
+    // MARK: - Change Password Card View
+    private var changePasswordCard: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.isChangingPassword = false
+                    }
+                }) {
+                    Circle()
+                        .fill(Color.red.opacity(0.85))
+                        .frame(width: 12, height: 12)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 7, weight: .black))
+                                .foregroundColor(.black.opacity(0.6))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "key.fill")
+                        .foregroundColor(Color(hex: "38BDF8"))
+                        .font(.system(size: 13))
+                    Text(l10n("修改保险箱主密码", "Change Master Password"))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
+                Spacer()
+            }
+
+            Divider().opacity(0.2)
+
+            if let err = viewModel.changePasswordErrorMessage {
+                Text(err)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color(hex: "EF4444"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color(hex: "EF4444").opacity(0.12)))
+            }
+
+            VStack(spacing: 10) {
+                SecureField(l10n("当前旧密码", "Current password"), text: $viewModel.oldPasswordInput)
+                    .textFieldStyle(.plain)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+
+                SecureField(l10n("新主密码 (至少 6 位)", "New password (6+ chars)"), text: $viewModel.newPasswordInput)
+                    .textFieldStyle(.plain)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+
+                SecureField(l10n("确认新密码", "Confirm new password"), text: $viewModel.confirmNewPasswordInput)
+                    .textFieldStyle(.plain)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+
+                TextField(l10n("新密码提示 (选填)", "New password hint (optional)"), text: $viewModel.newPasswordHintInput)
+                    .textFieldStyle(.plain)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+            }
+            .frame(width: 320)
+
+            HStack(spacing: 12) {
+                Button(l10n("取消", "Cancel")) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.isChangingPassword = false
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(action: {
+                    _ = viewModel.executeChangePassword()
+                }) {
+                    Text(l10n("确认修改", "Confirm Change"))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "6366F1"), Color(hex: "3B82F6")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                        )
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .disabled(viewModel.oldPasswordInput.isEmpty || viewModel.newPasswordInput.isEmpty)
+                .opacity(viewModel.oldPasswordInput.isEmpty || viewModel.newPasswordInput.isEmpty ? 0.5 : 1.0)
+            }
+            .frame(width: 320)
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 380)
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
     }
 
     // MARK: - Cosmic Liquid Glass Backdrop
@@ -195,6 +323,25 @@ public struct PrivacyVaultView: View {
                 .padding(.vertical, 5)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
                 .frame(width: 170)
+
+                // Change Password Button
+                Button(action: {
+                    viewModel.changePasswordErrorMessage = nil
+                    viewModel.isChangingPassword = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "key.fill")
+                        Text(l10n("修改密码", "Change Password"))
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .focusEffectDisabled()
 
                 // Add Items Button
                 Button(action: { selectFilesFromDialog() }) {

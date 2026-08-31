@@ -54,9 +54,6 @@ public struct DashboardView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
     }
 
     // MARK: - Ethereal Cosmic Liquid Glass Backdrop
@@ -153,7 +150,7 @@ public struct DashboardView: View {
             Spacer(minLength: 8)
 
             // Main Stage: Left 2 Orbiting Bubbles + Center Grand Luminous Sphere + Right 2 Orbiting Bubbles
-            HStack(alignment: .center, spacing: 32) {
+            HStack(alignment: .center, spacing: 36) {
                 // Left Wing: 2 Floating Pods
                 VStack(spacing: 36) {
                     // Pod 1: 系统缓存与日志 (Top-Left)
@@ -238,6 +235,7 @@ public struct DashboardView: View {
                 }
                 .frame(width: 210)
             }
+            .frame(maxWidth: 860)
             .padding(.horizontal, 24)
 
             Spacer(minLength: 8)
@@ -398,8 +396,7 @@ public struct DashboardView: View {
             // Primary Liquid Glass Pill Action Button (智能扫描 / 一键清理)
             Button(action: {
                 if viewModel.scanResult != nil && !viewModel.selectedItemIds.isEmpty {
-                    viewModel.executeClean(useTrash: true)
-                    SoundSentinel.shared.playWaterDropletChime()
+                    viewModel.executeClean()
                 } else {
                     viewModel.startScan()
                 }
@@ -620,8 +617,7 @@ public struct DashboardView: View {
                 .foregroundColor(.secondary)
 
                 Button(action: {
-                    viewModel.executeClean(useTrash: true)
-                    SoundSentinel.shared.playWaterDropletChime()
+                    viewModel.executeClean()
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "trash.fill")

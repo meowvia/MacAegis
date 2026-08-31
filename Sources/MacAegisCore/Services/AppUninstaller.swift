@@ -84,10 +84,17 @@ public final class AppUninstaller: Sendable {
                     isMatch = true
                 } else {
                     // Check if token matches
-                    for token in searchTokens where token.count >= 3 {
-                        if subLower == token || subLower.hasPrefix("\(token).") || subLower.hasSuffix(".\(token)") || subLower.contains(".\(token).") {
-                            isMatch = true
-                            break
+                    for token in searchTokens {
+                        if token == appName.lowercased() {
+                            if subLower == token || subLower.hasPrefix("\(token).") || subLower.hasSuffix(".\(token)") {
+                                isMatch = true
+                                break
+                            }
+                        } else if token.count >= 3 {
+                            if subLower == token || subLower.hasPrefix("\(token).") || subLower.hasSuffix(".\(token)") || subLower.contains(".\(token).") {
+                                isMatch = true
+                                break
+                            }
                         }
                     }
                 }

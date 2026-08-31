@@ -24,13 +24,11 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Mobile Documents", // iCloud Drive
         "~/Library/CloudStorage",
         "~/Library/HomeKit",
-        "~/Library/Group Containers",
         "~/Library/Calendars",
         "~/Library/Reminders",
         "~/Library/Notes",
         "~/Library/Cookies",
         "~/Library/Passes",
-        "~/Library/Preferences",
         "~/Library/PersonalizationPortrait",
         "~/Library/Suggestions",
 
@@ -68,7 +66,9 @@ public final class WhitelistManager: @unchecked Sendable {
     private let protectedContainerRoots: Set<String> = [
         "~/Downloads",
         "~/Library/Caches",
-        "~/Library/Logs"
+        "~/Library/Logs",
+        "~/Library/Group Containers",
+        "~/Library/Preferences"
     ]
 
     /// Critical file extensions and names that must never be deleted

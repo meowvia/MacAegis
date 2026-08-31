@@ -24,7 +24,7 @@ public enum VaultError: LocalizedError, Sendable {
 
 public enum VaultItemType: String, Codable, Sendable {
     case hidden = "极速隐形"
-    case encrypted = "军工加密"
+    case concealed = "深度隐匿"
 }
 
 public enum VaultItemStatus: String, Codable, Sendable {
@@ -252,6 +252,64 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return hint
     }
 
+    public func changeMasterPassword(oldPassword: String, newPassword: String, hint: String? = nil) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        var authData = try? Data(contentsOf: authConfigURL)
+        if authData == nil && !isTestIsolation {
+            authData = KeychainHelper.shared.load(service: keychainService, account: keychainAccount)
+        }
+
+        guard let data = authData,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+              let oldSaltHex = json["salt"],
+              let expectedHash = json["hash"],
+              let oldSaltData = Data(hexString: oldSaltHex),
+              let oldDerivedKey = Self.deriveKeyPBKDF2(password: oldPassword, salt: oldSaltData, iterations: 100_000) else {
+            return false
+        }
+
+        let computedHash = oldDerivedKey.map { String(format: "%02hhx", $0) }.joined()
+        guard computedHash == expectedHash else {
+            return false
+        }
+
+        // 2. Generate new salt and derived key
+        var newSalt = [UInt8](repeating: 0, count: 16)
+        _ = SecRandomCopyBytes(kSecRandomDefault, newSalt.count, &newSalt)
+        let newSaltData = Data(newSalt)
+        let newSaltHex = newSaltData.map { String(format: "%02hhx", $0) }.joined()
+
+        guard let newDerivedKey = Self.deriveKeyPBKDF2(password: newPassword, salt: newSaltData, iterations: 100_000) else {
+            return false
+        }
+        let newHashHex = newDerivedKey.map { String(format: "%02hhx", $0) }.joined()
+
+        // 3. Save new auth credentials to disk and keychain
+        var authDict: [String: String] = [
+            "salt": newSaltHex,
+            "hash": newHashHex
+        ]
+        if let h = hint, !h.isEmpty {
+            authDict["hint"] = h
+        }
+
+        guard let newJsonData = try? JSONSerialization.data(withJSONObject: authDict, options: .prettyPrinted) else {
+            return false
+        }
+
+        try? newJsonData.write(to: authConfigURL, options: .atomic)
+        if !isTestIsolation {
+            KeychainHelper.shared.save(service: keychainService, account: keychainAccount, data: newJsonData)
+            KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: newDerivedKey)
+        }
+
+        self.activeDerivedKey = newDerivedKey
+        self.activeSaltHex = newSaltHex
+        return true
+    }
+
     public func resetMasterAuth(clearKeychain: Bool = true) {
         lock.lock()
         defer { lock.unlock() }
@@ -380,15 +438,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
-        let initialSize: Int64
-        if isDir.boolValue {
-            initialSize = 0
-        } else {
-            initialSize = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int64) ?? 0
-        }
 
-        // Strict Check: Primary criterion is presence of MacAegis xattr signature
+        // Calculate accurate size BEFORE locking so directory traversal succeeds
+        var calculatedSize: Int64 = FileUtils.calculateSize(atPath: path)
         let isAlreadyLocked = isItemLockedOnDisk(at: url)
+
+        if calculatedSize == 0 && isAlreadyLocked {
+            calculatedSize = calculateLockedItemSize(at: path)
+        }
 
         if !isAlreadyLocked {
             // Fresh un-locked item: Lock/Hide immediately (Instant Darwin syscall)
@@ -403,13 +460,26 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             path: path,
             type: type,
             status: .hidden,
-            sizeBytes: initialSize,
+            sizeBytes: calculatedSize,
             isExternalDrive: isExternal
         )
 
         items.append(item)
         saveMetadata()
         return item
+    }
+
+    private func calculateLockedItemSize(at path: String) -> Int64 {
+        var statBuf = stat()
+        guard lstat(path, &statBuf) == 0 else { return 0 }
+        let originalMode = statBuf.st_mode
+        let cPath = (path as NSString).fileSystemRepresentation
+        _ = chflags(cPath, 0)
+        chmod(path, 0o755)
+        let size = FileUtils.calculateSize(atPath: path)
+        chmod(path, originalMode)
+        _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+        return size
     }
 
     public func updateItemSize(path: String, size: Int64) {

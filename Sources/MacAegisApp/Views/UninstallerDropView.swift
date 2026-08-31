@@ -151,6 +151,17 @@ public struct UninstallerDropView: View {
                 .padding(24)
             }
         }
+        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                if let url = url {
+                    DispatchQueue.main.async {
+                        viewModel.analyzeApp(url: url)
+                    }
+                }
+            }
+            return true
+        }
     }
 
     private func appRow(app: AppDetector.InstalledApp) -> some View {

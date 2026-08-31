@@ -61,6 +61,10 @@ public final class StatusBarController: NSObject {
         popover?.performClose(nil)
     }
 
+    public func updateVisibility(enabled: Bool) {
+        statusItem?.isVisible = enabled
+    }
+
     public func updateStatusItemTitle() {
         guard let button = statusItem?.button, let vm = dashboardVM else { return }
 

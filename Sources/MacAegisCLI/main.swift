@@ -22,7 +22,7 @@ func printBanner() {
  | |  | |/ _` | _/ ___ \\  __/ (_| | \\__ \\
  |_|  |_|\\__,_(_)_/   \\_\\___|\\__, |_|___/
                              |___/       
-\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私保险箱 v0.1.1\(TerminalColor.reset)
+\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私保险箱 v\(AppConfig.appVersion)\(TerminalColor.reset)
 """)
 }
 
@@ -126,7 +126,24 @@ func runScan(args: [String]) async {
 
     if isDryRun {
         print("\n\(TerminalColor.yellow)⚠️  当前为 [安全预演模式 / Dry-Run]，未对磁盘进行任何改动。\(TerminalColor.reset)")
-        print("\(TerminalColor.dim)若要执行安全清理（默认移入废纸篓），请运行: \(TerminalColor.reset)\(TerminalColor.bold)swift run macaegis scan --clean\(TerminalColor.reset)\n")
+        print("\(TerminalColor.dim)若要执行安全清理（默认移入废纸篓），请运行: \(TerminalColor.reset)\(TerminalColor.bold)macaegis scan --clean\(TerminalColor.reset)\n")
+    } else {
+        let safeItems = result.items.filter { $0.safetyLevel == .safe }
+        guard !safeItems.isEmpty else {
+            print("\n\(TerminalColor.green)✨ 系统非常整洁，没有需要清理的安全缓存！\(TerminalColor.reset)\n")
+            return
+        }
+
+        print("\n\(TerminalColor.bold)🚀 正在执行安全清理 (\(safeItems.count) 个安全项，释放 \(result.safeFormattedSize))...\(TerminalColor.reset)")
+        let cleaner = CleanerEngine()
+        let report = cleaner.clean(items: safeItems, dryRun: false, useTrash: true)
+
+        print(String(repeating: "─", count: 68))
+        print("\(TerminalColor.green)✅ 清理完成！成功清理: \(report.successfulCount) 项，释放空间: \(ByteFormatter.format(report.totalReclaimedBytes))\(TerminalColor.reset)")
+        if report.failedCount > 0 {
+            print("\(TerminalColor.red)⚠️ 失败 \(report.failedCount) 项: \(report.errors.joined(separator: ", "))\(TerminalColor.reset)")
+        }
+        print(String(repeating: "─", count: 68) + "\n")
     }
 }
 

@@ -40,7 +40,7 @@ public struct FileUtils: Sendable {
         guard let enumerator = fm.enumerator(
             at: url,
             includingPropertiesForKeys: Array(resourceKeys),
-            options: [.skipsHiddenFiles],
+            options: [],
             errorHandler: { _, _ in true }
         ) else {
             return 0
@@ -73,7 +73,10 @@ public struct FileUtils: Sendable {
             return
         } catch {
             // If Tier 1 failed (e.g. permission on /Applications/SomeApp.app), try Tier 2: AppleScript Finder trash
-            let scriptSource = "tell application \"Finder\" to delete POSIX file \"\(expanded)\""
+            let safePath = expanded
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            let scriptSource = "tell application \"Finder\" to delete POSIX file \"\(safePath)\""
             var errorInfo: NSDictionary?
             if let script = NSAppleScript(source: scriptSource) {
                 _ = script.executeAndReturnError(&errorInfo)

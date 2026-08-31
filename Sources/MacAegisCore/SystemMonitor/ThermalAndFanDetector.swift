@@ -14,10 +14,10 @@ public struct ThermalAndFanStatus: Sendable {
 
     public func formattedTemperature(isCelsius: Bool) -> String {
         if isCelsius {
-            return String(format: "%.1f ℃", chipTemperatureCelsius)
+            return String(format: "%.0f°C", chipTemperatureCelsius)
         } else {
             let fahrenheit = (chipTemperatureCelsius * 9.0 / 5.0) + 32.0
-            return String(format: "%.1f ℉", fahrenheit)
+            return String(format: "%.0f°F", fahrenheit)
         }
     }
 
@@ -41,35 +41,37 @@ public final class ThermalAndFanDetector: Sendable {
         let thermalState = ProcessInfo.processInfo.thermalState
         let isAir = isMacBookAir()
 
-        // Temperature estimation / sensory reading
+        // 1. Read REAL Physical Hardware Temperature Sensor via Apple IOHID Event System
+        let realTemp = readRealHardwareTemperature()
+
         let temp: Double
         let desc: String
         let badge: String
 
         switch thermalState {
         case .nominal:
-            temp = 42.0 + Double(arc4random_uniform(5)) * 0.5
+            temp = realTemp ?? 42.0
             desc = l10n("清凉高效", "Cool & Efficient")
             badge = "🟢"
         case .fair:
-            temp = 56.0 + Double(arc4random_uniform(6)) * 0.5
+            temp = realTemp ?? 55.0
             desc = l10n("温热正常", "Nominal")
             badge = "🟢"
         case .serious:
-            temp = 76.0 + Double(arc4random_uniform(6)) * 0.5
+            temp = realTemp ?? 75.0
             desc = l10n("较高负荷", "Warm High Load")
             badge = "🟡"
         case .critical:
-            temp = 92.0 + Double(arc4random_uniform(4)) * 0.5
+            temp = realTemp ?? 90.0
             desc = l10n("过热降频", "Throttled Hot")
             badge = "🔴"
         @unknown default:
-            temp = 45.0
+            temp = realTemp ?? 45.0
             desc = l10n("正常", "Nominal")
             badge = "🟢"
         }
 
-        let fanSpeed: Int? = isAir ? nil : (thermalState == .serious ? 3200 : (thermalState == .critical ? 4800 : (temp > 50 ? 1800 : 0)))
+        let fanSpeed: Int? = isAir ? nil : (thermalState == .serious ? 3200 : (thermalState == .critical ? 4800 : (temp > 55 ? 1800 : 0)))
 
         return ThermalAndFanStatus(
             chipTemperatureCelsius: temp,
@@ -78,6 +80,51 @@ public final class ThermalAndFanDetector: Sendable {
             thermalStateDescription: desc,
             thermalBadge: badge
         )
+    }
+
+    /// Read genuine Apple Silicon / Intel physical hardware temperature sensors via macOS IOHIDEventSystem
+    private func readRealHardwareTemperature() -> Double? {
+        typealias IOHIDEventSystemClientCreateFunc = @convention(c) (CFAllocator?) -> Unmanaged<AnyObject>?
+        typealias IOHIDEventSystemClientSetMatchingFunc = @convention(c) (AnyObject, CFDictionary) -> Void
+        typealias IOHIDEventSystemClientCopyServicesFunc = @convention(c) (AnyObject) -> Unmanaged<CFArray>?
+        typealias IOHIDServiceClientCopyEventFunc = @convention(c) (AnyObject, Int64, Int32, Int64) -> Unmanaged<AnyObject>?
+        typealias IOHIDEventGetFloatValueFunc = @convention(c) (AnyObject, Int32) -> Double
+
+        guard let handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW) else { return nil }
+        defer { dlclose(handle) }
+
+        guard let clientCreateSym = dlsym(handle, "IOHIDEventSystemClientCreate"),
+              let copyEventSym = dlsym(handle, "IOHIDServiceClientCopyEvent"),
+              let getFloatSym = dlsym(handle, "IOHIDEventGetFloatValue"),
+              let copyServicesSym = dlsym(handle, "IOHIDEventSystemClientCopyServices"),
+              let setMatchingSym = dlsym(handle, "IOHIDEventSystemClientSetMatching") else {
+            return nil
+        }
+
+        let clientCreate = unsafeBitCast(clientCreateSym, to: IOHIDEventSystemClientCreateFunc.self)
+        let setMatching = unsafeBitCast(setMatchingSym, to: IOHIDEventSystemClientSetMatchingFunc.self)
+        let copyServices = unsafeBitCast(copyServicesSym, to: IOHIDEventSystemClientCopyServicesFunc.self)
+        let copyEvent = unsafeBitCast(copyEventSym, to: IOHIDServiceClientCopyEventFunc.self)
+        let getFloat = unsafeBitCast(getFloatSym, to: IOHIDEventGetFloatValueFunc.self)
+
+        guard let client = clientCreate(kCFAllocatorDefault)?.takeRetainedValue() else { return nil }
+        let matchingDict: [String: Any] = ["PrimaryUsagePage": 0xff00, "PrimaryUsage": 5]
+        setMatching(client, matchingDict as CFDictionary)
+        guard let services = copyServices(client)?.takeRetainedValue() as? [AnyObject], !services.isEmpty else { return nil }
+
+        var temps: [Double] = []
+        for service in services {
+            if let event = copyEvent(service, 15, 0, 0)?.takeRetainedValue() {
+                let t = getFloat(event, 15 << 16)
+                if t > 15 && t < 125 {
+                    temps.append(t)
+                }
+            }
+        }
+
+        guard !temps.isEmpty else { return nil }
+        let avg = temps.reduce(0.0, +) / Double(temps.count)
+        return avg
     }
 
     private func isMacBookAir() -> Bool {

@@ -18,6 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        let keepInMemory = UserDefaults.standard.object(forKey: "keepInMemoryOnClose") as? Bool ?? true
+        if !keepInMemory {
+            NSApp.terminate(nil)
+            return true
+        }
         sender.orderOut(nil)
         NSApp.setActivationPolicy(.accessory)
         return false
@@ -40,14 +45,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 @main
 struct MacAegisApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var dashboardVM = DashboardViewModel()
 
     var body: some Scene {
         WindowGroup("MacAegis", id: "main_window") {
             MainView()
+                .frame(minWidth: 960, minHeight: 640)
                 .onAppear {
                     NSApp.activate(ignoringOtherApps: true)
-                    StatusBarController.shared.setup(dashboardVM: dashboardVM)
+                    StatusBarController.shared.setup(dashboardVM: DashboardViewModel.shared)
                 }
         }
         .windowStyle(.hiddenTitleBar)

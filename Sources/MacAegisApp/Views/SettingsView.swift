@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 import MacAegisCore
 
 public struct SettingsView: View {
@@ -11,34 +12,42 @@ public struct SettingsView: View {
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("keepInMemoryOnClose") private var keepInMemoryOnClose: Bool = true
 
-    @Environment(\.dismiss) private var dismiss
+    public var onDismiss: (() -> Void)? = nil
 
     private let controlWidth: CGFloat = 210
 
-    public init() {}
+    public init(onDismiss: (() -> Void)? = nil) {
+        self.onDismiss = onDismiss
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header Bar
-            HStack {
-                HStack(spacing: 8) {
+            // Header Bar (Standard macOS Top-Left Close Button)
+            HStack(spacing: 12) {
+                Button(action: { onDismiss?() }) {
+                    Circle()
+                        .fill(Color.red.opacity(0.85))
+                        .frame(width: 13, height: 13)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8, weight: .black))
+                                .foregroundColor(.black.opacity(0.6))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(l10n("关闭设置", "Close Settings"))
+
+                HStack(spacing: 6) {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 15))
+                        .font(.system(size: 14))
                         .foregroundColor(Color(hex: "38BDF8"))
                     Text(l10n("偏好设置", "Preferences"))
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                 }
+
                 Spacer()
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(PureButtonStyle())
-                .focusable(false)
-                .focusEffectDisabled()
             }
-            .padding(.horizontal, 22)
+            .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 12)
 
@@ -273,7 +282,7 @@ public struct SettingsView: View {
                 }
                 Spacer()
                 Button(l10n("完成", "Done")) {
-                    dismiss()
+                    onDismiss?()
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
@@ -281,9 +290,27 @@ public struct SettingsView: View {
             .padding(.horizontal, 22)
             .padding(.vertical, 12)
         }
-        .frame(width: 540, height: 500)
+        .frame(width: 560, height: 500)
         .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
         .id("settings_root_\(appLanguage)")
+        .onChange(of: launchAtLogin) { _, newValue in
+            if #available(macOS 13.0, *) {
+                do {
+                    if newValue {
+                        try SMAppService.mainApp.register()
+                    } else {
+                        try SMAppService.mainApp.unregister()
+                    }
+                } catch {
+                    print("Launch at login error: \(error)")
+                }
+            }
+        }
+        .onChange(of: menuBarMonitor) { _, newValue in
+            StatusBarController.shared.updateVisibility(enabled: newValue)
+        }
     }
 
     private func settingsSection<Content: View>(

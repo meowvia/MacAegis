@@ -19,6 +19,14 @@ public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var passwordErrorMessage: String?
     @Published public var shakeAttempts: Int = 0
 
+    // Change Password Form State
+    @Published public var isChangingPassword: Bool = false
+    @Published public var oldPasswordInput: String = ""
+    @Published public var newPasswordInput: String = ""
+    @Published public var confirmNewPasswordInput: String = ""
+    @Published public var newPasswordHintInput: String = ""
+    @Published public var changePasswordErrorMessage: String?
+
     private let vaultManager = PrivacyVaultManager.shared
 
     public init() {
@@ -202,6 +210,39 @@ public final class PrivacyVaultViewModel: ObservableObject {
                     self.showToast(l10n("已解除「\(item.name)」保护（文件原件完好保留）", "Protection removed for '\(item.name)' (file intact)"))
                 }
             }
+        }
+    }
+
+    public func executeChangePassword() -> Bool {
+        changePasswordErrorMessage = nil
+        guard !oldPasswordInput.isEmpty else {
+            changePasswordErrorMessage = l10n("请输入当前旧密码", "Please enter your current password")
+            return false
+        }
+        guard !newPasswordInput.isEmpty else {
+            changePasswordErrorMessage = l10n("新密码不能为空", "New password cannot be empty")
+            return false
+        }
+        guard newPasswordInput == confirmNewPasswordInput else {
+            changePasswordErrorMessage = l10n("两次输入的新密码不一致", "New passwords do not match")
+            return false
+        }
+
+        let hint = newPasswordHintInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newPasswordHintInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let success = vaultManager.changeMasterPassword(oldPassword: oldPasswordInput, newPassword: newPasswordInput, hint: hint)
+        if success {
+            self.isChangingPassword = false
+            self.oldPasswordInput = ""
+            self.newPasswordInput = ""
+            self.confirmNewPasswordInput = ""
+            self.newPasswordHintInput = ""
+            self.changePasswordErrorMessage = nil
+            self.passwordHint = hint
+            self.showToast(l10n("主密码已成功修改 🔑", "Master password successfully changed 🔑"))
+            return true
+        } else {
+            self.changePasswordErrorMessage = l10n("原密码验证失败，请重新输入", "Current password incorrect")
+            return false
         }
     }
 

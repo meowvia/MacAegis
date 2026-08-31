@@ -6,6 +6,8 @@ import MacAegisCore
 
 @MainActor
 public final class DashboardViewModel: ObservableObject {
+    public static let shared = DashboardViewModel()
+
     @Published public var isScanning: Bool = false
     @Published public var scanProgressText: String = "就绪"
     @Published public var scanResult: ScanResult?
@@ -39,20 +41,46 @@ public final class DashboardViewModel: ObservableObject {
     }
 
     private func startTelemetryPolling() {
+        // Offload telemetry computation completely to background utility queue (0ms main thread blocking)
         telemetryTimer = Timer.publish(every: 1.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                self.refreshTelemetry()
+                DispatchQueue.global(qos: .utility).async {
+                    let metrics = HardwareTelemetry.shared.fetchMetrics()
+                    let drives = self.diskDetector.fetchMountedDrives()
+                    let power = self.powerMonitor.fetchInfo()
+                    let net = self.networkMonitor.fetchNetworkSpeed()
+                    let thermal = self.thermalDetector.fetchStatus()
+
+                    Task { @MainActor in
+                        self.systemMetrics = metrics
+                        self.mountedDrives = drives
+                        self.powerInfo = power
+                        self.networkSpeed = net
+                        self.thermalAndFan = thermal
+                    }
+                }
             }
     }
 
     public func refreshTelemetry() {
-        self.systemMetrics = HardwareTelemetry.shared.fetchMetrics()
-        self.mountedDrives = diskDetector.fetchMountedDrives()
-        self.powerInfo = powerMonitor.fetchInfo()
-        self.networkSpeed = networkMonitor.fetchNetworkSpeed()
-        self.thermalAndFan = thermalDetector.fetchStatus()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let metrics = HardwareTelemetry.shared.fetchMetrics()
+            let drives = self.diskDetector.fetchMountedDrives()
+            let power = self.powerMonitor.fetchInfo()
+            let net = self.networkMonitor.fetchNetworkSpeed()
+            let thermal = self.thermalDetector.fetchStatus()
+
+            Task { @MainActor in
+                self.systemMetrics = metrics
+                self.mountedDrives = drives
+                self.powerInfo = power
+                self.networkSpeed = net
+                self.thermalAndFan = thermal
+            }
+        }
     }
 
     public func manualRefresh() {
@@ -114,17 +142,24 @@ public final class DashboardViewModel: ObservableObject {
         selectedItemIds.removeAll()
     }
 
-    /// Single item deletion
+    /// Single item deletion (Non-blocking background execution)
     public func cleanSingleItem(_ item: CleanItem) {
-        let report = cleaner.clean(items: [item], dryRun: false, useTrash: true)
-        if report.successfulCount > 0 {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                if let currentResult = self.scanResult {
-                    let updatedItems = currentResult.items.filter { $0.id != item.id }
-                    self.scanResult = ScanResult(items: updatedItems, durationSeconds: currentResult.durationSeconds)
+        let useTrash = UserDefaults.standard.object(forKey: "cleanToTrash") as? Bool ?? true
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            let cleaner = CleanerEngine()
+            let report = cleaner.clean(items: [item], dryRun: false, useTrash: useTrash)
+            await MainActor.run {
+                if report.successfulCount > 0 {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        if let currentResult = self.scanResult {
+                            let updatedItems = currentResult.items.filter { $0.id != item.id }
+                            self.scanResult = ScanResult(items: updatedItems, durationSeconds: currentResult.durationSeconds)
+                        }
+                        self.selectedItemIds.remove(item.id)
+                        self.showToast(useTrash ? "已将 \(item.name) 移至废纸篓" : "已彻底永久删除 \(item.name)")
+                    }
                 }
-                self.selectedItemIds.remove(item.id)
-                self.showToast("已将 \(item.name) 移至废纸篓")
             }
         }
     }
@@ -157,9 +192,10 @@ public final class DashboardViewModel: ObservableObject {
         }
     }
 
-    public func executeClean(useTrash: Bool = true) {
+    public func executeClean() {
         guard let result = scanResult else { return }
         isCleaning = true
+        let useTrash = UserDefaults.standard.object(forKey: "cleanToTrash") as? Bool ?? true
 
         let itemsToClean = result.items.map { item -> CleanItem in
             var updated = item
@@ -167,12 +203,17 @@ public final class DashboardViewModel: ObservableObject {
             return updated
         }
 
-        let report = cleaner.clean(items: itemsToClean, dryRun: false, useTrash: useTrash)
-        self.cleanReport = report
-        self.isCleaning = false
-        self.showToast("已成功移入废纸篓 \(report.successfulCount) 项 (\(report.formattedReclaimed))")
-
-        // Refresh scan after clean
-        startScan()
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            let cleaner = CleanerEngine()
+            let report = cleaner.clean(items: itemsToClean, dryRun: false, useTrash: useTrash)
+            await MainActor.run {
+                self.cleanReport = report
+                self.isCleaning = false
+                SoundSentinel.shared.playWaterDropletChime()
+                self.showToast(useTrash ? "已成功移入废纸篓 \(report.successfulCount) 项 (\(report.formattedReclaimed))" : "已彻底删除 \(report.successfulCount) 项 (\(report.formattedReclaimed))")
+                self.startScan()
+            }
+        }
     }
 }

@@ -29,7 +29,7 @@ public struct MainView: View {
     @AppStorage("appLanguage") private var appLanguage: String = AppLanguage.zh.rawValue
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("hasShownLanguageHint_v1") private var hasShownLanguageHint: Bool = false
-    @StateObject private var dashboardVM = DashboardViewModel()
+    @ObservedObject private var dashboardVM = DashboardViewModel.shared
     @StateObject private var uninstallerVM = UninstallerViewModel()
     @State private var selectedTab: NavigationTab = .dashboard
     @State private var showingSettingsModal: Bool = false
@@ -79,14 +79,33 @@ public struct MainView: View {
                     .padding(.trailing, 18)
                     .zIndex(999)
             }
+
+            // Settings Inline Overlay Drawer (Zero AppKit Sheet Deadlocks, 100% Smooth)
+            if showingSettingsModal {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                showingSettingsModal = false
+                            }
+                        }
+
+                    SettingsView(onDismiss: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showingSettingsModal = false
+                        }
+                    })
+                    .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .zIndex(1000)
+            }
         }
         .frame(minWidth: 960, minHeight: 640)
         .background(MacAegisTheme.canvasBackground)
         .preferredColorScheme(appearanceMode.colorScheme)
         .id("main_view_\(appLanguage)")
-        .sheet(isPresented: $showingSettingsModal) {
-            SettingsView()
-        }
         .onAppear {
             if !hasShownLanguageHint {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

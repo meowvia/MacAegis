@@ -409,7 +409,25 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             self.items = []
             return
         }
-        self.items = loaded
+
+        var needsSave = false
+        var updatedItems: [VaultItem] = []
+        for var item in loaded {
+            if item.sizeBytes == 0 {
+                let realSize = calculateLockedItemSize(at: item.path)
+                if realSize > 0 {
+                    item.sizeBytes = realSize
+                    needsSave = true
+                }
+            }
+            updatedItems.append(item)
+        }
+        self.items = updatedItems
+        if needsSave {
+            if let encData = try? JSONEncoder().encode(self.items) {
+                try? encData.write(to: metadataURL, options: .atomic)
+            }
+        }
     }
 
     private func saveMetadata() {

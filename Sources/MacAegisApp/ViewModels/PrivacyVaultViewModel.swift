@@ -186,17 +186,6 @@ public final class PrivacyVaultViewModel: ObservableObject {
                     }
                 }
             }
-            // Background async calculation of folder size if any
-            for url in urls {
-                var isDir: ObjCBool = false
-                if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
-                    let dirSize = FileUtils.calculateSize(atPath: url.path)
-                    self.vaultManager.updateItemSize(path: url.path, size: dirSize)
-                    DispatchQueue.main.async {
-                        self.reloadItems()
-                    }
-                }
-            }
         }
     }
 

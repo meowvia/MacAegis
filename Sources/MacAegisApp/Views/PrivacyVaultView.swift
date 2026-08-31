@@ -343,6 +343,24 @@ public struct PrivacyVaultView: View {
                 .focusable(false)
                 .focusEffectDisabled()
 
+                // Recover Hidden Items Button
+                Button(action: {
+                    viewModel.rescueScanForHiddenItems()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkle.magnifyingglass")
+                        Text(l10n("找回隐藏项目", "Recover Items"))
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color(hex: "38BDF8"))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "38BDF8").opacity(0.10)))
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .focusEffectDisabled()
+
                 // Add Items Button
                 Button(action: { selectFilesFromDialog() }) {
                     HStack(spacing: 5) {
@@ -488,9 +506,27 @@ public struct PrivacyVaultView: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
+
+            Button(action: {
+                viewModel.rescueScanForHiddenItems()
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "sparkle.magnifyingglass")
+                    Text(l10n("一键扫描并找回本地隐藏文件", "Scan & Recover Hidden Items"))
+                }
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(Color(hex: "38BDF8"))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "38BDF8").opacity(0.12)))
+            }
+            .buttonStyle(PureButtonStyle())
+            .focusable(false)
+            .focusEffectDisabled()
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 44)
+        .padding(.vertical, 36)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(.ultraThinMaterial)

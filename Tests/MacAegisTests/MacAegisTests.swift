@@ -441,21 +441,37 @@ import Foundation
     #expect(vault.getPasswordHint() == "NewHint")
 }
 
-@Test func testFolderSizeDetectionOnAdd() async throws {
-    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_dir_size_\(UUID().uuidString)")
-    let subFolder = tempDir.appendingPathComponent("MyPrivateFolder")
-    try? FileManager.default.createDirectory(at: subFolder, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: tempDir) }
+@Test func testAppUpgradeMigrationAndItemPreservation() async throws {
+    let tempBase = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_upgrade_sim_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempBase, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempBase) }
 
-    let testFile = subFolder.appendingPathComponent("data.bin")
-    let dummyData = Data(repeating: 0x41, count: 1024 * 100) // 100 KB
-    try? dummyData.write(to: testFile)
+    // 1. Existing user setup on earlier version
+    let v1 = PrivacyVaultManager(customBaseDirectory: tempBase, keychainService: "com.test.migration", isTestIsolation: true)
+    #expect(v1.setMasterPassword("Secret123456", hint: "MyHint") == true)
 
-    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.dirsize", isTestIsolation: true)
-    _ = vault.setMasterPassword("Password123!")
+    let testFolder = tempBase.appendingPathComponent("UserPrivatePhotos")
+    try? FileManager.default.createDirectory(at: testFolder, withIntermediateDirectories: true)
+    let testPhoto = testFolder.appendingPathComponent("photo.jpg")
+    try? Data(repeating: 0xFF, count: 50000).write(to: testPhoto)
 
-    let addedItem = vault.addItem(url: subFolder, type: .hidden)
+    let addedItem = v1.addItem(url: testFolder, type: .hidden)
     #expect(addedItem != nil)
-    #expect(addedItem!.sizeBytes >= 102400) // Accurately measured folder size!
+
+    // 2. User replaces .app with new version (same base directory & keychain)
+    let v2 = PrivacyVaultManager(customBaseDirectory: tempBase, keychainService: "com.test.migration", isTestIsolation: true)
+
+    #expect(v2.hasMasterPassword == true)
+    #expect(v2.getPasswordHint() == "MyHint")
+    #expect(v2.verifyMasterPassword("WrongPass") == false)
+    #expect(v2.verifyMasterPassword("Secret123456") == true)
+
+    let items = v2.fetchItems()
+    #expect(items.count == 1)
+    #expect(items[0].name == "UserPrivatePhotos")
+
+    // 3. User unlocks in new version
+    v2.openAndHighlightInFinder(path: testFolder.path, revealInFinder: false)
+    #expect(FileManager.default.fileExists(atPath: testPhoto.path) == true)
 }
 

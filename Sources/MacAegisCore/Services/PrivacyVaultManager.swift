@@ -75,6 +75,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     public static let defaultKeychainService = "com.meowvia.MacAegis.vault"
     public static let defaultKeychainAccount = "master_auth"
     public static let derivedKeyAccount = "derived_master_key"
+    public static let metadataKeychainAccount = "master_metadata"
     public static let xattrVaultKey = "com.meowvia.macaegis.vault"
 
     private let metadataURL: URL
@@ -329,6 +330,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if clearKeychain && !isTestIsolation {
             KeychainHelper.shared.delete(service: keychainService, account: keychainAccount)
             KeychainHelper.shared.delete(service: keychainService, account: Self.derivedKeyAccount)
+            KeychainHelper.shared.delete(service: keychainService, account: Self.metadataKeychainAccount)
         }
     }
 
@@ -410,7 +412,15 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        guard let data = try? Data(contentsOf: metadataURL),
+        var metadataData = try? Data(contentsOf: metadataURL)
+        if (metadataData == nil || metadataData?.isEmpty == true) && !isTestIsolation {
+            metadataData = KeychainHelper.shared.load(service: keychainService, account: Self.metadataKeychainAccount)
+            if let d = metadataData {
+                try? d.write(to: metadataURL, options: .atomic)
+            }
+        }
+
+        guard let data = metadataData,
               let loaded = try? JSONDecoder().decode([VaultItem].self, from: data) else {
             self.items = []
             return
@@ -432,6 +442,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if needsSave {
             if let encData = try? JSONEncoder().encode(self.items) {
                 try? encData.write(to: metadataURL, options: .atomic)
+                if !isTestIsolation {
+                    KeychainHelper.shared.save(service: keychainService, account: Self.metadataKeychainAccount, data: encData)
+                }
             }
         }
     }
@@ -439,6 +452,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     private func saveMetadata() {
         guard let data = try? JSONEncoder().encode(items) else { return }
         try? data.write(to: metadataURL, options: .atomic)
+        if !isTestIsolation {
+            KeychainHelper.shared.save(service: keychainService, account: Self.metadataKeychainAccount, data: data)
+        }
     }
 
     public func fetchItems() -> [VaultItem] {
@@ -447,14 +463,74 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return items
     }
 
+    /// Deep scans user home directories to auto-rescue any previously locked/hidden folders
+    @discardableResult
+    public func scanAndRecoverHiddenItems() -> [VaultItem] {
+        lock.lock()
+        defer { lock.unlock() }
+
+        var recovered: [VaultItem] = []
+        let home = NSHomeDirectory()
+        let scanDirs = [
+            home + "/Desktop",
+            home + "/Documents",
+            home + "/Downloads",
+            home + "/Pictures",
+            home + "/Movies",
+            home
+        ]
+
+        let fm = FileManager.default
+        for dirPath in scanDirs {
+            let dirURL = URL(fileURLWithPath: dirPath)
+            guard let contents = try? fm.contentsOfDirectory(at: dirURL, includingPropertiesForKeys: nil, options: [.skipsPackageDescendants]) else {
+                continue
+            }
+            for url in contents {
+                let path = url.path
+                let name = url.lastPathComponent
+                if name.hasPrefix(".") || name == "Library" || name == ".Trash" || name == ".git" {
+                    continue
+                }
+                if items.contains(where: { $0.path == path }) {
+                    continue
+                }
+                if isItemLockedOnDisk(at: url) || hasVaultXattr(at: path) {
+                    let isExternal = path.hasPrefix("/Volumes/") && !path.hasPrefix("/Volumes/Macintosh HD")
+                    let size = calculateLockedItemSize(at: path)
+                    let item = VaultItem(
+                        name: name,
+                        path: path,
+                        type: .hidden,
+                        status: .hidden,
+                        sizeBytes: size,
+                        isExternalDrive: isExternal
+                    )
+                    items.append(item)
+                    recovered.append(item)
+                }
+            }
+        }
+
+        if !recovered.isEmpty {
+            if let data = try? JSONEncoder().encode(items) {
+                try? data.write(to: metadataURL, options: .atomic)
+                if !isTestIsolation {
+                    KeychainHelper.shared.save(service: keychainService, account: Self.metadataKeychainAccount, data: data)
+                }
+            }
+        }
+        return recovered
+    }
+
     // MARK: - Core Operations & Disaster Re-claiming
     public func addItem(url: URL, type: VaultItemType) -> VaultItem? {
         lock.lock()
         defer { lock.unlock() }
 
         let path = url.path
-        if items.contains(where: { $0.path == path }) {
-            return nil
+        if let existing = items.first(where: { $0.path == path }) {
+            return existing
         }
 
         let isExternal = path.hasPrefix("/Volumes/") && !path.hasPrefix("/Volumes/Macintosh HD")

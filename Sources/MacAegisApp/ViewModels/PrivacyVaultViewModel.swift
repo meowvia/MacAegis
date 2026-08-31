@@ -202,6 +202,23 @@ public final class PrivacyVaultViewModel: ObservableObject {
         }
     }
 
+    public func rescueScanForHiddenItems() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let found = self.vaultManager.scanAndRecoverHiddenItems()
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    if found.count > 0 {
+                        self.showToast(l10n("成功找回并重新纳管 \(found.count) 个隐藏项目！", "Recovered \(found.count) hidden items!"))
+                    } else {
+                        self.showToast(l10n("已完成深度扫描，未发现遗留的未纳管隐藏文件", "Scan complete. No orphaned hidden items found."))
+                    }
+                }
+            }
+        }
+    }
+
     public func executeChangePassword() -> Bool {
         changePasswordErrorMessage = nil
         let trimmedOld = oldPasswordInput.trimmingCharacters(in: .whitespacesAndNewlines)

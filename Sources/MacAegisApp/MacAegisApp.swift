@@ -8,6 +8,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApplication.shared.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
+        let isTrashWatcher = UserDefaults.standard.object(forKey: "trashWatcher") as? Bool ?? true
+        if isTrashWatcher {
+            TrashWatcherService.shared.startWatching()
+        }
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self = self else { return }
             if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {

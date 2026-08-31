@@ -238,9 +238,16 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return true
     }
 
+    private var failedAttempts: Int = 0
+    private var lockoutUntil: Date?
+
     public func verifyMasterPassword(_ password: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
+
+        if let lockout = lockoutUntil, Date() < lockout {
+            return false
+        }
 
         var authData = try? Data(contentsOf: authConfigURL)
         if authData == nil && !isTestIsolation {
@@ -264,6 +271,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         let computedHash = kek.map { String(format: "%02hhx", $0) }.joined()
         if computedHash == expectedHash {
+            failedAttempts = 0
+            lockoutUntil = nil
+
             // Decrypt DEK if wrapped format exists
             if let encDEK = json["encrypted_dek"], let iv = json["dek_iv"], let tag = json["dek_tag"] {
                 if let dek = Self.unwrapDEK(encryptedDEKHex: encDEK, ivHex: iv, tagHex: tag, usingKEK: kek) {
@@ -282,6 +292,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                 }
             }
             return true
+        }
+
+        failedAttempts += 1
+        if failedAttempts >= 5 {
+            lockoutUntil = Date().addingTimeInterval(30)
         }
         return false
     }
@@ -382,14 +397,24 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return true
     }
 
-    public func resetMasterAuth(clearKeychain: Bool = true) {
+    @discardableResult
+    public func resetMasterAuth(clearKeychain: Bool = true) -> Bool {
         lock.lock()
         defer { lock.unlock() }
 
+        var failedUnlocks: [VaultItem] = []
         // Automatically unlock and restore all currently locked files before destroying credentials!
         for item in items where item.status == .hidden {
             let url = URL(fileURLWithPath: item.path)
-            _ = setFileHidden(at: url, hidden: false)
+            let success = setFileHidden(at: url, hidden: false)
+            if !success {
+                failedUnlocks.append(item)
+            }
+        }
+
+        // Fast-Fail: If any item failed to unlock, ABORT reset to prevent permanent data loss!
+        guard failedUnlocks.isEmpty else {
+            return false
         }
 
         try? FileManager.default.removeItem(at: authConfigURL)
@@ -404,6 +429,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             KeychainHelper.shared.delete(service: keychainService, account: Self.derivedKeyAccount)
             KeychainHelper.shared.delete(service: keychainService, account: Self.metadataKeychainAccount)
         }
+        return true
     }
 
     // MARK: - Biometric / Touch ID Authentication
@@ -561,34 +587,46 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                 }
             }
         }
+        func inspectRecursive(url: URL, depth: Int) {
+            let path = url.path
+            let name = url.lastPathComponent
+            if name.hasPrefix(".") || name == "Library" || name == ".Trash" || name == ".git" || name == "node_modules" {
+                return
+            }
+            if !items.contains(where: { $0.path == path }) && (isItemLockedOnDisk(at: url) || hasVaultXattr(at: path)) {
+                let isExternal = path.hasPrefix("/Volumes/") && !path.hasPrefix("/Volumes/Macintosh HD")
+                let size = calculateLockedItemSize(at: path)
+                let item = VaultItem(
+                    name: name,
+                    path: path,
+                    type: .hidden,
+                    status: .hidden,
+                    sizeBytes: size,
+                    isExternalDrive: isExternal
+                )
+                items.append(item)
+                recovered.append(item)
+                return
+            }
+            if depth > 0 {
+                var isDir: ObjCBool = false
+                if fm.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue {
+                    if let children = try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles, .skipsPackageDescendants]) {
+                        for child in children {
+                            inspectRecursive(url: child, depth: depth - 1)
+                        }
+                    }
+                }
+            }
+        }
+
         for dirPath in scanDirs {
             let dirURL = URL(fileURLWithPath: dirPath)
             guard let contents = try? fm.contentsOfDirectory(at: dirURL, includingPropertiesForKeys: nil, options: [.skipsPackageDescendants]) else {
                 continue
             }
             for url in contents {
-                let path = url.path
-                let name = url.lastPathComponent
-                if name.hasPrefix(".") || name == "Library" || name == ".Trash" || name == ".git" {
-                    continue
-                }
-                if items.contains(where: { $0.path == path }) {
-                    continue
-                }
-                if isItemLockedOnDisk(at: url) || hasVaultXattr(at: path) {
-                    let isExternal = path.hasPrefix("/Volumes/") && !path.hasPrefix("/Volumes/Macintosh HD")
-                    let size = calculateLockedItemSize(at: path)
-                    let item = VaultItem(
-                        name: name,
-                        path: path,
-                        type: .hidden,
-                        status: .hidden,
-                        sizeBytes: size,
-                        isExternalDrive: isExternal
-                    )
-                    items.append(item)
-                    recovered.append(item)
-                }
+                inspectRecursive(url: url, depth: 2)
             }
         }
 

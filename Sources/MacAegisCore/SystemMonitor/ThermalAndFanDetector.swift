@@ -5,6 +5,7 @@ public struct ThermalAndFanStatus: Sendable {
     public let chipTemperatureCelsius: Double
     public let hasFan: Bool
     public let fanSpeedRPM: Int?
+    public let isFanSpeedReal: Bool
     public let thermalStateDescription: String
     public let thermalBadge: String
 
@@ -23,10 +24,10 @@ public struct ThermalAndFanStatus: Sendable {
 
     public var formattedFanSpeed: String {
         if !hasFan {
-            return l10n("无风扇静音", "Fanless Silent")
+            return l10n("无风扇静音设计", "Fanless Silent Design")
         }
         if let rpm = fanSpeedRPM, rpm > 0 {
-            return "\(rpm) RPM"
+            return isFanSpeedReal ? "\(rpm) RPM" : "\(rpm) RPM (估算)"
         }
         return l10n("0 RPM (停转静音)", "0 RPM (Silent)")
     }
@@ -77,6 +78,7 @@ public final class ThermalAndFanDetector: Sendable {
             chipTemperatureCelsius: temp,
             hasFan: !isAir,
             fanSpeedRPM: fanSpeed,
+            isFanSpeedReal: false,
             thermalStateDescription: desc,
             thermalBadge: badge
         )

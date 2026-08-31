@@ -31,11 +31,6 @@ public struct LargeFileRules: CleanRuleProtocol {
             ) else { continue }
 
             while let fileURL = enumerator.nextObject() as? URL {
-                let path = fileURL.path
-                if whitelist.isProtected(path: path, mode: .strict) {
-                    continue
-                }
-
                 guard let res = try? fileURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey, .isPackageKey]),
                       let isDir = res.isDirectory,
                       let isPkg = res.isPackage else { continue }
@@ -46,20 +41,25 @@ public struct LargeFileRules: CleanRuleProtocol {
                 }
 
                 let size = Int64(res.fileSize ?? 0)
-                if size >= minSizeBytes {
-                    let fileName = fileURL.lastPathComponent
-                    let item = CleanItem(
-                        name: "\(fileName) (\(ByteFormatter.format(size)))",
-                        path: path,
-                        sizeBytes: size,
-                        category: .largeFiles,
-                        safetyLevel: .caution,
-                        itemDescription: "体积超过 500MB 的单体大文件，建议您确认是否仍需保留（默认不勾选）。",
-                        isSelected: false
-                    )
-                    items.append(item)
-                    onFoundItem?(item)
+                guard size >= minSizeBytes else { continue }
+
+                let path = fileURL.path
+                if whitelist.isProtected(path: path, mode: .strict) {
+                    continue
                 }
+
+                let fileName = fileURL.lastPathComponent
+                let item = CleanItem(
+                    name: "\(fileName) (\(ByteFormatter.format(size)))",
+                    path: path,
+                    sizeBytes: size,
+                    category: .largeFiles,
+                    safetyLevel: .caution,
+                    itemDescription: "体积超过 500MB 的单体大文件，建议您确认是否仍需保留（默认不勾选）。",
+                    isSelected: false
+                )
+                items.append(item)
+                onFoundItem?(item)
             }
         }
 

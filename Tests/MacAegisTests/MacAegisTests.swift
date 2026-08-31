@@ -137,6 +137,7 @@ import Foundation
         chipTemperatureCelsius: 0.0,
         hasFan: true,
         fanSpeedRPM: 0,
+        isFanSpeedReal: false,
         thermalStateDescription: "清凉",
         thermalBadge: "🟢"
     )
@@ -147,6 +148,7 @@ import Foundation
         chipTemperatureCelsius: 100.0,
         hasFan: true,
         fanSpeedRPM: 4000,
+        isFanSpeedReal: false,
         thermalStateDescription: "高温",
         thermalBadge: "🔴"
     )
@@ -157,6 +159,7 @@ import Foundation
         chipTemperatureCelsius: 45.0,
         hasFan: true,
         fanSpeedRPM: 1200,
+        isFanSpeedReal: false,
         thermalStateDescription: "正常",
         thermalBadge: "🟢"
     )

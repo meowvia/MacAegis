@@ -311,6 +311,13 @@ public struct SettingsView: View {
         .onChange(of: menuBarMonitor) { _, newValue in
             StatusBarController.shared.updateVisibility(enabled: newValue)
         }
+        .onChange(of: trashWatcher) { _, newValue in
+            if newValue {
+                TrashWatcherService.shared.startWatching()
+            } else {
+                TrashWatcherService.shared.stopWatching()
+            }
+        }
     }
 
     private func settingsSection<Content: View>(

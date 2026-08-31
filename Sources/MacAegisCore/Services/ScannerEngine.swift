@@ -20,14 +20,26 @@ public final class ScannerEngine: Sendable {
         }
     }
 
-    /// Perform a full system and app scan in parallel
+    /// Perform a full system and app scan in parallel (Thread-safe onFoundItem dispatch)
     public func scan(onFoundItem: (@Sendable (CleanItem) -> Void)? = nil) async -> ScanResult {
         let startTime = Date()
+
+        let threadSafeCallback: (@Sendable (CleanItem) -> Void)?
+        if let originalCallback = onFoundItem {
+            let callbackLock = NSLock()
+            threadSafeCallback = { item in
+                callbackLock.lock()
+                defer { callbackLock.unlock() }
+                originalCallback(item)
+            }
+        } else {
+            threadSafeCallback = nil
+        }
 
         let allItems = await withTaskGroup(of: [CleanItem].self, returning: [CleanItem].self) { group in
             for rule in rules {
                 group.addTask {
-                    await rule.scan(onFoundItem: onFoundItem)
+                    await rule.scan(onFoundItem: threadSafeCallback)
                 }
             }
 

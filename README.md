@@ -1,5 +1,9 @@
 # MacAegis
 
+<p align="left">
+  <b>简体中文</b> | <a href="README_EN.md">English</a>
+</p>
+
 <p align="center">
   <img src="docs/screenshots/vault_locked.png" width="850" alt="MacAegis 隐私保险箱">
 </p>

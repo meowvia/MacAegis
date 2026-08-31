@@ -4,56 +4,79 @@
   <a href="README.md">简体中文</a> | <b>English</b>
 </p>
 
-Mainly solves two things: checking network proxy routing status at a glance in the menu bar, and quickly hiding private files, with a lightweight developer cache cleaner and uninstaller built in.
+<p align="center">
+  <img src="docs/screenshots/vault_locked.png" width="850" alt="MacAegis Privacy Vault">
+</p>
 
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" width="850" alt="MacAegis Dashboard">
+  <img src="https://img.shields.io/badge/macOS-14.0%2B%20(Sonoma%20%2F%20Sequoia)-blue?logo=apple" alt="macOS">
+  <img src="https://img.shields.io/badge/Swift-6.0%20Native-orange?logo=swift" alt="Swift">
+  <img src="https://img.shields.io/badge/Size-2.4%20MB%20Ultra--light-success" alt="Size">
+  <img src="https://img.shields.io/badge/Security-100%25%20Offline-emerald" alt="Security">
 </p>
 
 ---
 
-## What it does
+## Showcase
 
-### 1. Menu Bar Proxy Routing Status
-When using proxy utilities, it's often unclear whether your traffic is currently direct or routed through a proxy. MacAegis displays real-time upload/download speeds in the menu bar:
-* Blue: Direct connection
-* Green: Rule-based routing
-* Red: Global proxy
-
-Reads routing states directly from the macOS system layer, independent of which proxy client you use.
-
+### 1. Privacy Vault
 <p align="center">
-  <img src="docs/screenshots/menubar.png" width="360" alt="Menu Bar Status Card">
+  <img src="docs/screenshots/vault_folder.png" width="850" alt="Instant Folder Cloaking">
 </p>
 
-### 2. Fast File & Folder Concealment
-Avoid having sensitive desktop or Finder files peeked during screen sharing, external displays, or when lending your laptop:
-* Drag and drop files or folders to hide them instantly—hidden from Finder and disabled from Spacebar QuickLook.
-* Operates in-place: whether dozens of megabytes or 100GB+ folders, items are hidden instantaneously without copying files.
-* Supports Touch ID + custom password to create local accounts, and Touch ID + password for quick unlocking and automatic Finder reveal.
-* Credentials are saved in system Keychain: if the App is accidentally deleted, reinstalling it safely reclaims your existing files to prevent loss.
-
 <p align="center">
-  <img src="docs/screenshots/vault.png" width="850" alt="Privacy Vault">
+  <img src="docs/screenshots/vault_files.png" width="850" alt="Multi-file Hidden List">
 </p>
 
-### 3. Quick Cleaner & Uninstaller
-* Easily clean Xcode build caches (DerivedData), developer temporary files, system logs, and browser caches.
-* Drag and drop any App to find and remove scattered config leftovers across Library folders.
+### 2. Smart Cleaner
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="850" alt="Smart Cleaner Dashboard">
+</p>
+
+### 3. App Uninstaller
+<p align="center">
+  <img src="docs/screenshots/uninstaller.png" width="850" alt="App Uninstaller & Residue Cleanup">
+</p>
+
+### 4. Settings & System Monitoring
+<p align="center">
+  <img src="docs/screenshots/settings.png" width="600" alt="Preferences & Settings">
+</p>
 
 <p align="center">
-  <img src="docs/screenshots/uninstaller.png" width="850" alt="Uninstaller & Clean View">
+  <img src="docs/screenshots/menubar.png" width="360" alt="Menu Bar Live Status Card">
 </p>
+
+---
+
+## Core Features
+
+* **Privacy Vault** — One-click hiding for files and folders, dual Touch ID / master password unlocking, with 64-character disaster recovery code support.
+* **System Monitor** — Real-time display of CPU load, memory, fan speed, chip temperature, and upload/download speeds right in the menu bar.
+* **History Cleaner** — Manage and purge system activity footprints to reduce privacy traces.
+
+---
+
+## MacAegis · Design Philosophy
+
+Hiding files on macOS natively requires terminal commands—cumbersome and ungraceful.
+
+What MacAegis does is straightforward: **put a cover over your files**.
+
+* **No moving files, no reading or writing content, no encryption**—just toggling a filesystem attribute to make them vanish entirely from Finder and Spotlight.
+* Whether it's a folder or individual files, selected via path or dragged straight into the vault, hiding and revealing are completed **instantaneously**.
+* **Skipping encryption is a deliberate choice**. When encryption goes wrong, user data can suffer catastrophic loss; visual cloaking already solves 90% of everyday privacy needs—guarding against people casually browsing your Finder, not people trying to crack your physical drive.
+* **100% offline**, no cloud syncing, no network calls, zero data collection. Your files remain exclusively on your own device from start to finish.
 
 ---
 
 ## Requirements & Installation
 
-* Built purely in native Swift, extremely lightweight, and friendly to older machines.
-* Requires macOS 14.0 (Sonoma) or later. Primarily built for Apple Silicon (M-series chips); not tested on Intel models.
-* Download the latest build from Releases and move it to your Applications folder.
+* Pure native Swift development, ultra-compact binary footprint (**2.4 MB**), gentle on memory and older hardware.
+* Requires macOS 14.0 (Sonoma) or later. Primarily built for Apple Silicon (M-series chips).
+* Download the latest `.dmg` release from [Releases](../../releases) and drag `MacAegis` into your `Applications` folder.
 
-> **Note**: As an unsigned indie binary, if macOS shows a "damaged" or "unidentified developer" prompt on first launch, run this single line in Terminal to clear the quarantine attribute:
+> **Note**: If macOS shows an "unidentified developer" or "damaged" dialog on first launch, execute this single command in Terminal to clear quarantine:
 > ```bash
 > xattr -cr /Applications/MacAegis.app
 > ```
@@ -61,4 +84,5 @@ Avoid having sensitive desktop or Finder files peeked during screen sharing, ext
 
 ---
 
-If you run into issues or have ideas, feel free to open an issue.
+Feel free to open an Issue or submit a Pull Request.
+

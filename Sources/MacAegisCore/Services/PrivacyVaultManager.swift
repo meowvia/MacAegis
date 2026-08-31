@@ -286,11 +286,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                 self.activeDerivedKey = kek
             }
             self.activeSaltHex = saltHex
-            if !isTestIsolation {
-                if let dek = self.activeDEK {
-                    KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: dek)
-                }
-            }
             return true
         }
 
@@ -427,7 +422,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if clearKeychain && !isTestIsolation {
             KeychainHelper.shared.delete(service: keychainService, account: keychainAccount)
             KeychainHelper.shared.delete(service: keychainService, account: Self.derivedKeyAccount)
-            KeychainHelper.shared.delete(service: keychainService, account: Self.metadataKeychainAccount)
         }
         return true
     }
@@ -510,15 +504,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        var metadataData = try? Data(contentsOf: metadataURL)
-        if (metadataData == nil || metadataData?.isEmpty == true) && !isTestIsolation {
-            metadataData = KeychainHelper.shared.load(service: keychainService, account: Self.metadataKeychainAccount)
-            if let d = metadataData {
-                try? d.write(to: metadataURL, options: .atomic)
-            }
-        }
-
-        guard let data = metadataData,
+        guard let data = try? Data(contentsOf: metadataURL),
               let loaded = try? JSONDecoder().decode([VaultItem].self, from: data) else {
             self.items = []
             return
@@ -540,9 +526,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if needsSave {
             if let encData = try? JSONEncoder().encode(self.items) {
                 try? encData.write(to: metadataURL, options: .atomic)
-                if !isTestIsolation {
-                    KeychainHelper.shared.save(service: keychainService, account: Self.metadataKeychainAccount, data: encData)
-                }
             }
         }
     }
@@ -550,9 +533,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     private func saveMetadata() {
         guard let data = try? JSONEncoder().encode(items) else { return }
         try? data.write(to: metadataURL, options: .atomic)
-        if !isTestIsolation {
-            KeychainHelper.shared.save(service: keychainService, account: Self.metadataKeychainAccount, data: data)
-        }
     }
 
     public func fetchItems() -> [VaultItem] {
@@ -633,9 +613,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if !recovered.isEmpty {
             if let data = try? JSONEncoder().encode(items) {
                 try? data.write(to: metadataURL, options: .atomic)
-                if !isTestIsolation {
-                    KeychainHelper.shared.save(service: keychainService, account: Self.metadataKeychainAccount, data: data)
-                }
             }
         }
         return recovered

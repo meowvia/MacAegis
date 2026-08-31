@@ -223,7 +223,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
                     if found.count > 0 {
                         self.showToast(l10n("成功找回并重新纳管 \(found.count) 个隐藏项目！", "Recovered \(found.count) hidden items!"))
                     } else {
-                        self.showToast(l10n("已完成深度扫描，未发现遗留的未纳管隐藏文件", "Scan complete. No orphaned hidden items found."))
+                        self.showToast(l10n("已完成深度扫描。若文件位于外接盘，请确保已连接外接硬盘。", "Scan complete. If items are on external drives, please ensure they are connected."))
                     }
                 }
             }

@@ -293,6 +293,8 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         ]
         if let h = hint, !h.isEmpty {
             authDict["hint"] = h
+        } else if let oldHint = json["hint"], !oldHint.isEmpty {
+            authDict["hint"] = oldHint
         }
 
         guard let newJsonData = try? JSONSerialization.data(withJSONObject: authDict, options: .prettyPrinted) else {

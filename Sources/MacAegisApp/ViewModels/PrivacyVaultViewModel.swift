@@ -204,21 +204,29 @@ public final class PrivacyVaultViewModel: ObservableObject {
 
     public func executeChangePassword() -> Bool {
         changePasswordErrorMessage = nil
-        guard !oldPasswordInput.isEmpty else {
+        let trimmedOld = oldPasswordInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNew = newPasswordInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedConfirm = confirmNewPasswordInput.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedOld.isEmpty else {
             changePasswordErrorMessage = l10n("请输入当前旧密码", "Please enter your current password")
             return false
         }
-        guard !newPasswordInput.isEmpty else {
+        guard !trimmedNew.isEmpty else {
             changePasswordErrorMessage = l10n("新密码不能为空", "New password cannot be empty")
             return false
         }
-        guard newPasswordInput == confirmNewPasswordInput else {
+        guard trimmedNew.count >= 6 else {
+            changePasswordErrorMessage = l10n("新密码长度至少需要 6 位", "New password must be at least 6 characters")
+            return false
+        }
+        guard trimmedNew == trimmedConfirm else {
             changePasswordErrorMessage = l10n("两次输入的新密码不一致", "New passwords do not match")
             return false
         }
 
         let hint = newPasswordHintInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newPasswordHintInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let success = vaultManager.changeMasterPassword(oldPassword: oldPasswordInput, newPassword: newPasswordInput, hint: hint)
+        let success = vaultManager.changeMasterPassword(oldPassword: trimmedOld, newPassword: trimmedNew, hint: hint)
         if success {
             self.isChangingPassword = false
             self.oldPasswordInput = ""

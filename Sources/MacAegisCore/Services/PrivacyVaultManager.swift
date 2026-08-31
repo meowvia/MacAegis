@@ -694,9 +694,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let cPath = (path as NSString).fileSystemRepresentation
         _ = chflags(cPath, 0)
         chmod(path, 0o755)
+        defer {
+            chmod(path, originalMode)
+            _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+        }
         let size = FileUtils.calculateSize(atPath: path)
-        chmod(path, originalMode)
-        _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
         return size
     }
 
@@ -794,31 +796,126 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return newStatus
     }
 
-    public func removeItem(id: String) {
+    @discardableResult
+    public func removeItem(id: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
 
-        if let index = items.firstIndex(where: { $0.id == id }) {
-            let item = items[index]
-            _ = setFileHidden(at: URL(fileURLWithPath: item.path), hidden: false)
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return false }
+        let item = items[index]
+        let success = setFileHidden(at: URL(fileURLWithPath: item.path), hidden: false)
+        if success {
             items.remove(at: index)
             saveMetadata()
+            return true
         }
+        return false
     }
 
     // MARK: - Direct Finder Navigation
-    public func openAndHighlightInFinder(path: String, revealInFinder: Bool = true) {
+    @discardableResult
+    public func openAndHighlightInFinder(path: String, revealInFinder: Bool = true) -> Bool {
         let expanded = FileUtils.expandPath(path)
-        guard FileManager.default.fileExists(atPath: expanded) else { return }
+        guard FileManager.default.fileExists(atPath: expanded) else { return false }
 
         let url = URL(fileURLWithPath: expanded)
-        _ = setFileHidden(at: url, hidden: false)
-        if revealInFinder {
-            NSWorkspace.shared.activateFileViewerSelecting([url])
+        let success = setFileHidden(at: url, hidden: false)
+        if success {
+            lock.lock()
+            if let index = items.firstIndex(where: { $0.path == expanded }) {
+                items[index].status = .visible
+                saveMetadata()
+            }
+            lock.unlock()
+            if revealInFinder {
+                DispatchQueue.main.async {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+            }
+            return true
         }
+        return false
     }
 
-    // MARK: - In-Place 4KB Dynamic DEK Key-Derived Header Stream Obfuscation (Fast-Fail)
+    // MARK: - Disaster Recovery Code (Formatted 64-char Hex Key)
+    public func getMasterRecoveryCode() -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        var dekData: Data? = activeDEK ?? activeDerivedKey
+        if dekData == nil && !isTestIsolation {
+            dekData = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount)
+        }
+
+        guard let dek = dekData, dek.count >= 32 else { return nil }
+        let hex = dek.prefix(32).map { String(format: "%02X", $0) }.joined()
+        var chunks: [String] = ["AEGIS"]
+        for i in stride(from: 0, to: hex.count, by: 8) {
+            let start = hex.index(hex.startIndex, offsetBy: i)
+            let end = hex.index(start, offsetBy: min(8, hex.count - i))
+            chunks.append(String(hex[start..<end]))
+        }
+        return chunks.joined(separator: "-")
+    }
+
+    public func recoverVault(usingRecoveryCode code: String, newPassword: String, hint: String? = nil) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let cleanCode = code.uppercased()
+            .replacingOccurrences(of: "AEGIS-", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard cleanCode.count == 64, let recoveredDEK = Data(hexString: cleanCode) else {
+            return false
+        }
+
+        // Generate new salt and new KEK
+        var newSalt = [UInt8](repeating: 0, count: 16)
+        _ = SecRandomCopyBytes(kSecRandomDefault, newSalt.count, &newSalt)
+        let newSaltData = Data(newSalt)
+        let newSaltHex = newSaltData.map { String(format: "%02hhx", $0) }.joined()
+
+        guard let newKEK = Self.deriveKeyPBKDF2(password: newPassword, salt: newSaltData, iterations: 100_000) else {
+            return false
+        }
+        let newHashHex = newKEK.map { String(format: "%02hhx", $0) }.joined()
+
+        guard let wrapped = Self.wrapDEK(dek: recoveredDEK, usingKEK: newKEK) else { return false }
+
+        var authDict: [String: String] = [
+            "salt": newSaltHex,
+            "hash": newHashHex,
+            "encrypted_dek": wrapped.encryptedDEKHex,
+            "dek_iv": wrapped.ivHex,
+            "dek_tag": wrapped.tagHex,
+            "schema_version": "2"
+        ]
+        if let h = hint, !h.isEmpty {
+            authDict["hint"] = h
+        }
+
+        guard let newJsonData = try? JSONSerialization.data(withJSONObject: authDict, options: .prettyPrinted) else {
+            return false
+        }
+
+        try? newJsonData.write(to: authConfigURL, options: .atomic)
+        if !isTestIsolation {
+            KeychainHelper.shared.save(service: keychainService, account: keychainAccount, data: newJsonData)
+            KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: recoveredDEK)
+        }
+
+        self.activeDEK = recoveredDEK
+        self.activeDerivedKey = recoveredDEK
+        self.activeSaltHex = newSaltHex
+        return true
+    }
+
+    // MARK: - In-Place 64KB Dynamic DEK Key-Derived Stream Obfuscation (Fast-Fail)
+    private static let streamObfuscationBytes = 65536 // 64KB
+
     private func transformHeader(at fileURL: URL, derivedKey: Data?) throws {
         guard let derivedKey = derivedKey, !derivedKey.isEmpty else {
             // Fast-Fail: 拒绝降级为弱混淆，抛出错误中止
@@ -827,7 +924,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         guard let handle = try? FileHandle(forUpdating: fileURL) else { return }
         defer { try? handle.close() }
 
-        guard let headerData = try? handle.read(upToCount: 4096), !headerData.isEmpty else { return }
+        guard let headerData = try? handle.read(upToCount: Self.streamObfuscationBytes), !headerData.isEmpty else { return }
         var bytes = [UInt8](headerData)
         let keyBytes = [UInt8](derivedKey)
         let keyLen = keyBytes.count

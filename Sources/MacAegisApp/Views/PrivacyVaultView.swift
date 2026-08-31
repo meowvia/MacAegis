@@ -42,6 +42,7 @@ public struct PrivacyVaultView: View {
     @State private var newPasswordInput: String = ""
     @State private var confirmPasswordInput: String = ""
     @State private var passwordHintInput: String = ""
+    @State private var isShowingRecoveryKey: Bool = false
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -94,6 +95,40 @@ public struct PrivacyVaultView: View {
                         }
 
                     changePasswordCard
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .zIndex(1000)
+            }
+
+            // Recover With Code Modal Overlay
+            if viewModel.isRecoveringWithCode {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                viewModel.isRecoveringWithCode = false
+                            }
+                        }
+
+                    recoverWithCodeCard
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .zIndex(1000)
+            }
+
+            // Show Recovery Key Modal Overlay
+            if isShowingRecoveryKey {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isShowingRecoveryKey = false
+                            }
+                        }
+
+                    showRecoveryKeyCard
                         .transition(.scale(scale: 0.95).combined(with: .opacity))
                 }
                 .zIndex(1000)
@@ -203,6 +238,215 @@ public struct PrivacyVaultView: View {
                 .opacity(viewModel.oldPasswordInput.isEmpty || viewModel.newPasswordInput.isEmpty ? 0.5 : 1.0)
             }
             .frame(width: 320)
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 380)
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
+    }
+
+    // MARK: - Recover With Code Card View
+    private var recoverWithCodeCard: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.isRecoveringWithCode = false
+                    }
+                }) {
+                    Circle()
+                        .fill(Color.red.opacity(0.85))
+                        .frame(width: 12, height: 12)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 7, weight: .black))
+                                .foregroundColor(.black.opacity(0.6))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "cross.case.fill")
+                        .foregroundColor(Color(hex: "10B981"))
+                        .font(.system(size: 13))
+                    Text(l10n("使用灾难恢复码找回", "Recover with Disaster Key"))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
+                Spacer()
+            }
+
+            Divider().opacity(0.2)
+
+            Text(l10n("输入 64 位恢复码可直接重置主密码并无损解锁所有文件", "Enter your 64-character recovery key to reset master password and unlock."))
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.leading)
+                .frame(width: 320)
+
+            if let err = viewModel.recoveryErrorMessage {
+                Text(err)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color(hex: "EF4444"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color(hex: "EF4444").opacity(0.12)))
+            }
+
+            VStack(spacing: 10) {
+                TextField(l10n("AEGIS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "Recovery Key"), text: $viewModel.recoveryCodeInput)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11, design: .monospaced))
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+
+                SecureField(l10n("设置新密码 (至少 6 位)", "New master password (6+ chars)"), text: $viewModel.recoveryNewPasswordInput)
+                    .textFieldStyle(.plain)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+
+                SecureField(l10n("确认新密码", "Confirm new password"), text: $viewModel.recoveryConfirmPasswordInput)
+                    .textFieldStyle(.plain)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+            }
+            .frame(width: 320)
+
+            HStack(spacing: 12) {
+                Button(l10n("取消", "Cancel")) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.isRecoveringWithCode = false
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(action: {
+                    _ = viewModel.executeRecoverWithCode()
+                }) {
+                    Text(l10n("恢复并重设密码", "Recover & Reset"))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "10B981"), Color(hex: "059669")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .shadow(color: Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
+                        )
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .disabled(viewModel.recoveryCodeInput.isEmpty || viewModel.recoveryNewPasswordInput.isEmpty)
+                .opacity(viewModel.recoveryCodeInput.isEmpty || viewModel.recoveryNewPasswordInput.isEmpty ? 0.5 : 1.0)
+            }
+            .frame(width: 320)
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 380)
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
+    }
+
+    // MARK: - Show Recovery Key Card View
+    private var showRecoveryKeyCard: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isShowingRecoveryKey = false
+                    }
+                }) {
+                    Circle()
+                        .fill(Color.red.opacity(0.85))
+                        .frame(width: 12, height: 12)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 7, weight: .black))
+                                .foregroundColor(.black.opacity(0.6))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "shield.lefthalf.filled.badge.checkmark")
+                        .foregroundColor(Color(hex: "38BDF8"))
+                        .font(.system(size: 13))
+                    Text(l10n("灾难恢复密钥", "Disaster Recovery Key"))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
+                Spacer()
+            }
+
+            Divider().opacity(0.2)
+
+            Text(l10n("这是您保险箱的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥 100% 找回所有已锁文件。", "This is your vault recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.leading)
+                .frame(width: 330)
+
+            if let code = viewModel.masterRecoveryCode {
+                Text(code)
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .padding(12)
+                    .frame(width: 330)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                    .textSelection(.enabled)
+            }
+
+            HStack(spacing: 12) {
+                Spacer()
+
+                Button(action: {
+                    if let code = viewModel.masterRecoveryCode {
+                        let pb = NSPasteboard.general
+                        pb.clearContents()
+                        pb.setString(code, forType: .string)
+                        viewModel.showToast(l10n("恢复密钥已复制到剪贴板 📋", "Recovery key copied to clipboard 📋"))
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isShowingRecoveryKey = false
+                        }
+                    }
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "doc.on.doc.fill")
+                        Text(l10n("复制恢复密钥", "Copy Recovery Key"))
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(hex: "3B82F6"), Color(hex: "0284C7")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                    )
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+
+                Spacer()
+            }
             .padding(.top, 4)
         }
         .padding(20)
@@ -338,6 +582,24 @@ public struct PrivacyVaultView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .focusEffectDisabled()
+
+                // Recovery Key View Button
+                Button(action: {
+                    isShowingRecoveryKey = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "shield.lefthalf.filled.badge.checkmark")
+                        Text(l10n("灾备恢复码", "Recovery Key"))
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color(hex: "10B981"))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "10B981").opacity(0.10)))
                 }
                 .buttonStyle(PureButtonStyle())
                 .focusable(false)
@@ -502,7 +764,7 @@ public struct PrivacyVaultView: View {
                 Text(l10n("保险箱当前为空", "Vault is Empty"))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.primary)
-                Text(l10n("拖拽私人文件夹或敏感文件至上方区域，即可自动加密上锁并隐匿", "Drag private folders or sensitive files above to auto-encrypt and lock"))
+                Text(l10n("拖拽私人文件夹或敏感文件至上方区域，即可自动安全锁定并隐匿", "Drag private folders or sensitive files above to auto-lock and conceal"))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
@@ -1009,6 +1271,22 @@ public struct PrivacyVaultView: View {
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
+
+                Button(action: {
+                    viewModel.recoveryErrorMessage = nil
+                    viewModel.recoveryCodeInput = ""
+                    viewModel.recoveryNewPasswordInput = ""
+                    viewModel.recoveryConfirmPasswordInput = ""
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.isRecoveringWithCode = true
+                    }
+                }) {
+                    Text(l10n("忘记密码？使用 64 位灾难恢复码找回", "Forgot password? Recover with disaster key"))
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "38BDF8"))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
             }
             .padding(18)
             .background(

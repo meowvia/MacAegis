@@ -28,6 +28,8 @@ public final class CleanerEngine: Sendable {
         var errors: [String] = []
         let whitelist = WhitelistManager.shared
 
+        var actuallyCleanedPaths: [String] = []
+
         for item in items where item.isSelected {
             // Absolute Safety Check: Abort if path is protected or dangerous
             if whitelist.isProtected(path: item.path) {
@@ -41,6 +43,7 @@ public final class CleanerEngine: Sendable {
             if dryRun {
                 successCount += 1
                 reclaimedBytes += item.sizeBytes
+                actuallyCleanedPaths.append(item.path)
                 onProgress?(item, true, nil)
                 continue
             }
@@ -53,6 +56,7 @@ public final class CleanerEngine: Sendable {
                 }
                 successCount += 1
                 reclaimedBytes += item.sizeBytes
+                actuallyCleanedPaths.append(item.path)
                 onProgress?(item, true, nil)
             } catch {
                 failCount += 1
@@ -62,13 +66,12 @@ public final class CleanerEngine: Sendable {
             }
         }
 
-        let cleanedPaths = items.filter { $0.isSelected }.map { $0.path }
         if !dryRun && successCount > 0 {
             CleanHistoryManager.shared.recordClean(
                 reclaimedBytes: reclaimedBytes,
                 itemCount: successCount,
                 useTrash: useTrash,
-                cleanedPaths: cleanedPaths
+                cleanedPaths: actuallyCleanedPaths
             )
         }
 

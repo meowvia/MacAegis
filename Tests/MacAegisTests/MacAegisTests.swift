@@ -512,3 +512,43 @@ import Foundation
     historyMgr.clearHistory()
     #expect(historyMgr.fetchHistory().isEmpty)
 }
+
+@Test func testRecoveryCodeGenerationAndRestoration() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_recovery_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.recovery", isTestIsolation: true)
+    #expect(vault.setMasterPassword("InitialPass123!", hint: "SomeHint") == true)
+
+    // 1. Get Disaster Recovery Key
+    guard let recoveryKey = vault.getMasterRecoveryCode() else {
+        #expect(Bool(false), "Master recovery key should exist")
+        return
+    }
+    #expect(recoveryKey.hasPrefix("AEGIS-"))
+    #expect(recoveryKey.count == 77) // "AEGIS" (5) + 8 chunks of 8 hex (64) + 8 dashes (8) = 77 chars
+
+    // 2. Lock a critical sensitive document with 64KB content
+    let testDoc = tempDir.appendingPathComponent("strategic_plan.docx")
+    var sampleBytes = [UInt8]()
+    for i in 0..<(1024 * 70) {
+        sampleBytes.append(UInt8(i % 256))
+    }
+    let originalDocData = Data(sampleBytes)
+    try originalDocData.write(to: testDoc)
+
+    let lockedItem = vault.addItem(url: testDoc, type: .hidden)
+    #expect(lockedItem != nil)
+
+    // 3. Simulate disaster: User forgot old password! Recover using recovery key!
+    #expect(vault.recoverVault(usingRecoveryCode: "INVALID-KEY-123", newPassword: "NewRecoveredPass456!") == false)
+    #expect(vault.recoverVault(usingRecoveryCode: recoveryKey, newPassword: "NewRecoveredPass456!") == true)
+
+    // 4. Verify new password unlocks vault and restores 64KB document bit-perfectly!
+    #expect(vault.verifyMasterPassword("NewRecoveredPass456!") == true)
+    vault.openAndHighlightInFinder(path: testDoc.path, revealInFinder: false)
+
+    let restoredDocData = try Data(contentsOf: testDoc)
+    #expect(restoredDocData == originalDocData)
+}

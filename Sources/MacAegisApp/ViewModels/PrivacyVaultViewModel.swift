@@ -27,6 +27,14 @@ public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var newPasswordHintInput: String = ""
     @Published public var changePasswordErrorMessage: String?
 
+    // Disaster Recovery Code State
+    @Published public var masterRecoveryCode: String?
+    @Published public var isRecoveringWithCode: Bool = false
+    @Published public var recoveryCodeInput: String = ""
+    @Published public var recoveryNewPasswordInput: String = ""
+    @Published public var recoveryConfirmPasswordInput: String = ""
+    @Published public var recoveryErrorMessage: String?
+
     private let vaultManager = PrivacyVaultManager.shared
 
     public init() {
@@ -37,10 +45,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
         self.hasMasterPassword = vaultManager.hasMasterPassword
         self.passwordHint = vaultManager.getPasswordHint()
         self.items = vaultManager.fetchItems()
+        self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
     }
 
     public func reloadItems() {
         self.items = vaultManager.fetchItems()
+        self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
     }
 
     public var displayedItems: [VaultItem] {
@@ -64,7 +74,8 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.isSettingUpMasterPassword = false
             self.isUnlocked = true
             self.passwordInput = ""
-            self.showToast(l10n("已设定主密码并解锁", "Master password configured & unlocked"))
+            self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
+            self.showToast(l10n("已设定主密码并安全解锁", "Master password configured & unlocked"))
         } else {
             self.showToast(l10n("密码设置失败，请重试", "Failed to setup password. Try again."))
         }
@@ -182,7 +193,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                     self.reloadItems()
                     if addedCount > 0 {
-                        self.showToast(l10n("已将 \(addedCount) 个项目加密上锁入库", "Encrypted & locked \(addedCount) items into Vault"))
+                        self.showToast(l10n("已将 \(addedCount) 个项目锁定并隐匿入库", "Locked & concealed \(addedCount) items into Vault"))
                     }
                 }
             }
@@ -216,6 +227,47 @@ public final class PrivacyVaultViewModel: ObservableObject {
                     }
                 }
             }
+        }
+    }
+
+    public func executeRecoverWithCode() -> Bool {
+        recoveryErrorMessage = nil
+        let trimmedCode = recoveryCodeInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNew = recoveryNewPasswordInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedConfirm = recoveryConfirmPasswordInput.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedCode.isEmpty else {
+            recoveryErrorMessage = l10n("请输入 64 位恢复码", "Please enter recovery key")
+            return false
+        }
+        guard !trimmedNew.isEmpty else {
+            recoveryErrorMessage = l10n("新密码不能为空", "New password cannot be empty")
+            return false
+        }
+        guard trimmedNew.count >= 6 else {
+            recoveryErrorMessage = l10n("新密码长度至少需要 6 位", "New password must be at least 6 characters")
+            return false
+        }
+        guard trimmedNew == trimmedConfirm else {
+            recoveryErrorMessage = l10n("两次输入的新密码不一致", "New passwords do not match")
+            return false
+        }
+
+        let success = vaultManager.recoverVault(usingRecoveryCode: trimmedCode, newPassword: trimmedNew)
+        if success {
+            self.isRecoveringWithCode = false
+            self.recoveryCodeInput = ""
+            self.recoveryNewPasswordInput = ""
+            self.recoveryConfirmPasswordInput = ""
+            self.recoveryErrorMessage = nil
+            self.isUnlocked = true
+            self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
+            self.showToast(l10n("已使用恢复码成功重置主密码并解锁 🎉", "Vault successfully recovered with key 🎉"))
+            self.reloadItems()
+            return true
+        } else {
+            self.recoveryErrorMessage = l10n("恢复码无效或格式错误，请检查核对", "Invalid recovery key format")
+            return false
         }
     }
 

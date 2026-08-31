@@ -262,6 +262,36 @@ public struct SettingsView: View {
                             }
                         }
                     }
+
+                    // 4. 隐私政策与安全承诺 (Privacy & Security Commitment)
+                    settingsSection(title: l10n("隐私政策与安全承诺", "Privacy & Security Policy"), icon: "lock.shield.fill", color: Color(hex: "10B981")) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.shield.fill")
+                                    .foregroundColor(Color(hex: "10B981"))
+                                    .font(.system(size: 12))
+                                Text(l10n("100% 纯本地离线运行", "100% Offline & Local Execution"))
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            Text(l10n("MacAegis 所有磁盘扫描、空间清理与隐匿锁定操作均在您的 Mac 本地执行，不含任何远程分析或云端上传，零外网数据通信。", "All scans, cleaning, and concealment operations run locally on your Mac without remote analytics or cloud transmission."))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+
+                            Divider().opacity(0.15)
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "key.fill")
+                                    .foregroundColor(Color(hex: "38BDF8"))
+                                    .font(.system(size: 12))
+                                Text(l10n("钥匙串与硬件安全集成", "macOS Keychain & Hardware Isolation"))
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            Text(l10n("保险箱主密码与数据密钥通过 macOS 原生钥匙串与 PBKDF2 10万次哈希存储，受 Apple 系统安全机制严格保护。", "Master passwords and encryption keys are stored via macOS native Keychain with 100,000 iterations PBKDF2."))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
                 .padding(20)
             }
@@ -271,14 +301,34 @@ public struct SettingsView: View {
 
             // Bottom Bar
             HStack {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text("\(AppConfig.appName) v\(AppConfig.appVersion)")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.primary)
                     Text("·")
                         .foregroundColor(.secondary.opacity(0.5))
-                    Link("GitHub", destination: URL(string: "https://github.com/meowvia/MacAegis")!)
-                        .font(.system(size: 11))
+                    Button(action: {
+                        Task {
+                            if let update = await UpdateChecker.shared.checkForUpdates(), update.hasUpdate {
+                                if let urlStr = update.downloadURL, let url = URL(string: urlStr) {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            } else {
+                                DispatchQueue.main.async {
+                                    let alert = NSAlert()
+                                    alert.messageText = l10n("当前已是最新版本", "You're up to date")
+                                    alert.informativeText = l10n("MacAegis v\(AppConfig.appVersion) 已是最新稳定版。", "MacAegis v\(AppConfig.appVersion) is the latest release.")
+                                    alert.addButton(withTitle: l10n("好", "OK"))
+                                    alert.runModal()
+                                }
+                            }
+                        }
+                    }) {
+                        Text(l10n("检查更新", "Check for Updates"))
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "38BDF8"))
+                    }
+                    .buttonStyle(.plain)
                 }
                 Spacer()
                 Button(l10n("完成", "Done")) {

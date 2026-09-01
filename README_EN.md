@@ -1,88 +1,155 @@
-# MacAegis
+# 🛡️ MacAegis
 
-<p align="left">
-  <a href="README.md">简体中文</a> | <b>English</b>
+<p align="center">
+  <img src="AppIcon.icns" width="100" height="100" alt="MacAegis Logo" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/vault_locked.png" width="850" alt="MacAegis Privacy Vault">
+  <strong>A Pure Native Swift Utility for File Privacy Concealment & Lightweight Maintenance on macOS</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-14.0%2B%20(Sonoma%20%2F%20Sequoia)-blue?logo=apple" alt="macOS">
-  <img src="https://img.shields.io/badge/Swift-6.0%20Native-orange?logo=swift" alt="Swift">
-  <img src="https://img.shields.io/badge/Size-2.4%20MB%20Ultra--light-success" alt="Size">
-  <img src="https://img.shields.io/badge/Security-100%25%20Offline-emerald" alt="Security">
+  <img src="https://img.shields.io/badge/Platform-macOS%2014.0%2B-blue?style=flat-square" alt="macOS" />
+  <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-success?style=flat-square" alt="Architecture" />
+  <img src="https://img.shields.io/badge/Language-Swift%206-orange?style=flat-square" alt="Swift" />
+  <img src="https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%200%20Telemetry-brightgreen?style=flat-square" alt="Privacy" />
+  <img src="https://img.shields.io/badge/License-Freeware-purple?style=flat-square" alt="License" />
+</p>
+
+<p align="center">
+  <a href="#-feature-walkthrough--preview">Feature Preview</a> •
+  <a href="#-installation--troubleshooting">Installation Guide</a> •
+  <a href="#-download">Download</a> •
+  <a href="README.md">中文版本</a>
 </p>
 
 ---
 
-## Showcase
+## 📖 Introduction
 
-### 1. Privacy Vault
+When working on a Mac, you often have private documents or confidential folders you'd prefer to keep away from prying eyes. **MacAegis** is built specifically for this purpose, providing **instant file/folder stealth and instant recovery**:
+
+* **Instant Stealth**: Drag folders or files into the app to instantly vanish them from Finder and block QuickLook spacebar previews;
+* **Quick Unlock**: Restore access seamlessly using Touch ID biometric authentication or master password;
+* **Lightweight Maintenance**: Integrates deep system cache cleaning, app uninstaller with progressive file inspection, and menu bar telemetry;
+* **Clean & Restrained**: 100% offline with zero data telemetry. Exiting the app terminates all processes completely without background daemon clutter.
+
+---
+
+## 📸 Feature Walkthrough & Preview
+
+### 1. Privacy Conceal & Anti-Inspection
+
+Conceal and lock sensitive folders and standalone files. Set up your master password on first launch, paired with a local disaster recovery key.
+
+#### 1. Password Setup Initialization
 <p align="center">
-  <img src="docs/screenshots/vault_folder.png" width="850" alt="Instant Folder Cloaking">
+  <img src="assets/screenshots/01_vault_setup_password.png" width="800" alt="Master Password Setup" />
 </p>
 
+#### 2. Built-in User Notice & Safety Guide
+Displays user onboarding instructions upon first entry, highlighting recovery key management and external download tool co-existence.
 <p align="center">
-  <img src="docs/screenshots/vault_files.png" width="850" alt="Multi-file Hidden List">
+  <img src="assets/screenshots/02_vault_user_notice_countdown.png" width="800" alt="User Notice Countdown" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/03_vault_user_notice_full.png" width="800" alt="User Notice Confirmed" />
 </p>
 
-### 2. Smart Cleaner
+#### 3. Concealed Vault List & Category Filtering
+Organizes protected items with category filters (All / Folders / Files), featuring instant Toast confirmations on drag-and-drop addition.
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" width="850" alt="Smart Cleaner Dashboard">
+  <img src="assets/screenshots/04_vault_concealed_list.png" width="800" alt="Concealed Vault List" />
 </p>
 
-### 3. App Uninstaller
+#### 4. Multi-Select Batch Operations with Safety Confirmation
+Select multiple items to batch lock, unlock, or remove protection with secondary confirmation dialogues.
 <p align="center">
-  <img src="docs/screenshots/uninstaller.png" width="850" alt="App Uninstaller & Residue Cleanup">
-</p>
-
-### 4. Settings & System Monitoring
-<p align="center">
-  <img src="docs/screenshots/settings.png" width="600" alt="Preferences & Settings">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/menubar.png" width="360" alt="Menu Bar Live Status Card">
+  <img src="assets/screenshots/05_vault_batch_operations.png" width="800" alt="Batch Operations" />
 </p>
 
 ---
 
-## Core Features
+### 2. Smart Cleaning Cockpit
 
-* **Privacy Vault** — One-click hiding for files and folders, dual Touch ID / master password unlocking, with 64-character disaster recovery code support.
-* **System Monitor** — Real-time display of CPU load, memory, fan speed, chip temperature, and upload/download speeds right in the menu bar.
-* **History Cleaner** — Manage and purge system activity footprints to reduce privacy traces.
+Dynamically evaluates system health based on existing disk clutter, supporting 1-click quick cleaning, full deep scanning, and external drive detection.
 
----
-
-## MacAegis · Design Philosophy
-
-Hiding files on macOS natively requires terminal commands—cumbersome and ungraceful.
-
-What MacAegis does is straightforward: **put a cover over your files**.
-
-* **No moving files, no reading or writing content, no encryption**—just toggling a filesystem attribute to make them vanish entirely from Finder and Spotlight.
-* Whether it's a folder or individual files, selected via path or dragged straight into the vault, hiding and revealing are completed **instantaneously**.
-* **Skipping encryption is a deliberate choice**. When encryption goes wrong, user data can suffer catastrophic loss; visual cloaking already solves 90% of everyday privacy needs—guarding against people casually browsing your Finder, not people trying to crack your physical drive.
-* **100% offline**, no cloud syncing, no network calls, zero data collection. Your files remain exclusively on your own device from start to finish.
+<p align="center">
+  <img src="assets/screenshots/06_dashboard_clean.png" width="800" alt="Smart Cleaning Cockpit" />
+</p>
 
 ---
 
-## Requirements & Installation
+### 3. Preferences & Security Commitments
 
-* Pure native Swift development, ultra-compact binary footprint (**2.4 MB**), gentle on memory and older hardware.
-* Requires macOS 14.0 (Sonoma) or later. Primarily built for Apple Silicon (M-series chips).
-* Download the latest `.dmg` release from [Releases](../../releases) and drag `MacAegis` into your `Applications` folder.
+Customize system appearance (Light / Dark mode), switch between English and Chinese seamlessly, select temperature units, configure Trash monitoring, and manage Full Disk Access (FDA).
 
-> **Note**: If macOS shows an "unidentified developer" or "damaged" dialog on first launch, execute this single command in Terminal to clear quarantine:
-> ```bash
-> xattr -cr /Applications/MacAegis.app
-> ```
-> (Or right-click the App -> select "Open" -> click "Open Anyway" in System Settings -> Privacy & Security)
+<p align="center">
+  <img src="assets/screenshots/07_settings_general.png" width="800" alt="General Preferences" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/08_settings_security.png" width="800" alt="Security & Permissions" />
+</p>
 
 ---
 
-Feel free to open an Issue or submit a Pull Request.
+### 4. App Uninstaller with Progressive Disclosure
 
+Drag or select apps to inspect underlying binaries, sandbox containers, Application Support, caches, and preference files, with 1-click Finder reveal (`🔍 Reveal`).
+
+<p align="center">
+  <img src="assets/screenshots/09_uninstaller_progressive.png" width="800" alt="App Uninstaller Progressive Disclosure" />
+</p>
+
+---
+
+### 5. Real-Time Menu Bar Telemetry
+
+Persistent menu bar card displaying real-time upload/download network speed, SoC core temperature, fan speed, unified memory pressure, and multi-volume disk storage.
+
+<p align="center">
+  <img src="assets/screenshots/10_menubar_telemetry.png" width="360" alt="Menu Bar Telemetry" />
+</p>
+
+---
+
+## 🚀 Installation & Troubleshooting
+
+### 1. Standard Installation
+1. Download the latest `MacAegis-vX.Y.Z.dmg` installer from the [Releases Page](https://github.com/meowvia/MacAegis/releases);
+2. Double-click the DMG image and drag the **MacAegis** icon into the **Applications** folder;
+3. Launch MacAegis from Launchpad or Applications.
+
+---
+
+### 2. How to Resolve "App is damaged / Cannot verify developer"
+
+As an indie freeware project without an enterprise Apple Developer certificate, macOS Gatekeeper may display a security prompt on initial launch:
+> *"'MacAegis' is damaged and can't be opened. You should move it to the Trash."* or *"Cannot open because the developer cannot be verified"*
+
+**Resolution (Run once in Terminal):**
+1. Open the built-in **Terminal** app (via Spotlight search: `Terminal`);
+2. Copy, paste, and run the following command (enter your Mac login password if prompted):
+```bash
+sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
+```
+3. Re-open MacAegis to run smoothly.
+
+---
+
+### 3. Full Disk Access (FDA) Permission
+To enable deep system cache inspection and file reveals in Finder, grant Full Disk Access when prompted:
+* Open **System Settings** $ightarrow$ **Privacy & Security** $ightarrow$ **Full Disk Access**, locate **MacAegis** and toggle it on.
+
+---
+
+## 📦 Download
+
+* **GitHub Releases**: [MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
+* **System Requirements**: macOS 14.0 (Sonoma) or newer, fully compatible with Apple Silicon (M1/M2/M3/M4) and Intel Macs.
+
+---
+
+## 📄 License
+
+MacAegis is free software. All operations run 100% locally on your Mac. Feel free to try it out and share your feedback!

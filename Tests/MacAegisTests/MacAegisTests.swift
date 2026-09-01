@@ -670,3 +670,93 @@ import Foundation
     let scanResult = await scanner.scan()
     #expect(!scanResult.items.contains(where: { $0.path == secretFile.path }))
 }
+
+@Test func testFakeLockVulnerabilityEliminated() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_fakelock_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer {
+        let nouchg = Process()
+        nouchg.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+        nouchg.arguments = ["-R", "nouchg", tempDir.path]
+        try? nouchg.run()
+        nouchg.waitUntilExit()
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    let testService = "com.test.fakelock.\(UUID().uuidString)"
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: testService, isTestIsolation: false)
+    #expect(vault.setMasterPassword("MySafePass123!", hint: nil) == true)
+
+    let testFile = tempDir.appendingPathComponent("confidential.docx")
+    let rawData = Data("ULTRA_SECRET_SECURITY_TOKEN_STREAM_DATA_123456789".utf8)
+    try rawData.write(to: testFile)
+
+    let item = vault.addItem(url: testFile, type: .hidden)
+    #expect(item != nil)
+
+    // 1. Lock vault -> Session is wiped completely
+    vault.lockAll()
+    #expect(vault.isSessionActive == false)
+
+    // 2. Direct lower-level openAndHighlightInFinder without authenticating MUST FAIL
+    // (Proves no unauthorized auto-fetching from Keychain in background)
+    let unauthorizedUnlock = vault.openAndHighlightInFinder(path: testFile.path, revealInFinder: false)
+    #expect(unauthorizedUnlock == false)
+
+    // 3. User explicitly authenticates
+    #expect(vault.verifyMasterPassword("MySafePass123!") == true)
+    #expect(vault.isSessionActive == true)
+
+    // 4. Now unlock succeeds bit-perfectly
+    let authorizedUnlock = vault.openAndHighlightInFinder(path: testFile.path, revealInFinder: false)
+    #expect(authorizedUnlock == true)
+    let restored = try Data(contentsOf: testFile)
+    #expect(restored == rawData)
+
+    vault.resetMasterAuth(clearKeychain: true)
+}
+
+@Test func testLegacyXattrFallbackAndSilentChecksumUpgrade() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_legacy_upgrade_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.legacy", isTestIsolation: true)
+    #expect(vault.setMasterPassword("LegacyPass123!", hint: nil) == true)
+
+    // 1. Test single atomic xattr legacy fallback (raw value without 'obf:' prefix)
+    let testDoc = tempDir.appendingPathComponent("legacy_file.txt")
+    try Data("LEGACY_DATA".utf8).write(to: testDoc)
+    
+    // Manually set a legacy raw xattr without 'obf:' prefix
+    let legacyRawSalt = "LegacySaltHex123456"
+    legacyRawSalt.data(using: .utf8)?.withUnsafeBytes { bytes in
+        _ = setxattr(testDoc.path, PrivacyVaultManager.xattrVaultKey, bytes.baseAddress, legacyRawSalt.utf8.count, 0, 0)
+    }
+
+    let payload = vault.parseVaultXattr(at: testDoc.path)
+    #expect(payload != nil)
+    #expect(payload?.isObfuscated == true) // Fallback rule: treated as obfuscated
+    #expect(payload?.saltHex == legacyRawSalt)
+
+    // 2. Test Silent Checksum Upgrade in verifyMasterPassword
+    let authFileURL = tempDir.appendingPathComponent("vault_auth.json")
+    if let data = try? Data(contentsOf: authFileURL),
+       var json = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+        // Strip dek_checksum to simulate legacy v0.1.x auth file
+        json.removeValue(forKey: "dek_checksum")
+        if let strippedData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted) {
+            try? strippedData.write(to: authFileURL, options: .atomic)
+        }
+    }
+
+    // Session login should succeed and silently add back dek_checksum
+    #expect(vault.verifyMasterPassword("LegacyPass123!") == true)
+    
+    // Verify silent upgrade added dek_checksum back into json
+    if let upgradedData = try? Data(contentsOf: authFileURL),
+       let upgradedJson = try? JSONSerialization.jsonObject(with: upgradedData) as? [String: String] {
+        #expect(upgradedJson["dek_checksum"] != nil)
+        #expect(upgradedJson["dek_checksum"]?.isEmpty == false)
+    }
+}

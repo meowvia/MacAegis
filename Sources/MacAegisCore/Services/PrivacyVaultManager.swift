@@ -9,6 +9,7 @@ public enum VaultError: LocalizedError, Sendable {
     case keyDerivationFailed
     case fileNotFound(String)
     case authenticationRequired
+    case vaultLocked
 
     public var errorDescription: String? {
         switch self {
@@ -18,6 +19,8 @@ public enum VaultError: LocalizedError, Sendable {
             return "目标文件不存在：\(path)"
         case .authenticationRequired:
             return "尚未验证主密码或凭据已过期。"
+        case .vaultLocked:
+            return "隐私隐匿处于锁定状态，需验证主密码后方可操作。"
         }
     }
 }
@@ -77,7 +80,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     public static let derivedKeyAccount = "derived_master_key"
     public static let metadataKeychainAccount = "master_metadata"
     public static let xattrVaultKey = "com.meowvia.macaegis.vault"
-    public static let xattrObfuscatedKey = "com.meowvia.macaegis.vault.obf"
 
     private let metadataURL: URL
     private let authConfigURL: URL
@@ -88,6 +90,12 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     private var activeKey: Data?
     private var activeSaltHex: String = ""
     private let lock = NSLock()
+
+    public var isSessionActive: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return activeKey != nil && !(activeKey!.isEmpty)
+    }
 
     public init(
         customBaseDirectory: URL? = nil,
@@ -283,15 +291,34 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             lockoutUntil = nil
 
             // Decrypt DEK if wrapped format exists
+            let dekToUse: Data
             if let encDEK = json["encrypted_dek"], let iv = json["dek_iv"], let tag = json["dek_tag"] {
                 if let dek = Self.unwrapDEK(encryptedDEKHex: encDEK, ivHex: iv, tagHex: tag, usingKEK: kek) {
-                    self.activeKey = dek
+                    dekToUse = dek
+                } else {
+                    dekToUse = kek
                 }
             } else {
                 // Fallback for legacy v1
-                self.activeKey = kek
+                dekToUse = kek
             }
+            self.activeKey = dekToUse
             self.activeSaltHex = saltHex
+
+            // Defensive / Silent Upgrade: If dek_checksum is missing in JSON, calculate and silently persist!
+            if json["dek_checksum"] == nil || json["dek_checksum"]?.isEmpty == true {
+                var updatedDict = json
+                let checksumHex = Self.computeChecksum(data: dekToUse)
+                updatedDict["dek_checksum"] = checksumHex
+                if let updatedJsonData = try? JSONSerialization.data(withJSONObject: updatedDict, options: .prettyPrinted) {
+                    try? updatedJsonData.write(to: authConfigURL, options: .atomic)
+                    if !isTestIsolation {
+                        KeychainHelper.shared.save(service: keychainService, account: keychainAccount, data: updatedJsonData)
+                        KeychainHelper.shared.save(service: keychainService, account: Self.derivedKeyAccount, data: dekToUse)
+                    }
+                }
+            }
+
             return true
         }
 
@@ -455,10 +482,16 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return false
     }
 
-    // MARK: - macOS Native Extended Attributes (xattr) Management
+    // MARK: - macOS Native Extended Attributes (xattr) Management (Single-Key Atomic Payload)
+    public struct VaultXattrPayload: Sendable {
+        public let isObfuscated: Bool
+        public let saltHex: String
+    }
+
     @discardableResult
-    private func setVaultXattr(at path: String, saltHex: String) -> Bool {
-        guard let data = saltHex.data(using: .utf8) else { return false }
+    private func setVaultXattr(at path: String, saltHex: String, isObfuscated: Bool = true) -> Bool {
+        let payloadString = "obf:\(isObfuscated ? 1 : 0):\(saltHex)"
+        guard let data = payloadString.data(using: .utf8) else { return false }
         return data.withUnsafeBytes { bytes in
             let res = setxattr(path, Self.xattrVaultKey, bytes.baseAddress, data.count, 0, 0)
             return res == 0
@@ -495,6 +528,24 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         }
         guard readLen > 0 else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+
+    public func parseVaultXattr(at path: String) -> VaultXattrPayload? {
+        guard let raw = getVaultXattr(at: path) else { return nil }
+        if raw.hasPrefix("obf:1:") {
+            let salt = String(raw.dropFirst("obf:1:".count))
+            return VaultXattrPayload(isObfuscated: true, saltHex: salt)
+        } else if raw.hasPrefix("obf:0:") {
+            let salt = String(raw.dropFirst("obf:0:".count))
+            return VaultXattrPayload(isObfuscated: false, saltHex: salt)
+        } else {
+            // Defensive Fallback: Legacy xattr without 'obf:' prefix is treated as default isObfuscated = true
+            return VaultXattrPayload(isObfuscated: true, saltHex: raw)
+        }
+    }
+
+    public func isFileHeaderObfuscated(at path: String) -> Bool {
+        return parseVaultXattr(at: path)?.isObfuscated ?? false
     }
 
     public func hasVaultXattr(at path: String) -> Bool {
@@ -847,12 +898,8 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        var dekData: Data? = activeKey
-        if dekData == nil && !isTestIsolation {
-            dekData = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount)
-        }
-
-        guard let dek = dekData, dek.count >= 32 else { return nil }
+        // Strict: Only available when vault is unlocked in active memory session
+        guard let dek = activeKey, dek.count >= 32 else { return nil }
         let rawDEK = dek.prefix(32)
         let hex = rawDEK.map { String(format: "%02X", $0) }.joined()
         let checksumHex = Self.computeChecksum(data: rawDEK).uppercased()
@@ -889,7 +936,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             }
             recoveredDEK = dek
         } else if cleanCode.count == 64 {
-            // Legacy 64 hex key: Verify against stored dek_checksum if present
+            // Legacy 64 hex key: Verify against stored dek_checksum IF present in auth file/Keychain
             guard let dek = Data(hexString: cleanCode) else { return false }
             var authData = try? Data(contentsOf: authConfigURL)
             if authData == nil && !isTestIsolation {
@@ -903,6 +950,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                     return false
                 }
             }
+            // If storedChecksum does not exist (old user upgrade scenario), allow legacy recovery path
             recoveredDEK = dek
         } else {
             return false
@@ -957,36 +1005,10 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     // MARK: - In-Place 64KB Dynamic DEK Key-Derived Stream Obfuscation (Idempotent Fast-Fail)
     private static let streamObfuscationBytes = 65536 // 64KB
 
-    public func isFileHeaderObfuscated(at path: String) -> Bool {
-        var length = getxattr(path, Self.xattrObfuscatedKey, nil, 0, 0, 0)
-        if length < 0 && (errno == EACCES || errno == EPERM) {
-            var statBuf = stat()
-            if lstat(path, &statBuf) == 0 {
-                let originalMode = statBuf.st_mode
-                let cPath = (path as NSString).fileSystemRepresentation
-                _ = chflags(cPath, 0)
-                chmod(path, 0o700)
-                length = getxattr(path, Self.xattrObfuscatedKey, nil, 0, 0, 0)
-                chmod(path, originalMode)
-                _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
-            }
-        }
-        return length > 0
-    }
-
-    private func setFileHeaderObfuscated(at path: String, isObfuscated: Bool) {
-        if isObfuscated {
-            var flag: UInt8 = 1
-            _ = setxattr(path, Self.xattrObfuscatedKey, &flag, 1, 0, 0)
-        } else {
-            _ = removexattr(path, Self.xattrObfuscatedKey, 0)
-        }
-    }
-
     private func transformHeader(at fileURL: URL, derivedKey: Data?) throws {
         guard let derivedKey = derivedKey, !derivedKey.isEmpty else {
-            // Fast-Fail: 拒绝降级为弱混淆，抛出错误中止
-            throw VaultError.keyDerivationFailed
+            // Strict Fast-Fail: Vault is locked or key derivation failed
+            throw VaultError.vaultLocked
         }
         guard let handle = try? FileHandle(forUpdating: fileURL) else { return }
         defer { try? handle.close() }
@@ -1006,7 +1028,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     }
 
     private func applyHeaderTransformation(at url: URL) throws {
-        let key = activeKey
+        guard let key = activeKey, !key.isEmpty else {
+            throw VaultError.vaultLocked
+        }
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
             if !isDir.boolValue {
@@ -1021,22 +1045,22 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return false }
 
-        // Auto-recover activeKey from Keychain if needed
-        if activeKey == nil && !isTestIsolation {
-            if let key = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount) {
-                self.activeKey = key
-            }
+        // Strict Requirement: NO auto-recovery from Keychain. Active key MUST be present in memory.
+        guard let _ = activeKey else {
+            return false
         }
 
         let cPath = (path as NSString).fileSystemRepresentation
+        let salt = activeSaltHex.isEmpty ? "MacAegisLocked" : activeSaltHex
 
         if hidden {
-            // 1. In-place stream header transformation with XOR idempotency check
+            // 1. In-place stream header transformation with XOR idempotency check via atomic xattr
             if !isDir.boolValue {
-                if !isFileHeaderObfuscated(at: path) {
+                let xattrPayload = parseVaultXattr(at: path)
+                let alreadyObfuscated = xattrPayload?.isObfuscated ?? false
+                if !alreadyObfuscated {
                     do {
                         try applyHeaderTransformation(at: url)
-                        setFileHeaderObfuscated(at: path, isObfuscated: true)
                     } catch {
                         return false
                     }
@@ -1044,8 +1068,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             }
 
             // 2. Mark native macOS Extended Attribute (xattr) BEFORE changing permissions
-            let salt = activeSaltHex.isEmpty ? "MacAegisLocked" : activeSaltHex
-            setVaultXattr(at: path, saltHex: salt)
+            setVaultXattr(at: path, saltHex: salt, isObfuscated: !isDir.boolValue)
 
             // 3. Darwin C syscall: clear uchg, set POSIX 000, set uchg + hidden (0.03ms instant)
             _ = chflags(cPath, 0)
@@ -1064,12 +1087,13 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             let tempPerms: NSNumber = isDir.boolValue ? 0o700 : 0o600
             try? FileManager.default.setAttributes([.posixPermissions: tempPerms], ofItemAtPath: path)
 
-            // 2. Reverse header transformation ONLY IF currently obfuscated (Idempotent safety)
+            // 2. Reverse header transformation ONLY IF currently obfuscated (Fallback handles legacy files)
             if !isDir.boolValue {
-                if isFileHeaderObfuscated(at: path) {
+                let xattrPayload = parseVaultXattr(at: path)
+                let isCurrentlyObfuscated = xattrPayload?.isObfuscated ?? false
+                if isCurrentlyObfuscated {
                     do {
                         try applyHeaderTransformation(at: url)
-                        setFileHeaderObfuscated(at: path, isObfuscated: false)
                     } catch {
                         // Restoration failed: Immediately re-lock item and abort to prevent data corruption!
                         let lockPerms: NSNumber = 0o000
@@ -1084,7 +1108,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             let perms: NSNumber = isDir.boolValue ? 0o755 : 0o644
             try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
             removeVaultXattr(at: path)
-            setFileHeaderObfuscated(at: path, isObfuscated: false)
 
             var resourceValues = URLResourceValues()
             resourceValues.isHidden = false

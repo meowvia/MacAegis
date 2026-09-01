@@ -167,7 +167,37 @@ public final class PrivacyVaultViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Queue for Operations Blocked by Authentication
+    private var pendingActionAfterUnlock: (() -> Void)? = nil
+
+    public func requireAuthentication(then action: @escaping () -> Void) {
+        if isUnlocked && vaultManager.isSessionActive {
+            action()
+        } else {
+            self.pendingActionAfterUnlock = action
+            self.isUnlocked = false
+            if hasMasterPassword {
+                self.unlockVaultWithBiometrics()
+            } else {
+                self.isSettingUpMasterPassword = true
+            }
+        }
+    }
+
+    private func executePendingActionIfAny() {
+        if let pending = self.pendingActionAfterUnlock {
+            self.pendingActionAfterUnlock = nil
+            pending()
+        }
+    }
+
     public func batchUnlockSelected(silent: Bool = true) {
+        requireAuthentication { [weak self] in
+            self?.performBatchUnlockSelected(silent: silent)
+        }
+    }
+
+    private func performBatchUnlockSelected(silent: Bool = true) {
         let targets = items.filter { selectedItemIds.contains($0.id) && ($0.status == .hidden || $0.status == .locked) }
         guard !targets.isEmpty else {
             showToast(l10n("所选项目中没有需要解锁的项目", "No locked items selected"))
@@ -190,6 +220,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func batchLockSelected() {
+        requireAuthentication { [weak self] in
+            self?.performBatchLockSelected()
+        }
+    }
+
+    private func performBatchLockSelected() {
         let targets = items.filter { selectedItemIds.contains($0.id) && $0.status != .hidden && $0.status != .locked }
         guard !targets.isEmpty else {
             showToast(l10n("所选项目中没有需要上锁的项目", "No unlocked items selected"))
@@ -212,6 +248,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func batchRemoveProtectionSelected() {
+        requireAuthentication { [weak self] in
+            self?.performBatchRemoveProtectionSelected()
+        }
+    }
+
+    private func performBatchRemoveProtectionSelected() {
         let targets = items.filter { selectedItemIds.contains($0.id) }
         guard !targets.isEmpty else { return }
 
@@ -232,6 +274,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func unlockAllItems(silent: Bool = true) {
+        requireAuthentication { [weak self] in
+            self?.performUnlockAllItems(silent: silent)
+        }
+    }
+
+    private func performUnlockAllItems(silent: Bool = true) {
         let targets = items.filter { $0.status == .hidden || $0.status == .locked }
         guard !targets.isEmpty else {
             showToast(l10n("当前没有已上锁的项目", "No locked items"))
@@ -253,6 +301,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func lockAllItems() {
+        requireAuthentication { [weak self] in
+            self?.performLockAllItems()
+        }
+    }
+
+    private func performLockAllItems() {
         let targets = items.filter { $0.status != .hidden && $0.status != .locked }
         guard !targets.isEmpty else {
             showToast(l10n("所有项目均已在锁定隐匿状态", "All items are already locked"))
@@ -285,6 +339,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.passwordInput = ""
             self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
             self.showToast(l10n("已设定主密码并安全解锁", "Master password configured & unlocked"))
+            self.executePendingActionIfAny()
         } else {
             self.showToast(l10n("密码设置失败，请重试", "Failed to setup password. Try again."))
         }
@@ -303,6 +358,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.isPasswordError = false
             self.passwordErrorMessage = nil
             self.reloadItems()
+            self.executePendingActionIfAny()
         }
     }
 
@@ -334,6 +390,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
                         self.isUnlocked = true
                         self.reloadItems()
+                        self.executePendingActionIfAny()
                     }
                 } else {
                     self.showToast(l10n("指纹验证未通过，请输入金库主密码", "Touch ID failed. Enter password."))
@@ -348,11 +405,17 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.isUnlocked = false
             self.passwordInput = ""
             self.reloadItems()
-            self.showToast(l10n("隐私保险箱已安全锁定", "Privacy Vault is safely locked"))
+            self.showToast(l10n("隐私隐匿已安全锁定", "Privacy Conceal is safely locked"))
         }
     }
 
     public func unlockAndOpenInFinder(item: VaultItem) {
+        requireAuthentication { [weak self] in
+            self?.performUnlockAndOpenInFinder(item: item)
+        }
+    }
+
+    private func performUnlockAndOpenInFinder(item: VaultItem) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             self.vaultManager.unlockItem(item: item)
@@ -366,6 +429,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func lockItem(item: VaultItem) {
+        requireAuthentication { [weak self] in
+            self?.performLockItem(item: item)
+        }
+    }
+
+    private func performLockItem(item: VaultItem) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             self.vaultManager.lockItem(item: item)
@@ -379,6 +448,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func openAndHighlightInFinder(item: VaultItem) {
+        requireAuthentication { [weak self] in
+            self?.performOpenAndHighlightInFinder(item: item)
+        }
+    }
+
+    private func performOpenAndHighlightInFinder(item: VaultItem) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             self.vaultManager.openAndHighlightInFinder(path: item.path)
@@ -390,6 +465,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func addFiles(urls: [URL], type: VaultItemType) {
+        requireAuthentication { [weak self] in
+            self?.performAddFiles(urls: urls, type: type)
+        }
+    }
+
+    private func performAddFiles(urls: [URL], type: VaultItemType) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             var addedCount = 0
@@ -410,6 +491,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func removeProtection(item: VaultItem) {
+        requireAuthentication { [weak self] in
+            self?.performRemoveProtection(item: item)
+        }
+    }
+
+    private func performRemoveProtection(item: VaultItem) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             self.vaultManager.removeItem(id: item.id)
@@ -423,6 +510,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func rescueScanForHiddenItems() {
+        requireAuthentication { [weak self] in
+            self?.performRescueScanForHiddenItems()
+        }
+    }
+
+    private func performRescueScanForHiddenItems() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             let found = self.vaultManager.scanAndRecoverHiddenItems()

@@ -60,19 +60,36 @@ public struct MenuBarCardView: View {
             .padding(.vertical, 6)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
 
-            // 3. Telemetry Rows (CPU, RAM, Disk Storage, Temp & Fan)
+            // 3. Telemetry Rows (CPU & SoC Temp, RAM, Disk Storage)
             VStack(spacing: 8) {
-                // CPU
-                HStack {
-                    Text(l10n("CPU 负载", "CPU Load"))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(String(format: "%.1f", viewModel.systemMetrics.cpuUsagePercent))%")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                // CPU Load & SoC Temperature
+                VStack(spacing: 4) {
+                    HStack {
+                        Text(l10n("CPU 负载", "CPU Load"))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(String(format: "%.1f", viewModel.systemMetrics.cpuUsagePercent))%")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    }
+                    ProgressView(value: viewModel.systemMetrics.cpuUsagePercent / 100.0)
+                        .tint(Color(hex: "06B6D4"))
+
+                    HStack {
+                        HStack(spacing: 4) {
+                            Image(systemName: "thermometer.medium")
+                                .font(.system(size: 9))
+                                .foregroundColor(Color(hex: "F59E0B"))
+                            Text(l10n("SoC 核心温度", "SoC Temp"))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Text("\(viewModel.thermalAndFan.formattedTemperature) · \(viewModel.thermalAndFan.formattedFanSpeed)")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
                 }
-                ProgressView(value: viewModel.systemMetrics.cpuUsagePercent / 100.0)
-                    .tint(Color(hex: "06B6D4"))
 
                 // RAM
                 HStack {
@@ -104,21 +121,6 @@ public struct MenuBarCardView: View {
                         ProgressView(value: drive.usagePercent / 100.0)
                             .tint(drive.isInternal ? Color(hex: "38BDF8") : Color(hex: "F59E0B"))
                     }
-                }
-
-                // Temp & Fan
-                HStack {
-                    HStack(spacing: 4) {
-                        Image(systemName: "thermometer.medium")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text(l10n("SoC 温度", "SoC Temp"))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Text("\(viewModel.thermalAndFan.formattedTemperature) · \(viewModel.thermalAndFan.formattedFanSpeed)")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
                 }
             }
 

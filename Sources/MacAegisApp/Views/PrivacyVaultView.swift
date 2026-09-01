@@ -63,9 +63,11 @@ public struct PrivacyVaultView: View {
                 lockedGateContent
             }
 
-            // Floating Toast Notification
+            // Floating Toast Notification (Positioned at bottom center, exactly 76px above dock)
             if let toast = viewModel.toastMessage {
                 VStack {
+                    Spacer()
+
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.shield.fill")
                             .foregroundColor(Color(hex: "10B981"))
@@ -76,11 +78,27 @@ public struct PrivacyVaultView: View {
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .studioCard(cornerRadius: 12, isSelected: true)
-                    .padding(.top, 16)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-
-                    Spacer()
+                    .padding(.bottom, 76)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                .zIndex(500)
+            }
+
+            // Confirm Batch Remove Modal Overlay
+            if viewModel.isConfirmingBatchRemove {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                viewModel.isConfirmingBatchRemove = false
+                            }
+                        }
+
+                    confirmBatchRemoveCard
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .zIndex(1000)
             }
 
             // Change Password Modal Overlay
@@ -134,6 +152,74 @@ public struct PrivacyVaultView: View {
                 .zIndex(1000)
             }
         }
+    }
+
+    // MARK: - Confirm Batch Remove Card View
+    private var confirmBatchRemoveCard: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Circle()
+                    .fill(Color(hex: "F59E0B").opacity(0.15))
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(Color(hex: "F59E0B"))
+                            .font(.system(size: 14))
+                    )
+
+                Text(l10n("确认批量解除保护？", "Confirm Batch Remove Protection?"))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                Spacer()
+            }
+
+            Text(l10n("即将解除选中的 \(viewModel.selectedItemIds.count) 个项目的隐匿保护。解除后文件将从隐匿列表移出并在访达中恢复正常可见，文件内容 100% 完好无损。", "Selected \(viewModel.selectedItemIds.count) items will be unhidden and removed from privacy protection. Files remain 100% intact."))
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 12) {
+                Button(l10n("取消", "Cancel")) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.isConfirmingBatchRemove = false
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(action: {
+                    viewModel.batchRemoveProtectionSelected()
+                }) {
+                    Text(l10n("确认解除", "Remove Protection"))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "F59E0B"), Color(hex: "D97706")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .shadow(color: Color.orange.opacity(0.3), radius: 4, x: 0, y: 2)
+                        )
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+            }
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 360)
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
     }
 
     // MARK: - Change Password Card View
@@ -515,34 +601,58 @@ public struct PrivacyVaultView: View {
     private var unlockedVaultContent: some View {
         VStack(spacing: 0) {
             // Header Bar
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(l10n("隐私保险箱", "Privacy Vault"))
+                        Text(l10n("隐私隐匿", "Privacy Conceal"))
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.primary)
                         Image(systemName: "lock.shield.fill")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "10B981"))
+                            .foregroundColor(Color(hex: "38BDF8"))
                     }
-                    Text(l10n("拖入文件或文件夹即可在访达中隐藏并禁止预览。", "Drag files or folders to hide them from Finder."))
-                        .font(.system(size: 11))
+                    Text(l10n("文件原位瞬时锁定与隐匿，在访达中完全隐形且禁止预览。", "In-place instant concealment: fully invisible in Finder and preview-disabled."))
+                        .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 }
 
-                // Status Capsule Badge
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(Color(hex: "10B981"))
-                        .frame(width: 6, height: 6)
-                    Text(l10n("\(viewModel.items.count) 个已隐藏项目", "\(viewModel.items.count) Hidden Items"))
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
+                // Filter Tabs Segmented Switcher
+                HStack(spacing: 2) {
+                    ForEach(VaultFilterType.allCases) { filter in
+                        let isSelected = viewModel.filterType == filter
+                        let count: Int = {
+                            switch filter {
+                            case .all: return viewModel.items.count
+                            case .folders: return viewModel.folderItems.count
+                            case .files: return viewModel.fileItems.count
+                            }
+                        }()
+                        Button(action: {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                                viewModel.filterType = filter
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: filter.icon)
+                                    .font(.system(size: 10))
+                                Text("\(filter.title) (\(count))")
+                                    .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+                            }
+                            .foregroundColor(isSelected ? .primary : .secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(isSelected ? Color.secondary.opacity(0.14) : Color.clear)
+                            )
+                        }
+                        .buttonStyle(PureButtonStyle())
+                        .focusable(false)
+                    }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Color.secondary.opacity(0.08)))
-                .padding(.leading, 6)
+                .padding(2)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.06)))
+                .padding(.leading, 4)
 
                 Spacer()
 
@@ -551,7 +661,7 @@ public struct PrivacyVaultView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    TextField(l10n("搜索已隐藏项目...", "Search hidden items..."), text: $viewModel.searchText)
+                    TextField(l10n("搜索隐匿项目...", "Search concealed items..."), text: $viewModel.searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 11))
                     if !viewModel.searchText.isEmpty {
@@ -563,76 +673,73 @@ public struct PrivacyVaultView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
-                .frame(width: 170)
+                .frame(width: 140)
 
                 // Change Password Button
                 Button(action: {
                     viewModel.changePasswordErrorMessage = nil
                     viewModel.isChangingPassword = true
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "key.fill")
-                        Text(l10n("修改密码", "Change Password"))
+                        Text(l10n("密码", "Password"))
                     }
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(Color.secondary.opacity(0.08)))
                 }
                 .buttonStyle(PureButtonStyle())
                 .focusable(false)
-                .focusEffectDisabled()
 
                 // Recovery Key View Button
                 Button(action: {
                     isShowingRecoveryKey = true
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "shield.lefthalf.filled.badge.checkmark")
-                        Text(l10n("灾备恢复码", "Recovery Key"))
+                        Text(l10n("恢复码", "Key"))
                     }
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundColor(Color(hex: "10B981"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "10B981").opacity(0.10)))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(Color(hex: "10B981").opacity(0.10)))
                 }
                 .buttonStyle(PureButtonStyle())
                 .focusable(false)
-                .focusEffectDisabled()
 
                 // Recover Hidden Items Button
                 Button(action: {
                     viewModel.rescueScanForHiddenItems()
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "sparkle.magnifyingglass")
-                        Text(l10n("找回隐藏项目", "Recover Items"))
+                        Text(l10n("找回项目", "Recover"))
                     }
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundColor(Color(hex: "38BDF8"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "38BDF8").opacity(0.10)))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(Color(hex: "38BDF8").opacity(0.10)))
                 }
                 .buttonStyle(PureButtonStyle())
                 .focusable(false)
-                .focusEffectDisabled()
 
                 // Add Items Button
                 Button(action: { selectFilesFromDialog() }) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Image(systemName: "plus")
-                        Text(l10n("添加项目", "Add Items"))
+                        Text(l10n("添加项目", "Add"))
                     }
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
                     .background(
                         Capsule()
                             .fill(
@@ -642,38 +749,61 @@ public struct PrivacyVaultView: View {
                                     endPoint: .trailing
                                 )
                             )
-                            .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 3, x: 0, y: 1)
                     )
                 }
                 .buttonStyle(PureButtonStyle())
                 .focusable(false)
-                .focusEffectDisabled()
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 14)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
 
             Divider().opacity(0.2)
 
             ScrollView {
-                VStack(spacing: 14) {
+                VStack(spacing: 12) {
                     // Floating Liquid Glass Drop Zone
                     dropZoneHero
 
-                    // Table Header Row
-                    HStack {
+                    // Table Header Row with Master Checkbox
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            if viewModel.selectedItemIds.count == viewModel.displayedItems.count && !viewModel.displayedItems.isEmpty {
+                                viewModel.deselectAll()
+                            } else {
+                                viewModel.selectAll()
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                let isAllSelected = !viewModel.displayedItems.isEmpty && viewModel.selectedItemIds.count == viewModel.displayedItems.count
+                                Image(systemName: isAllSelected ? "checkmark.square.fill" : (viewModel.selectedItemIds.isEmpty ? "square" : "minus.square.fill"))
+                                    .foregroundColor(isAllSelected || !viewModel.selectedItemIds.isEmpty ? Color(hex: "38BDF8") : .secondary)
+                                    .font(.system(size: 13))
+                                Text(viewModel.selectedItemIds.isEmpty ? l10n("全选", "Select All") : l10n("已选 \(viewModel.selectedItemIds.count) 项", "Selected \(viewModel.selectedItemIds.count)"))
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(viewModel.selectedItemIds.isEmpty ? .secondary : Color(hex: "38BDF8"))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: 140, alignment: .leading)
+
                         Text(l10n("项目名称", "Item Name"))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
-                            .frame(width: 170, alignment: .leading)
+                            .frame(width: 150, alignment: .leading)
+
                         Text(l10n("原始路径", "Original Path"))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
+
                         Spacer()
+
                         Text(l10n("状态", "Status"))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
                             .frame(width: 80, alignment: .center)
+
                         Text(l10n("操作", "Actions"))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
@@ -684,65 +814,256 @@ public struct PrivacyVaultView: View {
                     // Vault Items List
                     if viewModel.items.isEmpty {
                         emptyVaultPlaceholder
-                    } else {
+                    } else if viewModel.filterType == .all {
+                        // Section 1: Folders
+                        if !viewModel.displayedFolderItems.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Image(systemName: "folder.fill")
+                                        .foregroundColor(Color(hex: "F59E0B"))
+                                        .font(.system(size: 12))
+                                    Text(l10n("已隐匿文件夹", "Concealed Folders"))
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.primary)
+                                    Text("(\(viewModel.displayedFolderItems.count))")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+
+                                    Spacer()
+
+                                    Button(action: {
+                                        viewModel.selectAllFolders()
+                                    }) {
+                                        Text(l10n("全选文件夹", "Select All Folders"))
+                                            .font(.system(size: 10))
+                                            .foregroundColor(Color(hex: "38BDF8"))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.top, 4)
+
+                                LazyVStack(spacing: 6) {
+                                    ForEach(viewModel.displayedFolderItems) { item in
+                                        vaultItemRow(item)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Section 2: Individual Files
+                        if !viewModel.displayedFileItems.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Image(systemName: "doc.fill")
+                                        .foregroundColor(Color(hex: "38BDF8"))
+                                        .font(.system(size: 12))
+                                    Text(l10n("已隐匿单体文件", "Concealed Files"))
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.primary)
+                                    Text("(\(viewModel.displayedFileItems.count))")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+
+                                    Spacer()
+
+                                    Button(action: {
+                                        viewModel.selectAllFiles()
+                                    }) {
+                                        Text(l10n("全选文件", "Select All Files"))
+                                            .font(.system(size: 10))
+                                            .foregroundColor(Color(hex: "38BDF8"))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.top, 8)
+
+                                LazyVStack(spacing: 6) {
+                                    ForEach(viewModel.displayedFileItems) { item in
+                                        vaultItemRow(item)
+                                    }
+                                }
+                            }
+                        }
+                    } else if viewModel.filterType == .folders {
                         LazyVStack(spacing: 6) {
-                            ForEach(viewModel.displayedItems) { item in
+                            ForEach(viewModel.displayedFolderItems) { item in
+                                vaultItemRow(item)
+                            }
+                        }
+                    } else if viewModel.filterType == .files {
+                        LazyVStack(spacing: 6) {
+                            ForEach(viewModel.displayedFileItems) { item in
                                 vaultItemRow(item)
                             }
                         }
                     }
                 }
-                .padding(24)
+                .padding(20)
             }
 
-            // Fixed Lower Area: Centered Shield Lock Button + Footer Note
-            VStack(spacing: 8) {
-                Button(action: { viewModel.lockVault() }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 15))
-                        Text(l10n("立即上锁保险箱", "Lock Vault Now"))
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 9)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "F43F5E"), Color(hex: "E11D48")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+            // Fixed Lower Area: Dynamic Dock (Normal vs Batch Selected)
+            if viewModel.selectedItemIds.isEmpty {
+                // Default Dock: Centered Shield Lock Button + Footer Note
+                VStack(spacing: 6) {
+                    Button(action: { viewModel.lockVault() }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "lock.shield.fill")
+                                .font(.system(size: 14))
+                            Text(l10n("立即锁定隐匿", "Lock Privacy Vault Now"))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "F43F5E"), Color(hex: "E11D48")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
                                 )
-                            )
-                            .shadow(color: Color(hex: "F43F5E").opacity(0.4), radius: 8, x: 0, y: 3)
-                    )
-                }
-                .buttonStyle(PureButtonStyle())
-                .focusable(false)
-                .focusEffectDisabled()
+                                .shadow(color: Color(hex: "F43F5E").opacity(0.4), radius: 6, x: 0, y: 2)
+                        )
+                    }
+                    .buttonStyle(PureButtonStyle())
+                    .focusable(false)
+                    .focusEffectDisabled()
 
-                // Security Footer Note
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.shield.fill")
-                        .foregroundColor(Color(hex: "38BDF8"))
-                        .font(.system(size: 11))
-                    Text(l10n("本地私密安全隐匿保护 · 零云端上传 · 文件上锁后在访达与系统视图中完全隐形", "On-device local privacy protection · Zero cloud sync · Completely hidden in Finder when locked"))
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                    // Security Footer Note
+                    HStack(spacing: 5) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundColor(Color(hex: "38BDF8"))
+                            .font(.system(size: 10))
+                        Text(l10n("本地私密安全隐匿保护 · 零云端上传 · 文件锁定后在访达与系统视图中原位隐匿且防预览", "On-device privacy protection · Zero cloud sync · Completely hidden in Finder when locked"))
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
                 }
-                .padding(.top, 2)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(.ultraThinMaterial)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color.secondary.opacity(0.12)),
+                    alignment: .top
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else {
+                // Batch Action Toolbar Dock
+                HStack(spacing: 14) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(Color(hex: "38BDF8"))
+                            .font(.system(size: 14))
+                        Text(l10n("已选中 \(viewModel.selectedItemIds.count) 项", "Selected \(viewModel.selectedItemIds.count) items"))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.primary)
+
+                        Button(l10n("取消选择", "Deselect")) {
+                            viewModel.deselectAll()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 4)
+                    }
+
+                    Spacer()
+
+                    // Action 1: Batch Silent Unlock
+                    let lockedCount = viewModel.items.filter { viewModel.selectedItemIds.contains($0.id) && ($0.status == .hidden || $0.status == .locked) }.count
+                    if lockedCount > 0 {
+                        Button(action: {
+                            viewModel.batchUnlockSelected(silent: true)
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "lock.open.fill")
+                                Text(l10n("批量解锁 (\(lockedCount))", "Batch Unlock (\(lockedCount))"))
+                            }
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(hex: "10B981"), Color(hex: "059669")],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
+                            )
+                        }
+                        .buttonStyle(PureButtonStyle())
+                        .focusable(false)
+                    }
+
+                    // Action 2: Batch Lock
+                    let unlockedCount = viewModel.items.filter { viewModel.selectedItemIds.contains($0.id) && $0.status != .hidden && $0.status != .locked }.count
+                    if unlockedCount > 0 {
+                        Button(action: {
+                            viewModel.batchLockSelected()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "lock.fill")
+                                Text(l10n("批量上锁 (\(unlockedCount))", "Batch Lock (\(unlockedCount))"))
+                            }
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(hex: "F43F5E"), Color(hex: "E11D48")],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: Color.red.opacity(0.3), radius: 4, x: 0, y: 2)
+                            )
+                        }
+                        .buttonStyle(PureButtonStyle())
+                        .focusable(false)
+                    }
+
+                    // Action 3: Batch Remove Protection
+                    Button(action: {
+                        viewModel.isConfirmingBatchRemove = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "shield.slash")
+                            Text(l10n("批量解除保护", "Remove Protection"))
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(hex: "F59E0B"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "F59E0B").opacity(0.12)))
+                    }
+                    .buttonStyle(PureButtonStyle())
+                    .focusable(false)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(.ultraThinMaterial)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color.secondary.opacity(0.15)),
+                    alignment: .top
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity)
-            .background(.ultraThinMaterial)
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color.secondary.opacity(0.12)),
-                alignment: .top
-            )
         }
     }
 
@@ -761,10 +1082,10 @@ public struct PrivacyVaultView: View {
             }
 
             VStack(spacing: 4) {
-                Text(l10n("保险箱当前为空", "Vault is Empty"))
+                Text(l10n("隐匿库当前为空", "Privacy Conceal is Empty"))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.primary)
-                Text(l10n("拖拽私人文件夹或敏感文件至上方区域，即可自动安全锁定并隐匿", "Drag private folders or sensitive files above to auto-lock and conceal"))
+                Text(l10n("拖拽私人文件夹或敏感文件至上方区域，即可原位瞬时锁定并隐匿", "Drag private folders or sensitive files above to auto-lock and conceal"))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
@@ -801,7 +1122,18 @@ public struct PrivacyVaultView: View {
 
     // MARK: - Vault Item Row
     private func vaultItemRow(_ item: VaultItem) -> some View {
-        HStack(spacing: 12) {
+        let isSelected = viewModel.selectedItemIds.contains(item.id)
+        return HStack(spacing: 10) {
+            // Checkbox
+            Button(action: {
+                viewModel.toggleItemSelection(id: item.id)
+            }) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .foregroundColor(isSelected ? Color(hex: "38BDF8") : .secondary.opacity(0.6))
+                    .font(.system(size: 14))
+            }
+            .buttonStyle(.plain)
+
             // Icon Pod
             ZStack {
                 Circle()
@@ -814,15 +1146,15 @@ public struct PrivacyVaultView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 32, height: 32)
+                    .frame(width: 30, height: 30)
                     .shadow(color: (item.status == .hidden ? Color(hex: "10B981") : Color.blue).opacity(0.3), radius: 4, x: 0, y: 2)
 
                 Image(systemName: (item.path as NSString).pathExtension.isEmpty ? "folder.fill" : "doc.fill")
                     .foregroundColor(.white)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
             }
 
-            // Name
+            // Name & Size
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.name)
                     .font(.system(size: 12, weight: .bold))
@@ -848,7 +1180,7 @@ public struct PrivacyVaultView: View {
                 Circle()
                     .fill(item.status == .hidden ? Color(hex: "10B981") : Color(hex: "38BDF8"))
                     .frame(width: 5, height: 5)
-                Text(item.status == .hidden ? l10n("已上锁", "Locked") : l10n("已解锁", "Unlocked"))
+                Text(item.status == .hidden ? l10n("已锁定", "Locked") : l10n("已解锁", "Unlocked"))
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(item.status == .hidden ? Color(hex: "10B981") : Color(hex: "38BDF8"))
             }
@@ -860,10 +1192,9 @@ public struct PrivacyVaultView: View {
             )
             .frame(width: 80, alignment: .center)
 
-            // 3 Actions: Unlock (Opens Finder) / Lock / Open Finder (if unlocked) / Remove Protection
+            // 3 Actions: Unlock / Lock / Finder / Remove Protection
             HStack(spacing: 6) {
                 if item.status == .hidden {
-                    // LOCKED STATE: 1. Unlock (Reveals and opens Finder) 2. Remove Protection
                     Button(action: {
                         viewModel.unlockAndOpenInFinder(item: item)
                     }) {
@@ -879,12 +1210,11 @@ public struct PrivacyVaultView: View {
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)
-                    .focusEffectDisabled()
 
                     Button(action: {
                         viewModel.removeProtection(item: item)
                     }) {
-                        Text(l10n("解除保护", "Remove Protection"))
+                        Text(l10n("解除保护", "Remove"))
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 8)
@@ -893,9 +1223,7 @@ public struct PrivacyVaultView: View {
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)
-                    .focusEffectDisabled()
                 } else {
-                    // UNLOCKED STATE: 1. Lock 2. Direct Finder 3. Remove Protection
                     Button(action: {
                         viewModel.lockItem(item: item)
                     }) {
@@ -911,7 +1239,6 @@ public struct PrivacyVaultView: View {
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)
-                    .focusEffectDisabled()
 
                     Button(action: {
                         viewModel.openAndHighlightInFinder(item: item)
@@ -928,12 +1255,11 @@ public struct PrivacyVaultView: View {
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)
-                    .focusEffectDisabled()
 
                     Button(action: {
                         viewModel.removeProtection(item: item)
                     }) {
-                        Text(l10n("解除保护", "Remove Protection"))
+                        Text(l10n("解除保护", "Remove"))
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 6)
@@ -942,19 +1268,18 @@ public struct PrivacyVaultView: View {
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)
-                    .focusEffectDisabled()
                 }
             }
             .frame(width: 180, alignment: .trailing)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(.ultraThinMaterial)
+                .fill(isSelected ? Color(hex: "38BDF8").opacity(0.08) : Color.secondary.opacity(0.04))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.secondary.opacity(0.10), lineWidth: 0.8)
+                        .stroke(isSelected ? Color(hex: "38BDF8").opacity(0.35) : Color.secondary.opacity(0.08), lineWidth: 0.8)
                 )
         )
     }

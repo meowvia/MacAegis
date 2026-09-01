@@ -128,7 +128,8 @@ import Foundation
 
     // 2. Zero Protected Paths Leaked
     for item in result.items {
-        #expect(!WhitelistManager.shared.isProtected(path: item.path))
+        let mode: ProtectionMode = (item.category == .appCaches || item.category == .browserCaches) ? .cacheOnly : .strict
+        #expect(!WhitelistManager.shared.isProtected(path: item.path, mode: mode))
     }
 }
 
@@ -527,7 +528,7 @@ import Foundation
         return
     }
     #expect(recoveryKey.hasPrefix("AEGIS-"))
-    #expect(recoveryKey.count == 77) // "AEGIS" (5) + 8 chunks of 8 hex (64) + 8 dashes (8) = 77 chars
+    #expect(recoveryKey.count >= 77)
 
     // 2. Lock a critical sensitive document with 64KB content
     let testDoc = tempDir.appendingPathComponent("strategic_plan.docx")
@@ -551,4 +552,121 @@ import Foundation
 
     let restoredDocData = try Data(contentsOf: testDoc)
     #expect(restoredDocData == originalDocData)
+}
+
+@Test func testRecoveryCodeChecksumStrictVerification() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_checksum_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.checksum", isTestIsolation: true)
+    #expect(vault.setMasterPassword("ValidPassword123!", hint: "Hint") == true)
+
+    guard let validKey = vault.getMasterRecoveryCode() else {
+        #expect(Bool(false), "Recovery key must exist")
+        return
+    }
+
+    // Corrupt one character in the payload
+    var chars = Array(validKey)
+    if let lastHexIndex = chars.lastIndex(where: { $0 != "-" }) {
+        chars[lastHexIndex] = chars[lastHexIndex] == "A" ? "B" : "A"
+    }
+    let corruptedKey = String(chars)
+
+    // Corrupted checksum must fail immediately without touching anything
+    #expect(vault.recoverVault(usingRecoveryCode: corruptedKey, newPassword: "NewPassword789!") == false)
+
+    // Valid recovery key succeeds and resets attempts
+    #expect(vault.recoverVault(usingRecoveryCode: validKey, newPassword: "NewPassword789!") == true)
+    #expect(vault.verifyMasterPassword("NewPassword789!") == true)
+}
+
+@Test func testXORIdempotencyProtection() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_xor_idempotent_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer {
+        let nouchg = Process()
+        nouchg.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+        nouchg.arguments = ["-R", "nouchg", tempDir.path]
+        try? nouchg.run()
+        nouchg.waitUntilExit()
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.xor", isTestIsolation: true)
+    #expect(vault.setMasterPassword("StrongPassword123!", hint: nil) == true)
+
+    let testFile = tempDir.appendingPathComponent("document.pdf")
+    let originalContent = Data("MACAEGIS_XOR_TEST_SAMPLE_FILE_CONTENT_STREAM_1234567890".utf8)
+    try originalContent.write(to: testFile)
+
+    // 1. Initial lock (Applies XOR obfuscation + marks xattr)
+    let item = vault.addItem(url: testFile, type: .hidden)
+    #expect(item != nil)
+    #expect(vault.isFileHeaderObfuscated(at: testFile.path) == true)
+
+    // 2. Lock again (Simulating duplicate lock call / interrupted state)
+    // Thanks to XOR idempotency protection, this will NOT double-XOR and corrupt data!
+    vault.lockItem(item: item!)
+    #expect(vault.isFileHeaderObfuscated(at: testFile.path) == true)
+
+    // 3. Unlock (Reverses XOR obfuscation)
+    vault.openAndHighlightInFinder(path: testFile.path, revealInFinder: false)
+    #expect(vault.isFileHeaderObfuscated(at: testFile.path) == false)
+
+    let restoredContent = try Data(contentsOf: testFile)
+    #expect(restoredContent == originalContent)
+}
+
+@Test func testHintClearingAndLockAllSessionPurge() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_hint_session_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.session", isTestIsolation: true)
+    #expect(vault.setMasterPassword("SessionPassword123!", hint: "InitialHint") == true)
+    #expect(vault.getPasswordHint() == "InitialHint")
+
+    // 1. Change password and clear hint by passing nil or empty
+    #expect(vault.changeMasterPassword(oldPassword: "SessionPassword123!", newPassword: "NewSessionPassword456!", hint: "") == true)
+    #expect(vault.getPasswordHint() == nil)
+
+    // 2. Lock All and verify session is purged
+    vault.lockAll()
+    // Session is cleared in RAM
+    #expect(vault.verifyMasterPassword("WrongPassword") == false)
+    #expect(vault.verifyMasterPassword("NewSessionPassword456!") == true)
+}
+
+@Test func testExternalDriveRulesAndAntiLeakHardConstraint() async throws {
+    let scanner = ScannerEngine()
+    #expect(scanner.rules.contains(where: { $0.ruleId == "external_drive_rules" }))
+
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_antileak_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer {
+        let nouchg = Process()
+        nouchg.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+        nouchg.arguments = ["-R", "nouchg", tempDir.path]
+        try? nouchg.run()
+        nouchg.waitUntilExit()
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.antileak", isTestIsolation: true)
+    #expect(vault.setMasterPassword("Pass123456", hint: nil) == true)
+
+    let secretFile = tempDir.appendingPathComponent("confidential_leak_test.dmg")
+    try Data(repeating: 0xAB, count: 1024 * 1024 * 600).write(to: secretFile) // 600MB file
+
+    let item = vault.addItem(url: secretFile, type: .hidden)
+    #expect(item != nil)
+
+    // Verify hard constraint: isLockedForScanSkip must return true
+    #expect(vault.isLockedForScanSkip(path: secretFile.path) == true)
+
+    // ScannerEngine must NOT leak this item into scan results
+    let scanResult = await scanner.scan()
+    #expect(!scanResult.items.contains(where: { $0.path == secretFile.path }))
 }

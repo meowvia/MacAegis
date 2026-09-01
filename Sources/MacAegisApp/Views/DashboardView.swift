@@ -129,7 +129,7 @@ public struct DashboardView: View {
                         .font(.system(size: 16))
                 }
 
-                Text(l10n("纯原生轻量架构 · 深度安全清理 · 私密守护", "Pure Native Architecture · Deep Safe Clean · Privacy Protection"))
+                Text(l10n("纯原生轻量架构 · 深度安全清理 · 隐私隐匿守护", "Pure Native Architecture · Deep Safe Clean · Privacy Protection"))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
 
@@ -864,12 +864,26 @@ public struct DashboardView: View {
                             .padding(.vertical, 1)
                             .background(Capsule().fill(Color(hex: "F59E0B").opacity(0.12)))
                     }
+                    if item.path.hasPrefix("/Volumes/") && !item.path.hasPrefix("/Volumes/Macintosh HD") {
+                        Text("外置存储")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(Color(hex: "38BDF8"))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Color(hex: "38BDF8").opacity(0.12)))
+                    }
                 }
                 Text(item.path)
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                if item.itemDescription.contains("⚠️") {
+                    Text(item.itemDescription)
+                        .font(.system(size: 9))
+                        .foregroundColor(Color(hex: "F59E0B"))
+                        .lineLimit(1)
+                }
             }
 
             Spacer()

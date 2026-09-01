@@ -86,18 +86,24 @@ public struct MenuBarCardView: View {
                 ProgressView(value: viewModel.systemMetrics.memoryUsagePercent / 100.0)
                     .tint(Color(hex: "A855F7"))
 
-                // Disk Storage
-                if let drive = viewModel.mountedDrives.first {
-                    HStack {
-                        Text(l10n("系统硬盘", "Macintosh HD"))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(l10n("余 \(drive.formattedFree) / 共 \(drive.formattedTotal)", "Free \(drive.formattedFree) / Total \(drive.formattedTotal)"))
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                // Disk Storage (Dynamic Multi-Disk Detection)
+                ForEach(viewModel.mountedDrives) { drive in
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: drive.icon)
+                                .font(.system(size: 10))
+                                .foregroundColor(drive.isInternal ? Color(hex: "38BDF8") : Color(hex: "F59E0B"))
+                            Text(drive.name)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                            Text(l10n("余 \(drive.formattedFree) / 共 \(drive.formattedTotal)", "Free \(drive.formattedFree) / Total \(drive.formattedTotal)"))
+                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        }
+                        ProgressView(value: drive.usagePercent / 100.0)
+                            .tint(drive.isInternal ? Color(hex: "38BDF8") : Color(hex: "F59E0B"))
                     }
-                    ProgressView(value: drive.usagePercent / 100.0)
-                        .tint(Color(hex: "38BDF8"))
                 }
 
                 // Temp & Fan

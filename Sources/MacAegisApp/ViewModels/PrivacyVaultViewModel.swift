@@ -4,6 +4,30 @@ import Combine
 import AppKit
 import MacAegisCore
 
+public enum VaultFilterType: String, CaseIterable, Identifiable, Sendable {
+    case all = "all"
+    case folders = "folders"
+    case files = "files"
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .all: return l10n("全部", "All")
+        case .folders: return l10n("文件夹", "Folders")
+        case .files: return l10n("单体文件", "Files")
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .all: return "square.grid.2x2"
+        case .folders: return "folder.fill"
+        case .files: return "doc.fill"
+        }
+    }
+}
+
 @MainActor
 public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var isUnlocked: Bool = false
@@ -18,6 +42,11 @@ public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var isPasswordError: Bool = false
     @Published public var passwordErrorMessage: String?
     @Published public var shakeAttempts: Int = 0
+
+    // Filter & Batch Selection State
+    @Published public var filterType: VaultFilterType = .all
+    @Published public var selectedItemIds: Set<String> = []
+    @Published public var isConfirmingBatchRemove: Bool = false
 
     // Change Password Form State
     @Published public var isChangingPassword: Bool = false
@@ -53,15 +82,195 @@ public final class PrivacyVaultViewModel: ObservableObject {
         self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
     }
 
+    public func isItemFolder(_ item: VaultItem) -> Bool {
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: item.path, isDirectory: &isDir) {
+            return isDir.boolValue
+        }
+        return (item.path as NSString).pathExtension.isEmpty
+    }
+
+    public var folderItems: [VaultItem] {
+        items.filter { isItemFolder($0) }
+    }
+
+    public var fileItems: [VaultItem] {
+        items.filter { !isItemFolder($0) }
+    }
+
     public var displayedItems: [VaultItem] {
+        let baseItems: [VaultItem]
+        switch filterType {
+        case .all: baseItems = items
+        case .folders: baseItems = folderItems
+        case .files: baseItems = fileItems
+        }
+
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if query.isEmpty {
-            return items.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            return baseItems.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         }
-        return items.filter {
+        return baseItems.filter {
             $0.name.localizedCaseInsensitiveContains(query) ||
             $0.path.localizedCaseInsensitiveContains(query)
         }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    public var displayedFolderItems: [VaultItem] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty {
+            return folderItems.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        }
+        return folderItems.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.path.localizedCaseInsensitiveContains(query)
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    public var displayedFileItems: [VaultItem] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty {
+            return fileItems.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        }
+        return fileItems.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.path.localizedCaseInsensitiveContains(query)
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    // MARK: - Batch Selection & Operations
+    public func toggleItemSelection(id: String) {
+        if selectedItemIds.contains(id) {
+            selectedItemIds.remove(id)
+        } else {
+            selectedItemIds.insert(id)
+        }
+    }
+
+    public func selectAll() {
+        selectedItemIds = Set(displayedItems.map { $0.id })
+    }
+
+    public func deselectAll() {
+        selectedItemIds.removeAll()
+    }
+
+    public func selectAllFolders() {
+        for item in displayedFolderItems {
+            selectedItemIds.insert(item.id)
+        }
+    }
+
+    public func selectAllFiles() {
+        for item in displayedFileItems {
+            selectedItemIds.insert(item.id)
+        }
+    }
+
+    public func batchUnlockSelected(silent: Bool = true) {
+        let targets = items.filter { selectedItemIds.contains($0.id) && ($0.status == .hidden || $0.status == .locked) }
+        guard !targets.isEmpty else {
+            showToast(l10n("所选项目中没有需要解锁的项目", "No locked items selected"))
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            for item in targets {
+                self.vaultManager.unlockItem(item: item)
+            }
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.selectedItemIds.removeAll()
+                    self.showToast(l10n("已瞬时静默解锁 \(targets.count) 个项目 ✨", "Instant unlocked \(targets.count) items ✨"))
+                }
+            }
+        }
+    }
+
+    public func batchLockSelected() {
+        let targets = items.filter { selectedItemIds.contains($0.id) && $0.status != .hidden && $0.status != .locked }
+        guard !targets.isEmpty else {
+            showToast(l10n("所选项目中没有需要上锁的项目", "No unlocked items selected"))
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            for item in targets {
+                self.vaultManager.lockItem(item: item)
+            }
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.selectedItemIds.removeAll()
+                    self.showToast(l10n("已瞬时锁定 \(targets.count) 个项目 🔒", "Instant locked \(targets.count) items 🔒"))
+                }
+            }
+        }
+    }
+
+    public func batchRemoveProtectionSelected() {
+        let targets = items.filter { selectedItemIds.contains($0.id) }
+        guard !targets.isEmpty else { return }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            for item in targets {
+                self.vaultManager.removeItem(id: item.id)
+            }
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.selectedItemIds.removeAll()
+                    self.isConfirmingBatchRemove = false
+                    self.showToast(l10n("已解除 \(targets.count) 个项目的保护（文件原件完好保留）", "Protection removed for \(targets.count) items (files intact)"))
+                }
+            }
+        }
+    }
+
+    public func unlockAllItems(silent: Bool = true) {
+        let targets = items.filter { $0.status == .hidden || $0.status == .locked }
+        guard !targets.isEmpty else {
+            showToast(l10n("当前没有已上锁的项目", "No locked items"))
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            for item in targets {
+                self.vaultManager.unlockItem(item: item)
+            }
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.showToast(l10n("已一键解锁全部 \(targets.count) 个项目 ✨", "All \(targets.count) items unlocked ✨"))
+                }
+            }
+        }
+    }
+
+    public func lockAllItems() {
+        let targets = items.filter { $0.status != .hidden && $0.status != .locked }
+        guard !targets.isEmpty else {
+            showToast(l10n("所有项目均已在锁定隐匿状态", "All items are already locked"))
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            for item in targets {
+                self.vaultManager.lockItem(item: item)
+            }
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    self.reloadItems()
+                    self.showToast(l10n("已一键锁定全部 \(targets.count) 个项目 🔒", "All \(targets.count) items locked 🔒"))
+                }
+            }
+        }
     }
 
     public func setupMasterPassword(password: String, hint: String?) {

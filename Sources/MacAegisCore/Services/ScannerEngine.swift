@@ -15,14 +15,16 @@ public final class ScannerEngine: Sendable {
                 AppCacheRules(),
                 SystemCacheRules(),
                 OrphanHunterRules(),
-                LargeFileRules()
+                LargeFileRules(),
+                ExternalDriveRules()
             ]
         }
     }
 
-    /// Perform a full system and app scan in parallel (Thread-safe onFoundItem dispatch)
+    /// Perform a full system and app scan in parallel (Thread-safe onFoundItem dispatch with strict privacy anti-leak filtering)
     public func scan(onFoundItem: (@Sendable (CleanItem) -> Void)? = nil) async -> ScanResult {
         let startTime = Date()
+        let privacyVault = PrivacyVaultManager.shared
 
         // Force fresh indexing of installed applications to accurately identify live apps and orphans
         _ = AppDetector.shared.indexInstalledApps(forceRefresh: true)
@@ -31,9 +33,12 @@ public final class ScannerEngine: Sendable {
         if let originalCallback = onFoundItem {
             let callbackLock = NSLock()
             threadSafeCallback = { item in
-                callbackLock.lock()
-                defer { callbackLock.unlock() }
-                originalCallback(item)
+                // Anti-Leak Hard Constraint: Drop any items locked or managed by Privacy Conceal
+                if !privacyVault.isLockedForScanSkip(path: item.path) {
+                    callbackLock.lock()
+                    defer { callbackLock.unlock() }
+                    originalCallback(item)
+                }
             }
         } else {
             threadSafeCallback = nil
@@ -53,11 +58,13 @@ public final class ScannerEngine: Sendable {
             return combined
         }
 
-        var sortedItems = allItems
+        // Apply strict Privacy Conceal anti-leak hard filter on final combined items
+        var safeItems = allItems.filter { !privacyVault.isLockedForScanSkip(path: $0.path) }
+
         // Strict 0-9, A-Z natural deterministic sorting (cannot be manually overridden)
-        sortedItems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        safeItems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
         let duration = Date().timeIntervalSince(startTime)
-        return ScanResult(items: sortedItems, durationSeconds: duration)
+        return ScanResult(items: safeItems, durationSeconds: duration)
     }
 }

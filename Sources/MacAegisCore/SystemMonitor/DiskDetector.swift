@@ -50,6 +50,7 @@ public final class DiskDetector: Sendable {
             .volumeNameKey,
             .volumeTotalCapacityKey,
             .volumeAvailableCapacityKey,
+            .volumeAvailableCapacityForImportantUsageKey,
             .volumeIsInternalKey,
             .volumeIsRemovableKey,
             .volumeIsEjectableKey
@@ -68,7 +69,7 @@ public final class DiskDetector: Sendable {
             guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
             let name = values.volumeName ?? url.lastPathComponent
             let total = Int64(values.volumeTotalCapacity ?? 0)
-            let free = Int64(values.volumeAvailableCapacity ?? 0)
+            let free = values.volumeAvailableCapacityForImportantUsage ?? Int64(values.volumeAvailableCapacity ?? 0)
             let isInternal = values.volumeIsInternal ?? false
             let isRemovable = (values.volumeIsRemovable ?? false) || (values.volumeIsEjectable ?? false)
 

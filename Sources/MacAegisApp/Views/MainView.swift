@@ -12,7 +12,7 @@ public enum NavigationTab: String, CaseIterable, Identifiable {
         switch self {
         case .dashboard: return l10n("智能清理", "Smart Clean")
         case .uninstaller: return l10n("应用卸载", "Uninstaller")
-        case .privacyVault: return l10n("隐私保险箱", "Privacy Vault")
+        case .privacyVault: return l10n("隐私隐匿", "Privacy Conceal")
         }
     }
 

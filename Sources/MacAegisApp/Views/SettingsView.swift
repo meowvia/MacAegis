@@ -286,7 +286,7 @@ public struct SettingsView: View {
                                 Text(l10n("钥匙串与硬件安全集成", "macOS Keychain & Hardware Isolation"))
                                     .font(.system(size: 11, weight: .bold))
                             }
-                            Text(l10n("保险箱主密码与数据密钥通过 macOS 原生钥匙串与 PBKDF2 10万次哈希存储，受 Apple 系统安全机制严格保护。", "Master passwords and encryption keys are stored via macOS native Keychain with 100,000 iterations PBKDF2."))
+                            Text(l10n("隐私隐匿主密码与数据密钥通过 macOS 原生钥匙串与 PBKDF2 10万次哈希存储，受 Apple 系统安全机制严格保护。", "Master passwords and encryption keys are stored via macOS native Keychain with 100,000 iterations PBKDF2."))
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                         }

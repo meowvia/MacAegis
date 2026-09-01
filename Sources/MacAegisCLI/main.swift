@@ -22,7 +22,7 @@ func printBanner() {
  | |  | |/ _` | _/ ___ \\  __/ (_| | \\__ \\
  |_|  |_|\\__,_(_)_/   \\_\\___|\\__, |_|___/
                              |___/       
-\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私保险箱 v\(AppConfig.appVersion)\(TerminalColor.reset)
+\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私隐匿 v\(AppConfig.appVersion)\(TerminalColor.reset)
 """)
 }
 
@@ -193,7 +193,7 @@ func main() async {
         }
         try? "[]".write(toFile: metadataPath, atomically: true, encoding: .utf8)
         try? FileManager.default.removeItem(atPath: authPath)
-        print("🧼 保险箱与账户已安全重置为出厂默认状态。")
+        print("🧼 隐私隐匿与账户已安全重置为出厂默认状态。")
     case "help", "--help", "-h":
         showHelp()
     default:

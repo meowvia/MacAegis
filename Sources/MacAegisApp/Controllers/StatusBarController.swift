@@ -13,6 +13,8 @@ public final class StatusBarController: NSObject {
     private var dashboardVM: DashboardViewModel?
     private var isSetup = false
 
+    private var pendingClickWorkItem: DispatchWorkItem?
+
     public func setup(dashboardVM: DashboardViewModel) {
         guard !isSetup else { return }
         isSetup = true
@@ -53,20 +55,36 @@ public final class StatusBarController: NSObject {
         let clickCount = NSApp.currentEvent?.clickCount ?? 1
 
         if clickCount >= 2 {
+            pendingClickWorkItem?.cancel()
+            pendingClickWorkItem = nil
             hidePopover()
             AppDelegate.showMainWindow()
             return
         }
 
         if popover.isShown {
+            pendingClickWorkItem?.cancel()
+            pendingClickWorkItem = nil
             popover.performClose(sender)
-        } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            popover.contentViewController?.view.window?.makeKey()
+            return
         }
+
+        // 150ms debounce for single-click to guarantee 0 flicker on double-clicks
+        pendingClickWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak button, weak popover] in
+            guard let button = button, let popover = popover else { return }
+            if !popover.isShown {
+                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                popover.contentViewController?.view.window?.makeKey()
+            }
+        }
+        self.pendingClickWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
     }
 
     public func hidePopover() {
+        pendingClickWorkItem?.cancel()
+        pendingClickWorkItem = nil
         popover?.performClose(nil)
     }
 
@@ -85,7 +103,7 @@ public final class StatusBarController: NSObject {
         let speedColor = NSColor(hexString: proxyHex) ?? .labelColor
 
         let speedAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .bold),
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .bold),
             .foregroundColor: speedColor
         ]
         attributed.append(NSAttributedString(string: speedString, attributes: speedAttr))
@@ -97,18 +115,16 @@ public final class StatusBarController: NSObject {
         ]
         attributed.append(NSAttributedString(string: "  ", attributes: spaceAttr))
 
-        // 3. Temp (Default crisp 100% standard system menu bar color)
+        // 3. Compact Temp | CPU (e.g. "48°C | 12%")
         let tempString = vm.thermalAndFan.formattedTemperature
-        let neutralAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
+        let cpuString = "\(String(format: "%.0f", vm.systemMetrics.cpuUsagePercent))%"
+        let combinedTelemetry = "\(tempString) | \(cpuString)"
+
+        let telemetryAttr: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
             .foregroundColor: NSColor.headerTextColor
         ]
-        attributed.append(NSAttributedString(string: tempString, attributes: neutralAttr))
-
-        // 4. Space & CPU (Default crisp 100% standard system menu bar color)
-        attributed.append(NSAttributedString(string: " ", attributes: spaceAttr))
-        let cpuString = "\(String(format: "%.0f", vm.systemMetrics.cpuUsagePercent))%"
-        attributed.append(NSAttributedString(string: cpuString, attributes: neutralAttr))
+        attributed.append(NSAttributedString(string: combinedTelemetry, attributes: telemetryAttr))
 
         button.attributedTitle = attributed
     }

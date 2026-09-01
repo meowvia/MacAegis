@@ -1,88 +1,155 @@
-# MacAegis
+# 🛡️ MacAegis
 
-<p align="left">
-  <b>简体中文</b> | <a href="README_EN.md">English</a>
+<p align="center">
+  <img src="AppIcon.icns" width="100" height="100" alt="MacAegis Logo" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/vault_locked.png" width="850" alt="MacAegis 隐私保险箱">
+  <strong>一款纯原生 Swift 编写的 Mac 隐私文件隐匿与轻量系统维护工具</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-14.0%2B%20(Sonoma%20%2F%20Sequoia)-blue?logo=apple" alt="macOS">
-  <img src="https://img.shields.io/badge/Swift-6.0%20Native-orange?logo=swift" alt="Swift">
-  <img src="https://img.shields.io/badge/Size-2.4%20MB%20Ultra--light-success" alt="Size">
-  <img src="https://img.shields.io/badge/Security-100%25%20Offline-emerald" alt="Security">
+  <img src="https://img.shields.io/badge/Platform-macOS%2014.0%2B-blue?style=flat-square" alt="macOS" />
+  <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-success?style=flat-square" alt="Architecture" />
+  <img src="https://img.shields.io/badge/Language-Swift%206-orange?style=flat-square" alt="Swift" />
+  <img src="https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%200%20Telemetry-brightgreen?style=flat-square" alt="Privacy" />
+  <img src="https://img.shields.io/badge/License-Freeware-purple?style=flat-square" alt="License" />
+</p>
+
+<p align="center">
+  <a href="#-功能概览与界面预览">功能预览</a> •
+  <a href="#-安装使用与常见问题">安装指南</a> •
+  <a href="#-下载体验">下载地址</a> •
+  <a href="README_EN.md">English Version</a>
 </p>
 
 ---
 
-## 功能展示
+## 📖 软件介绍
 
-### 1. 隐私保险箱
+平时使用 Mac 时，总有些私人工作文件或重要文件夹不想被别人随手翻看。**MacAegis** 为此而生，主打**隐私文件夹与文件的一键隐匿**，做到**秒藏秒解**：
+
+* **秒级隐形**：将文件夹或单体文件拖入，立即在访达中隐形，并且无法通过空格键快速预览；
+* **极速解锁**：需要使用时，通过 Touch ID 指纹或主密码瞬间恢复查看；
+* **轻量维护**：同时整合了常用的系统缓存清理、应用深度卸载残留定位，以及常驻状态栏硬件与网速监控；
+* **干净克制**：纯本地离线运行，不收集任何数据，关闭即退出，不给系统增加常驻负担。
+
+---
+
+## 📸 功能概览与界面预览
+
+### 一、 隐私隐匿与防翻看
+
+支持文件夹与文件的快速隐匿与锁定。首次使用时设置独立主密码，并提供本地专属灾难恢复凭证。
+
+#### 1. 初始化设置主密码
 <p align="center">
-  <img src="docs/screenshots/vault_folder.png" width="850" alt="文件夹瞬时隐匿">
+  <img src="assets/screenshots/01_vault_setup_password.png" width="800" alt="设置主密码" />
 </p>
 
+#### 2. 内置用户须知与使用指引
+首次进入主动展示使用须知，包含恢复码保管与外部下载协同说明。
 <p align="center">
-  <img src="docs/screenshots/vault_files.png" width="850" alt="多文件隐匿列表">
+  <img src="assets/screenshots/02_vault_user_notice_countdown.png" width="800" alt="用户须知倒计时" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/03_vault_user_notice_full.png" width="800" alt="用户须知确认" />
 </p>
 
-### 2. 智能清理
+#### 3. 隐匿列表与分类管理
+清晰展示已隐匿的文件夹与单体文件，支持按分类独立筛选，拖拽加入即刻弹出统计反馈。
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" width="850" alt="智能清理主控台">
+  <img src="assets/screenshots/04_vault_concealed_list.png" width="800" alt="隐匿列表" />
 </p>
 
-### 3. 应用卸载
+#### 4. 批量多选与解除保护二次确认
+支持全局全选与多选，一键批量执行锁定、解锁或移出保护，配备二次确认防误触。
 <p align="center">
-  <img src="docs/screenshots/uninstaller.png" width="850" alt="应用卸载与关联清理">
-</p>
-
-### 4. 偏好设置与系统监控
-<p align="center">
-  <img src="docs/screenshots/settings.png" width="600" alt="偏好设置">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/menubar.png" width="360" alt="菜单栏状态卡片">
+  <img src="assets/screenshots/05_vault_batch_operations.png" width="800" alt="批量管理" />
 </p>
 
 ---
 
-## 核心特性
+### 二、 智能清理控制台
 
-* **隐私保险箱** — 一键隐藏文件和文件夹，Touch ID / 密码双重解锁，支持恢复码。
-* **系统监控** — 实时显示 CPU、内存、网速，常驻菜单栏随时可见。
-* **历史清理** — 管理系统使用记录，减少隐私痕迹。
+根据系统当前的冗余状态进行智能健康评估，支持一键快速清理与全盘深度扫描，支持外接移动硬盘识别。
 
----
-
-## MacAegis · 设计思路
-
-在 Mac 上隐藏文件，原生方式要敲命令行，繁琐且不优雅。
-
-MacAegis 做的事很简单：**给文件盖一个盖子**。
-
-* **不移动文件、不读写内容、不加密**——只改一个文件系统标记，让它从 Finder 和 Spotlight 里彻底消失。
-* 不管文件夹还是文件，路径选择抑或者直接拖动到保险箱，隐藏和释放都是**瞬时完成**。
-* **不做加密是刻意的选择**。加密一旦出错，用户数据可能灾难性损失；而视觉隐藏已经解决了 90% 的日常隐私需求——防的是随手翻 Finder 的人，不是破解你硬盘的人。
-* **完全离线运行**，不上云、不联网、不收集任何数据，你的文件从始至终只在你自己的设备上。
+<p align="center">
+  <img src="assets/screenshots/06_dashboard_clean.png" width="800" alt="智能清理主控台" />
+</p>
 
 ---
 
-## 系统要求与安装
+### 三、 偏好设置与权限管理
 
-* 纯 Swift 原生开发，体积绝对轻量，内存占用对老旧机型绝对友好。
-* 支持 macOS 14.0 (Sonoma) 及以上系统，优先针对 Apple Silicon（M 系列芯片）开发，未针对 Intel 机型做充分测试。
-* 前往 [Releases](../../releases) 页面下载最新版本，解压后拖入“应用程序”文件夹。
+支持跟随系统外观（浅色/深色）、中英双语即时切换、温度单位选择、废纸篓监听配置以及完全磁盘访问权限（FDA）引导。
 
-> **提示**：未做苹果开发者付费公证，初次打开若提示“已损坏”或“无法验证开发者”，在终端执行一行命令解除隔离即可：
-> ```bash
-> xattr -cr /Applications/MacAegis.app
-> ```
-> （或者右键点击 App 选择「打开」并在「系统设置 -> 隐私与安全性」中点击「仍要打开」）
+<p align="center">
+  <img src="assets/screenshots/07_settings_general.png" width="800" alt="通用偏好设置" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/08_settings_security.png" width="800" alt="安全与权限设置" />
+</p>
 
 ---
 
-发现问题或有建议欢迎提 Issue 交流。
+### 四、 应用深度卸载与残留定位
 
+拖拽或选择 App 进行深度卸载分析，手风琴式平滑展开主程序包、沙盒容器、应用支持、缓存与偏好设置等详细文件，支持一键在访达中定位子项。
+
+<p align="center">
+  <img src="assets/screenshots/09_uninstaller_progressive.png" width="800" alt="应用卸载明细" />
+</p>
+
+---
+
+### 五、 状态栏实时监控
+
+常驻菜单栏悬浮卡片，实时呈现上下行网速、SoC 芯片温度、风扇转速、统一内存占用及多磁盘空间状态。
+
+<p align="center">
+  <img src="assets/screenshots/10_menubar_telemetry.png" width="360" alt="状态栏硬件监控" />
+</p>
+
+---
+
+## 🚀 安装使用与常见问题
+
+### 1. 标准安装步骤
+1. 在 [Releases 发布页面](https://github.com/meowvia/MacAegis/releases) 下载最新的 `MacAegis-vX.Y.Z.dmg` 安装镜像；
+2. 双击打开 DMG 镜像，将 **MacAegis** 图标拖入右侧的 **Applications**（应用程序）文件夹中；
+3. 在启动台或应用程序中打开 MacAegis 即可开始使用。
+
+---
+
+### 2. 遇到“应用已损坏 / 无法验证开发者”如何解决？
+
+由于个人独立开发且未购买苹果每年昂贵的商业开发者证书，首次打开时 macOS Gatekeeper 安全机制可能会弹出提示：
+> *“「MacAegis」已损坏，无法打开。你应该将它移到废纸篓。”* 或 *“无法打开，因为无法验证开发者”*
+
+**解决办法（只需执行一次）：**
+1. 打开系统自带的 **终端（Terminal）** 应用程序（可在聚焦搜索 Spotlight 中输入 Terminal 打开）；
+2. 复制并粘贴以下命令后按回车执行（如提示输入密码，直接输入开机密码即可）：
+```bash
+sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
+```
+3. 重新打开 MacAegis 即可顺畅运行。
+
+---
+
+### 3. 完全磁盘访问权限（FDA）说明
+为了能够正常扫描系统缓存残留并在访达中定位深层文件，首次使用清理或卸载功能时，建议根据软件提示开启系统的 **完全磁盘访问权限 (Full Disk Access)**：
+* 打开 **系统设置** $ightarrow$ **隐私与安全性** $ightarrow$ **完全磁盘访问权限**，找到 **MacAegis** 并勾选开启。
+
+---
+
+## 📦 下载体验
+
+* **GitHub 最新版本**：[MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
+* **系统要求**：macOS 14.0 (Sonoma) 或更高版本，兼容 Apple Silicon (M1/M2/M3/M4) 及 Intel 机型。
+
+---
+
+## 📄 许可说明
+
+MacAegis 是一款免费独立软件。所有功能均在本地运行，欢迎下载体验并提交反馈与建议！

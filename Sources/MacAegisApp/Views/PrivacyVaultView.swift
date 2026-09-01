@@ -151,6 +151,21 @@ public struct PrivacyVaultView: View {
                 }
                 .zIndex(1000)
             }
+
+            // User Notice Modal Overlay
+            if viewModel.isShowingUserNotice {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            viewModel.dismissUserNotice()
+                        }
+
+                    userNoticeModalCard
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                .zIndex(1000)
+            }
         }
     }
 
@@ -542,6 +557,128 @@ public struct PrivacyVaultView: View {
         .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
     }
 
+    // MARK: - User Notice Modal Card
+    private var userNoticeModalCard: some View {
+        VStack(spacing: 16) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: "shield.checkered")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(hex: "38BDF8"))
+                    Text(l10n("隐私隐匿 · 用户须知", "Privacy Conceal · User Notice"))
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                }
+
+                Spacer()
+
+                Button(action: {
+                    viewModel.dismissUserNotice()
+                }) {
+                    Circle()
+                        .fill(Color.secondary.opacity(0.12))
+                        .frame(width: 22, height: 22)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.secondary)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(l10n("欢迎使用 MacAegis 隐私隐匿功能。为保障您的数据安全与顺畅体验，请在使用前知悉以下事项：", "Welcome to MacAegis Privacy Conceal. Please take note of the following before use:"))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 2)
+
+                    // Clause 1
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(l10n("1. 妥善保管主密码与恢复码", "1. Safely Keep Master Password & Recovery Key"))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text(l10n("• 本功能专为保护您的私密数据设计，采用纯本地离线安全机制，不会向任何云端上传您的信息；\n• 系统已为您生成专属的「灾难恢复码」，建议您在初次设置后妥善备份（如存入备忘录或密码管理软件中）；\n• 当您不慎遗忘主密码时，该恢复码是协助您安全找回访问权限的唯一凭证。", "• Uses pure offline security without cloud upload.\n• A unique Recovery Key is generated; please back it up.\n• The recovery key is the sole credential to regain access if you forget your password."))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(3)
+                    }
+
+                    // Clause 2
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(l10n("2. 避免将下载软件保存路径设为锁定目录", "2. Avoid Setting Download Path to Locked Folders"))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text(l10n("• 处于锁定状态的文件夹处于系统级安全保护中，期间将暂停外部写入与修改；\n• 请避免将迅雷、浏览器或网盘等下载工具的默认保存目录直接指向已锁定的文件夹，以防止外部软件因无法写入而提示错误；\n• 建议将文件下载至常规目录（如系统的“下载”文件夹）后，再移入本功能进行保护。", "• Locked folders pause external write/modification.\n• Avoid pointing download tools directly to locked folders to prevent write errors.\n• Download to standard folders first before concealing."))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(3)
+                    }
+
+                    // Clause 3
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(l10n("3. 云同步文件的使用建议（iCloud / OneDrive / Dropbox 等）", "3. Cloud Sync File Guidelines"))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text(l10n("• 为避免与各类云盘的后台同步引擎产生数据冲突或异常，系统默认对云端同步目录内的文件进行安全隔离；\n• 如需对云端文件进行隐匿保护，建议先将其拷贝至本地磁盘（如：桌面、下载或外置硬盘）后再加入隐匿。", "• Cloud synced directories are isolated to prevent engine conflicts.\n• Copy files to local disk first before concealing."))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(3)
+                    }
+
+                    // Clause 4
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(l10n("4. 原地保护机制与性能说明", "4. In-Place Protection & Performance"))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text(l10n("• 本功能直接在文件原路径施加隐匿与保护，不产生冗余数据拷贝，不额外占用磁盘存储空间；\n• 无论是单个文件还是大型文件夹，隐匿与恢复操作均为瞬时完成。", "• Conceals files in-place without redundant copies or extra disk usage.\n• Stealth and recovery operations complete instantaneously."))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(3)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .frame(maxHeight: 280)
+
+            Button(action: {
+                viewModel.dismissUserNotice()
+            }) {
+                HStack(spacing: 6) {
+                    if viewModel.userNoticeCountdown > 0 {
+                        Text(l10n("我已阅读并知晓 (\(viewModel.userNoticeCountdown)s)", "I have read and understood (\(viewModel.userNoticeCountdown)s)"))
+                    } else {
+                        Text(l10n("我已阅读并知晓", "I have read and understood"))
+                    }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "38BDF8"), Color(hex: "2563EB")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                )
+            }
+            .buttonStyle(PureButtonStyle())
+            .focusable(false)
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 440)
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
+    }
+
     // MARK: - Cosmic Liquid Glass Backdrop
     private var cosmicLiquidGlassBackdrop: some View {
         ZStack {
@@ -677,6 +814,23 @@ public struct PrivacyVaultView: View {
                 .padding(.vertical, 4)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
                 .frame(width: 140)
+
+                // User Notice Guide Button
+                Button(action: {
+                    viewModel.openUserNotice()
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "info.circle.fill")
+                        Text(l10n("须知", "Notice"))
+                    }
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(Color(hex: "38BDF8"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(Color(hex: "38BDF8").opacity(0.10)))
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
 
                 // Change Password Button
                 Button(action: {
@@ -1290,49 +1444,36 @@ public struct PrivacyVaultView: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(
                     isTargeted ? Color(hex: "38BDF8") : Color.secondary.opacity(0.20),
-                    style: StrokeStyle(lineWidth: 1.2, dash: [6, 4])
+                    style: StrokeStyle(lineWidth: isTargeted ? 1.8 : 1.2, dash: isTargeted ? [8, 4] : [6, 4])
                 )
-                .frame(height: 78)
+                .frame(height: 72)
                 .background(
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(isTargeted ? Color(hex: "38BDF8").opacity(0.08) : Color.secondary.opacity(0.03))
+                        .fill(isTargeted ? Color(hex: "38BDF8").opacity(0.10) : Color.secondary.opacity(0.03))
                 )
+                .animation(.easeInOut(duration: 0.2), value: isTargeted)
 
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 ZStack {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [Color(hex: "38BDF8"), Color(hex: "6366F1")],
+                                colors: isTargeted ? [Color(hex: "06B6D4"), Color(hex: "3B82F6")] : [Color(hex: "38BDF8"), Color(hex: "6366F1")],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 40, height: 40)
-                        .shadow(color: Color(hex: "38BDF8").opacity(0.35), radius: 6, x: 0, y: 2)
+                        .frame(width: 36, height: 36)
+                        .shadow(color: Color(hex: "38BDF8").opacity(isTargeted ? 0.45 : 0.25), radius: isTargeted ? 8 : 4, x: 0, y: 2)
 
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 18))
+                    Image(systemName: isTargeted ? "arrow.down.doc.fill" : "lock.shield.fill")
+                        .font(.system(size: 16))
                         .foregroundColor(.white)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(l10n("拖入文件或文件夹到此处", "Drop files or folders here"))
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.primary)
-                    Text(l10n("将在访达中隐形并禁止空格键预览", "Hidden from Finder and QuickLook previews"))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Text(l10n("松开添加", "Drop to add"))
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(Color(hex: "38BDF8"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color(hex: "38BDF8").opacity(0.12)))
+                Text(isTargeted ? l10n("松开加入隐藏", "Drop to Hide") : l10n("拖入文件夹或文件到此处", "Drop folders or files here"))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(isTargeted ? Color(hex: "38BDF8") : .primary)
             }
             .padding(.horizontal, 18)
         }
@@ -1578,12 +1719,18 @@ public struct PrivacyVaultView: View {
 
                     Button(action: { viewModel.unlockVaultWithBiometrics() }) {
                         Image(systemName: "touchid")
-                            .font(.system(size: 16))
-                            .foregroundColor(Color(hex: "10B981"))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(Color(hex: "FF3B30"))
                             .padding(9)
                             .background(
                                 Circle()
-                                    .fill(Color(hex: "10B981").opacity(0.15))
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(hex: "FF3B30").opacity(0.18), Color(hex: "FA2D48").opacity(0.12)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
                             )
                     }
                     .buttonStyle(PureButtonStyle())

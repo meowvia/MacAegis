@@ -779,3 +779,31 @@ import Foundation
     #expect(bundle?.associatedItems.count ?? 0 >= 1)
     #expect(bundle?.totalSizeBytes ?? 0 > 0)
 }
+
+@Test func testCloudStoragePathInterception() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_cloud_test_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, keychainService: "com.test.cloud", isTestIsolation: true)
+    #expect(vault.setMasterPassword("CloudSafePass123!", hint: nil) == true)
+
+    // 1. Verify cloud path recognition
+    #expect(vault.isCloudStoragePath(path: "/Users/test/Library/CloudStorage/OneDrive-Personal/Secret.pdf") == true)
+    #expect(vault.isCloudStoragePath(path: "/Users/test/Library/Mobile Documents/com~apple~CloudDocs/Photos") == true)
+    #expect(vault.isCloudStoragePath(path: "/Users/test/Dropbox/Work.key") == true)
+    #expect(vault.isCloudStoragePath(path: "/Users/test/Google Drive/Sheet.xlsx") == true)
+    #expect(vault.isCloudStoragePath(path: "/Users/test/OneDrive/Project.zip") == true)
+    #expect(vault.isCloudStoragePath(path: "/Users/test/Desktop/LocalFile.txt") == false)
+    #expect(vault.isCloudStoragePath(path: "/Volumes/ExternalSSD/Movie.mp4") == false)
+
+    // 2. Mock cloud file path and verify addItem rejection
+    let fakeCloudDir = tempDir.appendingPathComponent("Library/CloudStorage/Dropbox-Meow")
+    try? FileManager.default.createDirectory(at: fakeCloudDir, withIntermediateDirectories: true)
+    let fakeCloudFile = fakeCloudDir.appendingPathComponent("cloud_notes.txt")
+    try? Data("CLOUD_SYNC_DATA".utf8).write(to: fakeCloudFile)
+
+    let addedItem = vault.addItem(url: fakeCloudFile, type: .hidden)
+    #expect(addedItem == nil, "Cloud-synced files must be rejected by addItem")
+}
+

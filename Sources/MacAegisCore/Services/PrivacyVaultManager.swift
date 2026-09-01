@@ -676,12 +676,38 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return recovered
     }
 
+    /// Strict Cloud Storage Hard Isolation: Detect modern and legacy cloud sync paths
+    public func isCloudStoragePath(path: String) -> Bool {
+        let expanded = FileUtils.expandPath(path)
+        let cloudPatterns = [
+            "/Library/CloudStorage/",       // macOS 12+ File Provider paths (Dropbox, OneDrive, Google Drive, Box, etc.)
+            "/Library/Mobile Documents/",   // iCloud Drive Native Storage
+            "/Dropbox/",                    // Legacy Dropbox
+            "/OneDrive/",                   // Legacy OneDrive
+            "/Google Drive/",               // Legacy Google Drive
+            "com~apple~CloudDocs",          // iCloud Documents Sandbox
+            "~/iCloud Drive"                // Legacy iCloud Drive symlink/folder
+        ]
+        for pattern in cloudPatterns {
+            let expPattern = FileUtils.expandPath(pattern)
+            if expanded.contains(pattern) || expanded.contains(expPattern) {
+                return true
+            }
+        }
+        return false
+    }
+
     // MARK: - Core Operations & Disaster Re-claiming
     public func addItem(url: URL, type: VaultItemType) -> VaultItem? {
         lock.lock()
         defer { lock.unlock() }
 
         let path = url.path
+        if isCloudStoragePath(path: path) {
+            // Absolute Security Hard Interception: Never lock cloud-synced files
+            return nil
+        }
+
         if let existing = items.first(where: { $0.path == path }) {
             return existing
         }

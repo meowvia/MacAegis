@@ -64,6 +64,11 @@ public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var recoveryConfirmPasswordInput: String = ""
     @Published public var recoveryErrorMessage: String?
 
+    // User Security Notice / Onboarding State
+    @Published public var isShowingUserNotice: Bool = false
+    @Published public var userNoticeCountdown: Int = 10
+    private var noticeTimer: AnyCancellable?
+
     private let vaultManager = PrivacyVaultManager.shared
 
     public init() {
@@ -339,6 +344,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.passwordInput = ""
             self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
             self.showToast(l10n("已设定主密码并安全解锁", "Master password configured & unlocked"))
+            self.checkAndPresentUserNoticeOnboarding()
             self.executePendingActionIfAny()
         } else {
             self.showToast(l10n("密码设置失败，请重试", "Failed to setup password. Try again."))
@@ -358,6 +364,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.isPasswordError = false
             self.passwordErrorMessage = nil
             self.reloadItems()
+            self.checkAndPresentUserNoticeOnboarding()
             self.executePendingActionIfAny()
         }
     }
@@ -474,7 +481,12 @@ public final class PrivacyVaultViewModel: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             var addedCount = 0
+            var blockedCloudCount = 0
             for url in urls {
+                if self.vaultManager.isCloudStoragePath(path: url.path) {
+                    blockedCloudCount += 1
+                    continue
+                }
                 if let _ = self.vaultManager.addItem(url: url, type: type) {
                     addedCount += 1
                 }
@@ -482,8 +494,10 @@ public final class PrivacyVaultViewModel: ObservableObject {
             DispatchQueue.main.async {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                     self.reloadItems()
-                    if addedCount > 0 {
-                        self.showToast(l10n("已将 \(addedCount) 个项目锁定并隐匿入库", "Locked & concealed \(addedCount) items into Vault"))
+                    if blockedCloudCount > 0 {
+                        self.showToast(l10n("⚠️ 已拦截 \(blockedCloudCount) 个云端同步文件（请拷贝至本地磁盘后再隐匿）", "⚠️ Blocked \(blockedCloudCount) cloud-synced files (move to local disk first)"))
+                    } else if addedCount > 0 {
+                        self.showToast(l10n("已将 \(addedCount) 个项目隐藏入库", "Concealed \(addedCount) items into Vault"))
                     }
                 }
             }
@@ -611,6 +625,41 @@ public final class PrivacyVaultViewModel: ObservableObject {
         } else {
             self.changePasswordErrorMessage = l10n("原密码验证失败，请重新输入", "Current password incorrect")
             return false
+        }
+    }
+
+    // MARK: - User Security Notice Handlers
+    public func openUserNotice() {
+        self.userNoticeCountdown = 10
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            self.isShowingUserNotice = true
+        }
+        self.noticeTimer?.cancel()
+        self.noticeTimer = Timer.publish(every: 1.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                if self.userNoticeCountdown > 0 {
+                    self.userNoticeCountdown -= 1
+                } else {
+                    self.noticeTimer?.cancel()
+                }
+            }
+    }
+
+    public func dismissUserNotice() {
+        UserDefaults.standard.set(true, forKey: "MacAegis_HasSeenUserNotice_v1")
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            self.isShowingUserNotice = false
+        }
+        self.noticeTimer?.cancel()
+    }
+
+    public func checkAndPresentUserNoticeOnboarding() {
+        if !UserDefaults.standard.bool(forKey: "MacAegis_HasSeenUserNotice_v1") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                self?.openUserNotice()
+            }
         }
     }
 

@@ -40,6 +40,15 @@ public final class CleanerEngine: Sendable {
                 continue
             }
 
+            // Privacy Conceal Absolute Protection Check: Block deletion of any locked/managed vault items
+            if PrivacyVaultManager.shared.isLockedForScanSkip(path: item.path) {
+                failCount += 1
+                let errStr = "【隐私保护拦截】\(item.name) 正处于隐私隐匿保护中，已拒绝清理"
+                errors.append(errStr)
+                onProgress?(item, false, errStr)
+                continue
+            }
+
             if dryRun {
                 successCount += 1
                 reclaimedBytes += item.sizeBytes

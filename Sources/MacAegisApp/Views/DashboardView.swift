@@ -177,6 +177,7 @@ public struct DashboardView: View {
                     // Pod 2: 大文件与安装包 (Bottom-Left)
                     let downloadsSize = (viewModel.scanResult?.totalSize(for: .downloadsAndPackages) ?? 0)
                         + (viewModel.scanResult?.totalSize(for: .developerCaches) ?? 0)
+                        + (viewModel.scanResult?.totalSize(for: .largeFiles) ?? 0)
                     orbitingGlassBubblePod(
                         icon: "folder.fill",
                         iconBgGradient: [Color(hex: "A78BFA"), Color(hex: "7C3AED")],
@@ -184,7 +185,7 @@ public struct DashboardView: View {
                         sizeString: ByteFormatter.format(downloadsSize),
                         yOffset: 0
                     ) {
-                        activeCategoryFilter = [.downloadsAndPackages, .developerCaches]
+                        activeCategoryFilter = [.downloadsAndPackages, .developerCaches, .largeFiles]
                         activeDetailTitle = l10n("大文件与安装包明细", "Large Files & Packages Details")
                         if viewModel.scanResult == nil && !viewModel.isScanning {
                             viewModel.startScan()

@@ -115,39 +115,91 @@ public struct DashboardView: View {
         }
     }
 
+    private var dynamicSystemHealth: (title: String, icon: String, iconColor: Color, pillText: String, pillColor: Color) {
+        if viewModel.isScanning {
+            return (
+                title: l10n("正在深度分析系统运行环境...", "Analyzing Mac System Environment..."),
+                icon: "circle.hexagonpath.fill",
+                iconColor: Color(hex: "38BDF8"),
+                pillText: l10n("全速扫描进行中", "Deep Scan in Progress"),
+                pillColor: Color(hex: "06B6D4")
+            )
+        } else if let result = viewModel.scanResult {
+            let safeReclaimable = result.safeSizeBytes
+            let totalScanned = result.totalSizeBytes
+
+            if safeReclaimable >= 5 * 1024 * 1024 * 1024 || totalScanned >= 20 * 1024 * 1024 * 1024 {
+                return (
+                    title: l10n("你的 Mac 存在较多冗余占用，建议清理", "Your Mac Has Heavy Clutter, Clean Advised"),
+                    icon: "exclamationmark.triangle.fill",
+                    iconColor: Color(hex: "F59E0B"),
+                    pillText: l10n("已发现 \(ByteFormatter.format(safeReclaimable)) 建议清理空间", "\(ByteFormatter.format(safeReclaimable)) Clutter Detected"),
+                    pillColor: Color(hex: "F59E0B")
+                )
+            } else if safeReclaimable >= 500 * 1024 * 1024 {
+                return (
+                    title: l10n("你的 Mac 发现可释放空间，建议适度优化", "Reclaimable Space Found, Optimization Suggested"),
+                    icon: "sparkles",
+                    iconColor: Color(hex: "38BDF8"),
+                    pillText: l10n("已发现 \(ByteFormatter.format(safeReclaimable)) 可优化空间", "\(ByteFormatter.format(safeReclaimable)) Reclaimable Found"),
+                    pillColor: Color(hex: "38BDF8")
+                )
+            } else {
+                return (
+                    title: l10n("你的 Mac 运行状态良好", "Your Mac is Running Smoothly"),
+                    icon: "sparkles",
+                    iconColor: Color(hex: "FBBF24"),
+                    pillText: l10n("全盘分析完成 · 运行极佳", "Analysis Complete · System Optimal"),
+                    pillColor: Color(hex: "10B981")
+                )
+            }
+        } else {
+            return (
+                title: l10n("你的 Mac 运行状态良好", "Your Mac is Running Smoothly"),
+                icon: "sparkles",
+                iconColor: Color(hex: "FBBF24"),
+                pillText: l10n("原生轻量架构 · 零常驻负担", "Pure Native · Zero Overhead"),
+                pillColor: Color(hex: "10B981")
+            )
+        }
+    }
+
     // MARK: - Master Reference UI Layout (Centered Grand Bubble + 4 Cleaning Dimension Pods)
     private var masterReferenceCockpitView: some View {
         VStack(spacing: 0) {
             // Top Greetings & Status Header (Centered)
-            VStack(spacing: 5) {
-                HStack(spacing: 6) {
-                    Text(l10n("你的 Mac 运行状态良好", "Your Mac is Running Smoothly"))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+            VStack(spacing: 8) {
+                let health = dynamicSystemHealth
+
+                HStack(spacing: 8) {
+                    Text(health.title)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
-                    Image(systemName: "sparkles")
-                        .foregroundColor(Color(hex: "FBBF24"))
-                        .font(.system(size: 16))
+                    Image(systemName: health.icon)
+                        .foregroundColor(health.iconColor)
+                        .font(.system(size: 18))
                 }
 
-                Text(l10n("纯原生轻量架构 · 深度安全清理 · 隐私隐匿守护", "Pure Native Architecture · Deep Safe Clean · Privacy Protection"))
+                Text(l10n("原生轻量架构 · 智能深度清理 · 隐私安全守护", "Native Lightweight Architecture · Deep Smart Clean · Privacy Protection"))
                     .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondary.opacity(0.85))
+                    .padding(.top, 4)
 
-                // Status Pill Badge
+                // Status Pill Badge (Centered with extra line spacing)
                 HStack(spacing: 5) {
                     Circle()
-                        .fill(Color(hex: "10B981"))
+                        .fill(health.pillColor)
                         .frame(width: 6, height: 6)
-                    Text(viewModel.isScanning ? l10n("正在极速深度扫描中...", "Scanning System...") : (viewModel.scanResult != nil ? l10n("全盘分析完成", "Analysis Complete") : l10n("极简原生 · 零常驻负担", "Pure Native · Zero Overhead")))
+                    Text(health.pillText)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4.5)
                 .background(Capsule().fill(Color.secondary.opacity(0.08)))
-                .padding(.top, 2)
+                .padding(.top, 8)
             }
-            .padding(.top, 14)
+            .padding(.top, 16)
 
             Spacer(minLength: 8)
 

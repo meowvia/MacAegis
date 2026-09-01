@@ -126,9 +126,9 @@ public struct DashboardView: View {
             )
         } else if let result = viewModel.scanResult {
             let safeReclaimable = result.safeSizeBytes
-            let totalScanned = result.totalSizeBytes
 
-            if safeReclaimable >= 5 * 1024 * 1024 * 1024 || totalScanned >= 20 * 1024 * 1024 * 1024 {
+            if safeReclaimable >= 5 * 1024 * 1024 * 1024 {
+                // 5GB 及以上：严重冗余
                 return (
                     title: l10n("你的 Mac 存在较多冗余占用，建议清理", "Your Mac Has Heavy Clutter, Clean Advised"),
                     icon: "exclamationmark.triangle.fill",
@@ -137,6 +137,7 @@ public struct DashboardView: View {
                     pillColor: Color(hex: "F59E0B")
                 )
             } else if safeReclaimable >= 500 * 1024 * 1024 {
+                // 500MB ~ 5GB：适度优化
                 return (
                     title: l10n("你的 Mac 发现可释放空间，建议适度优化", "Reclaimable Space Found, Optimization Suggested"),
                     icon: "sparkles",
@@ -145,6 +146,7 @@ public struct DashboardView: View {
                     pillColor: Color(hex: "38BDF8")
                 )
             } else {
+                // 500MB 以内：运行良好
                 return (
                     title: l10n("你的 Mac 运行状态良好", "Your Mac is Running Smoothly"),
                     icon: "sparkles",

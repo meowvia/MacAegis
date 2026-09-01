@@ -18,6 +18,10 @@ public final class UninstallerViewModel: ObservableObject {
     @Published public var toastMessage: String?
     @Published public var isRefreshing: Bool = false
 
+    @Published public var expandedAppUrls: Set<URL> = []
+    @Published public var analyzedBundles: [URL: AppUninstallBundle] = [:]
+    @Published public var analyzingAppUrls: Set<URL> = []
+
     private let appDetector = AppDetector.shared
     private let uninstaller = AppUninstaller.shared
     private let cleaner = CleanerEngine()
@@ -62,10 +66,49 @@ public final class UninstallerViewModel: ObservableObject {
     }
 
     public func appSize(for app: AppDetector.InstalledApp) -> String {
+        if let bundle = analyzedBundles[app.bundleURL] {
+            return bundle.formattedTotalSize
+        }
         if let size = appSizes[app.bundleURL] {
             return ByteFormatter.format(size)
         }
         return "计算中..."
+    }
+
+    public func isExpanded(url: URL) -> Bool {
+        return expandedAppUrls.contains(url)
+    }
+
+    public func toggleAppExpansion(url: URL) {
+        if expandedAppUrls.contains(url) {
+            _ = withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                expandedAppUrls.remove(url)
+            }
+        } else {
+            _ = withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                expandedAppUrls.insert(url)
+            }
+            if analyzedBundles[url] == nil {
+                analyzingAppUrls.insert(url)
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    let bundle = AppUninstaller.shared.analyzeApp(at: url)
+                    await MainActor.run {
+                        guard let self = self else { return }
+                        if let b = bundle {
+                            self.analyzedBundles[url] = b
+                        }
+                        self.analyzingAppUrls.remove(url)
+                    }
+                }
+            }
+        }
+    }
+
+    public func revealSubItemInFinder(path: String) {
+        let expanded = FileUtils.expandPath(path)
+        if FileManager.default.fileExists(atPath: expanded) {
+            NSWorkspace.shared.selectFile(expanded, inFileViewerRootedAtPath: (expanded as NSString).deletingLastPathComponent)
+        }
     }
 
     public func analyzeApp(url: URL) {
@@ -80,6 +123,7 @@ public final class UninstallerViewModel: ObservableObject {
                 guard let self = self else { return }
                 self.selectedBundle = bundle
                 if let b = bundle {
+                    self.analyzedBundles[url] = b
                     self.selectedItemIds = Set(b.associatedItems.map { $0.id })
                 }
                 self.isAnalyzing = false

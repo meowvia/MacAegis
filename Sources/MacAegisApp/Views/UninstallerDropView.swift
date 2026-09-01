@@ -168,68 +168,251 @@ public struct UninstallerDropView: View {
     }
 
     private func appRow(app: AppDetector.InstalledApp) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 32, height: 32)
-                Image(systemName: "app.fill")
-                    .foregroundColor(Color.blue)
-                    .font(.system(size: 15))
-            }
+        let isExpanded = viewModel.isExpanded(url: app.bundleURL)
+        let isAnalyzing = viewModel.analyzingAppUrls.contains(app.bundleURL)
+        let bundle = viewModel.analyzedBundles[app.bundleURL]
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(app.name)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.primary)
-                if let bid = app.bundleId {
-                    Text(bid)
-                        .font(.system(size: 9, design: .monospaced))
+        return VStack(spacing: 0) {
+            // Main App Row Header (Clickable to Toggle Expansion)
+            Button(action: {
+                viewModel.toggleAppExpansion(url: app.bundleURL)
+            }) {
+                HStack(spacing: 12) {
+                    // Expand Chevron Arrow
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .frame(width: 12)
+
+                    // App Icon Badge
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(Color.blue.opacity(0.12))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "app.fill")
+                            .foregroundColor(Color.blue)
+                            .font(.system(size: 15))
+                    }
+
+                    // App Name & Bundle ID
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(app.name)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.primary)
+                            if isExpanded {
+                                Text(l10n("明细已展开", "Expanded"))
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundColor(Color.blue)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Capsule().fill(Color.blue.opacity(0.1)))
+                            }
+                        }
+                        if let bid = app.bundleId {
+                            Text(bid)
+                                .font(.system(size: 9, design: .monospaced))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer()
+
+                    // App Size (Dynamic live sum when analyzed)
+                    Text(viewModel.appSize(for: app))
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .frame(width: 80, alignment: .trailing)
+
+                    // Finder Reveal of .app
+                    Button(action: {
+                        viewModel.revealSubItemInFinder(path: app.bundleURL.path)
+                    }) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .padding(6)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+                    }
+                    .buttonStyle(PureButtonStyle())
+                    .focusable(false)
+                    .focusEffectDisabled()
+                    .help(l10n("在访达中显示主程序包", "Reveal in Finder"))
+
+                    // Uninstall Button
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            viewModel.analyzeApp(url: app.bundleURL)
+                        }
+                    }) {
+                        Text(l10n("卸载", "Uninstall"))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color.blue)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.12)))
+                    }
+                    .buttonStyle(PureButtonStyle())
+                    .focusable(false)
+                    .focusEffectDisabled()
+                    .frame(width: 70, alignment: .trailing)
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(PureButtonStyle())
+            .focusable(false)
+            .focusEffectDisabled()
+
+            // Inline Expanded Details Breakdown Card
+            if isExpanded {
+                Divider().opacity(0.2)
+                VStack(spacing: 6) {
+                    if isAnalyzing && bundle == nil {
+                        HStack(spacing: 8) {
+                            ProgressView().scaleEffect(0.8)
+                            Text(l10n("正在深度扫描此应用的关联数据与残留...", "Scanning associated files..."))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 14)
+                    } else if let bundle = bundle {
+                        VStack(spacing: 4) {
+                            ForEach(bundle.associatedItems) { item in
+                                inlineSubItemRow(item: item)
+                            }
+                        }
+                        .padding(.top, 4)
+
+                        // Quick Action Footer inside expanded view
+                        HStack {
+                            Text(l10n("包含 \(bundle.associatedItems.count) 项关联目录 · 共计 \(bundle.formattedTotalSize)", "Contains \(bundle.associatedItems.count) items · Total \(bundle.formattedTotalSize)"))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                    viewModel.analyzeApp(url: app.bundleURL)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "trash.fill")
+                                    Text(l10n("进入卸载确认", "Review & Uninstall"))
+                                }
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(MacAegisTheme.roseGradient)
+                                )
+                            }
+                            .buttonStyle(PureButtonStyle())
+                            .focusable(false)
+                            .focusEffectDisabled()
+                        }
+                        .padding(.top, 6)
+                        .padding(.horizontal, 4)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
+                .background(Color.secondary.opacity(0.03))
+            }
+        }
+        .studioCard(cornerRadius: 8)
+    }
+
+    private func inlineSubItemRow(item: CleanItem) -> some View {
+        HStack(spacing: 8) {
+            // Category Icon
+            Image(systemName: iconForSubItem(path: item.path))
+                .font(.system(size: 10))
+                .foregroundColor(colorForSubItem(path: item.path))
+                .frame(width: 14)
+
+            // Humanized Name + Category Badge
+            Text(humanizedCategoryName(for: item))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.primary)
+
+            // Truncated Path
+            Text(item.path)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
 
             Spacer()
 
-            Text(viewModel.appSize(for: app))
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.secondary)
-                .frame(width: 80, alignment: .trailing)
-
+            // Finder Location Pin Button
             Button(action: {
-                NSWorkspace.shared.selectFile(app.bundleURL.path, inFileViewerRootedAtPath: "/Applications")
+                viewModel.revealSubItemInFinder(path: item.path)
             }) {
-                Image(systemName: "folder")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .padding(6)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
-            }
-            .buttonStyle(PureButtonStyle())
-            .focusable(false)
-            .focusEffectDisabled()
-
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                    viewModel.analyzeApp(url: app.bundleURL)
+                HStack(spacing: 2) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 8))
+                    Text(l10n("定位", "Reveal"))
+                        .font(.system(size: 8))
                 }
-            }) {
-                Text(l10n("卸载", "Uninstall"))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color.blue)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.1)))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.08)))
             }
             .buttonStyle(PureButtonStyle())
             .focusable(false)
             .focusEffectDisabled()
-            .frame(width: 70, alignment: .trailing)
+            .help(l10n("在访达中定位此文件夹", "Reveal in Finder"))
+
+            // Size
+            Text(item.formattedSize)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.secondary)
+                .frame(width: 60, alignment: .trailing)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .studioCard(cornerRadius: 8)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 5).fill(Color.secondary.opacity(0.04)))
+    }
+
+    private func iconForSubItem(path: String) -> String {
+        if path.hasSuffix(".app") { return "app.fill" }
+        if path.contains("Application Support") || path.contains("Containers") || path.contains("Group Containers") { return "folder.fill" }
+        if path.contains("Caches") || path.contains("WebKit") || path.contains("HTTPStorages") { return "bolt.fill" }
+        if path.contains("Preferences") { return "gearshape.fill" }
+        if path.contains("LaunchAgents") || path.contains("LaunchDaemons") { return "paperplane.fill" }
+        if path.contains("Logs") { return "doc.text.fill" }
+        return "folder"
+    }
+
+    private func colorForSubItem(path: String) -> Color {
+        if path.hasSuffix(".app") { return Color.blue }
+        if path.contains("Containers") || path.contains("Group Containers") || path.contains("Application Support") { return Color.purple }
+        if path.contains("Caches") || path.contains("WebKit") { return Color.orange }
+        if path.contains("Preferences") { return Color(hex: "94A3B8") }
+        if path.contains("LaunchAgents") || path.contains("LaunchDaemons") { return Color(hex: "10B981") }
+        return Color.secondary
+    }
+
+    private func humanizedCategoryName(for item: CleanItem) -> String {
+        let path = item.path
+        if path.hasSuffix(".app") { return l10n("主程序包", "App Bundle") }
+        if path.contains("Containers") { return l10n("沙盒隔离容器", "Sandbox Container") }
+        if path.contains("Group Containers") { return l10n("共享数据组", "Group Container") }
+        if path.contains("Application Support") { return l10n("应用支持数据", "Application Support") }
+        if path.contains("Caches") || path.contains("WebKit") || path.contains("HTTPStorages") { return l10n("运行缓存", "Caches") }
+        if path.contains("Preferences") { return l10n("偏好设置", "Preferences") }
+        if path.contains("LaunchAgents") || path.contains("LaunchDaemons") { return l10n("自启服务", "Launch Agent") }
+        if path.contains("Logs") { return l10n("运行日志", "Logs") }
+        if path.contains("Saved Application State") { return l10n("窗口快照", "Saved State") }
+        return item.name
     }
 
     // MARK: - App Detail Showcase

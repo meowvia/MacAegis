@@ -760,3 +760,22 @@ import Foundation
         #expect(upgradedJson["dek_checksum"]?.isEmpty == false)
     }
 }
+
+@Test func testAppUninstallerDeepAnalysisAndCategorization() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_uninstaller_test_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    // Mock an Application bundle
+    let fakeAppBundle = tempDir.appendingPathComponent("SuperTool.app")
+    try? FileManager.default.createDirectory(at: fakeAppBundle, withIntermediateDirectories: true)
+    let fakeExec = fakeAppBundle.appendingPathComponent("SuperTool")
+    try? Data("MOCK_BINARY_DATA".utf8).write(to: fakeExec)
+
+    let uninstaller = AppUninstaller()
+    let bundle = uninstaller.analyzeApp(at: fakeAppBundle)
+    #expect(bundle != nil)
+    #expect(bundle?.appName == "SuperTool")
+    #expect(bundle?.associatedItems.count ?? 0 >= 1)
+    #expect(bundle?.totalSizeBytes ?? 0 > 0)
+}

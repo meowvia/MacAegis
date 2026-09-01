@@ -1,7 +1,7 @@
 # 🛡️ MacAegis
 
 <p align="center">
-  <img src="AppIcon.icns" width="100" height="100" alt="MacAegis Logo" />
+  <img src="assets/logo.png" width="100" height="100" alt="MacAegis Logo" />
 </p>
 
 <p align="center">

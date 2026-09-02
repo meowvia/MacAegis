@@ -122,9 +122,9 @@ Persistent menu bar card displaying real-time upload/download network speed, SoC
 brew install meowvia/tap/macaegis
 ```
 
-#### Option B: Manual DMG Download
-1. Download the latest `MacAegis-vX.Y.Z.dmg` installer from the [Releases Page](https://github.com/meowvia/MacAegis/releases);
-2. Double-click the DMG image and drag the **MacAegis** icon into the **Applications** folder;
+#### Option B: Manual Zip Download
+1. Download the latest `MacAegis-vX.Y.Z.zip` archive from the [Releases Page](https://github.com/meowvia/MacAegis/releases);
+2. Double-click to unzip, and drag **MacAegis.app** into your **Applications** folder;
 3. Launch MacAegis from Launchpad or Applications.
 
 ---

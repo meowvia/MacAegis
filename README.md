@@ -122,10 +122,10 @@
 brew install meowvia/tap/macaegis
 ```
 
-#### 选项 B：手动下载 DMG 镜像安装
-1. 在 [Releases 发布页面](https://github.com/meowvia/MacAegis/releases) 下载最新的 `MacAegis-vX.Y.Z.dmg` 安装镜像；
-2. 双击打开 DMG 镜像，将 **MacAegis** 图标拖入右侧的 **Applications**（应用程序）文件夹中；
-3. 在启动台或应用程序中打开 MacAegis 即可开始使用。
+#### 选项 B：手动下载 Zip 压缩包安装
+1. 在 [Releases 发布页面](https://github.com/meowvia/MacAegis/releases) 下载最新的 `MacAegis-vX.Y.Z.zip` 压缩包；
+2. 双击解压后，将 **MacAegis.app** 拖入系统的 **Applications**（应用程序）文件夹中；
+3. 在启动台或访达「应用程序」中直接打开 MacAegis 即可开始使用。
 
 ---
 

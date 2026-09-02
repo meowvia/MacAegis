@@ -100,49 +100,61 @@
 
 ---
 
-## 🗑️ 七、 应用彻底卸载与信任层进阶蓝图 (Deep Uninstaller Architecture Blueprint)
+## 🗑️ 七、 应用彻底卸载与隔离引擎终极架构蓝图 (Deep Uninstaller Architecture Blueprint v2.1)
 
-> 💡 **核心认知锚点**：用户要的不是冷冰冰的底层路径，而是**“确定感”**（删了会怎样）。替用户做完 80% 的安全判定，剩下 20% 讲清后果再交给用户确认。
+> 💡 **核心认知与纪律**：
+> 1. 用户要的不是冷冰冰的路径，而是**“确定感”**（删了会怎样）。
+> 2. **恪守措辞纪律**：严禁使用“100%、绝对彻底、全网最深”等虚夸词汇，坚持**“承诺什么，就必须能提供对应的证据链验证”**。
 
-### 1. 【P0 级 · 致命正确性修复】cfprefsd 偏好设置内存复活 Bug
-- **底层根因**：macOS 系统的 `cfprefsd` 守护进程在内存中常驻 plist 缓存。如果仅用 `rm` 删除硬盘上的 `.plist` 文件，`cfprefsd` 会在进程写入或刷新时直接将内存缓存**重新写回磁盘**（导致卸载后偏好设置“死灰复燃”）。
-- **标准原子卸载流水线**：
-  1. **优雅退出与强制终止**：`terminate()` 轮询 $\rightarrow$ 超时触发 `SIGKILL`；
-  2. **卸载自启服务**：`launchctl bootout / unload <plist>`；
-  3. **注销内存偏好缓存**：执行 `defaults delete <bundleId>` 彻底让 `cfprefsd` 清空内存记录；
-  4. **注销系统关联注册表**：执行 `lsregister -u /Applications/Foo.app` 消除访达「打开方式」里的幽灵应用图标；
-  5. **安全移入废纸篓**：执行文件移入 Trash；
-  6. **写入可还原历史**：持久化原路径与文件元数据。
+### 1. 【L0 权限层 · 权限归因修正与分流】
+- **双权限状态感知**：明确区分 **完全磁盘访问权限 (FDA)** 与 **App Management (应用管理权限，macOS 13+ 独立 TCC 类别)**；
+- **失败归因精准分流**：
+  - 若错误属于 TCC / AppManagement 拦截 $\rightarrow$ 引导跳转至系统设置授权页面（`x-apple.systempreferences:com.apple.preference.security?Privacy_AppManagement`）；
+  - 若错误属于 `/Library` 下真正的 `root:wheel` 属主文件 $\rightarrow$ 触发单次管理员提权执行（提权仅严格限定在 root 属主范围，绝不滥用为常规删除兜底）；
+- **设置页状态呈现**：在偏好设置中提供 FDA 与 App Management 的实时状态指示行。
 
-### 2. 【P0 级 · 信任层重构】后果导向文案与“重要数据墙”
-- **文案模式升级**：
-  - 弃用单纯的技术路径（如 `/Users/.../Application Support/Foo`）；
-  - 翻译为直观的后果说明：如 *“主程序包（可随时重装）”*、*“运行缓存（安全可删，下次自动重新加载）”*；
-- **C 级数据安全墙**：
-  - 针对 Application Support 中的用户工程文件、数据库（`.db`/`.sqlite`）、归档文档，**默认绝对不预勾选**，并施加黄色警示标，必须由用户显式确认才可勾选。
+### 2. 【L1 情报层 · 三信号正交检测与 Entitlements 解析】
+- **信号 ① Entitlements 签名解析（核心突破）**：
+  - 读取主二进制代码签名的 entitlements，提取所有 `com.apple.security.application-groups` 与 `keychain-access-groups`，精准直接命中 `~/Library/Group Containers/group.*` 共享目录；
+- **信号 ② TeamID 签名关联**：
+  - 通过 `SecCodeCopySigningInformation` 提取 Apple 开发者 TeamID，对散落未声明 Entitlements 的同团队附属文件进行全域关联；
+- **信号 ③ BundleID 按段正交匹配**：
+  - 支持 `bId == sub`、前缀/后缀级联匹配；
+- **18 大全域深度候选目录**：
+  - 覆盖 `~/Library/Group Containers`、`~/Library/Application Scripts`、`~/Library/HTTPStorages`、`~/Library/Cookies` 以及 `/private/var/folders/`（动态读取 `DARWIN_USER_CACHE_DIR` 提取以 BundleID 命名的系统级临时与缓存）；
+- **体积真相引擎**：
+  - 对 Universal 双架构与内嵌 Frameworks 嵌套 Bundle 进行深度递归展开遍历；
+  - 统计权限跳过项并在 UI 呈现：*“X MB（另有 Y MB 因权限未计入 ⓘ）”*，确保账目 100% 可验算；
+- **白名单拦截显式化**：
+  - 被安全白名单保护的项目显示为 *“N 项被安全白名单拦截（可查看）”*，绝不静默消失。
 
-### 3. 【P1 级 · 现代 macOS 特性补全（对齐 Pearcleaner 9 项全域覆盖）】
-- **① App Group 签名提取**：
-  - 通过解析应用的 Code Signing Entitlements（`com.apple.security.application-groups`），精准抓取 `~/Library/Group Containers/group.*` 共享容器（如 `group.com.hako.network` 1.7MB）；
-- **② 补充关键残留目录**：
-  - `~/Library/Application Scripts/`（沙盒自动化脚本）；
-  - `/private/var/folders/`（Darwin 用户的临时目录 `T` 与缓存目录 `C` 下以 BundleId 命名的深层系统缓存）；
-- **③ App 目录递归体积精准统计**：
-  - 修复 `calculateSize` 对应用包内嵌 Frameworks、通用架构（Universal Binaries）及动态库的递归统计，确保与系统实际分配体积（如 Clash 的 276.8 MB）100% 对齐；
-- **④ 现代系统扩展与登录项**：
-  - BTM 后台登录项幽灵开关清理；
-  - `systemextensionsctl`（网络扩展/代理扩展）检测与提示。
+### 3. 【L2 终止层 · 全谱系进程与系统扩展处理】
+- **系统扩展 Pre-flight 检查（实测核心踩坑点）**：
+  - 检测 `Contents/Library/SystemExtensions` 与 `PlugIns`；
+  - 针对含网络扩展/代理类应用（结合 `utun` 活跃作为旁证），在卸载前弹出专属引导：*“请先在应用内断开网络连接并退出”*；
+- **LaunchDaemons / LaunchAgents**：
+  - 使用 `launchctl bootout` 进行系统级优雅卸载；
+- **SMAppService + BTM 登录项**：
+  - 针对 macOS 13+ 新机制，注销 Background Task Management 登录项幽灵开关；
+- **cfprefsd 内存缓存强行清除**：
+  - 执行 `defaults delete <bundleId>` 并在清理完成后调用 `killall cfprefsd`，彻底解决“偏好设置死灰复燃”Bug；
+- **LaunchServices 注销**：
+  - 执行 `lsregister -u /Applications/Foo.app` 立即消除访达“打开方式”中的幽灵图标。
 
-### 4. 【P0 级 · 管理员权限提权兜底（解决“无权访问无法移入废纸篓”报错）】
-- **核心痛点**：
-  - 卸载 `/Applications/Clash.app` 等 root 属主或含系统扩展的应用时，普通用户权限调用 `FileManager.default.trashItem()` 会被系统抛出 `EACCES / 错误码 513`（*“couldn't be moved to the trash because you don't have permission to access it”*）；
-- **落地方案**：
-  - 实行 **双层删除回退机制**：
-    - 第一层：优先调用标准的普通用户 `trashItem`；
-    - 第二层（权限异常拦截）：当捕获到权限不足时，**自动触发 macOS 一次性管理员授权（`osascript with administrator privileges`）**，平滑移入废纸篓，绝不直接弹错误弹窗打断用户！
+### 4. 【L3 执行层 · 独立隔离区式安全卸载 (超越废纸篓)】
+- **执行顺序**：严格遵循 **“先卫星数据，后主程序包”** 的原子顺序；
+- **隔离式卸载（Vault 同源技术）**：
+  - 被删除项移入 MacAegis 独立隔离区（`~/Library/Application Support/MacAegis/Quarantine`），通过 xattr 记录原始绝对路径与元数据；
+  - **7 天安全保留期**：保留 7 天，到期自动物理清除；
+  - **1-Click 完整还原**：支持一键完整无损还原（包含主程序与深层附属文件），彻底消除废纸篓易被用户随手清空或受 TCC 限制的缺陷。
 
-### 5. 【P1 级 · 撤销与数学级安全回滚】
-- **可回滚卸载历史**：升级 `clean_history.json`，记录每个被卸载子项在废纸篓中的映射关系与原绝对路径，提供短期内的 **「一键完整还原 ↩️」** 能力，使激进卸载在工程上变成可逆的安全操作。
+### 5. 【L4 验证层 · 卸载体检报告 (证据链闭环)】
+- 卸载完成后即时呈现 **《卸载体检报告》** 证据链清单：
+  - 进程终止 `[✓]` / 扩展注销 `[✓]` / 自启动服务 bootout `[✓]` / cfprefsd 缓存注销 `[✓]`；
+  - 关联 N 项 M MB 已全部移除 `[✓]`；
+  - K 项被白名单安全拦截（支持点击查看明细）；
+  - 实际释放 X MB vs 预估 Y MB（附带差异归因说明）。
+
 
 
 ---

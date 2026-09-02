@@ -121,14 +121,29 @@
 - **C 级数据安全墙**：
   - 针对 Application Support 中的用户工程文件、数据库（`.db`/`.sqlite`）、归档文档，**默认绝对不预勾选**，并施加黄色警示标，必须由用户显式确认才可勾选。
 
-### 3. 【P1 级 · 现代 macOS 特性补全（连根拔起）】
-- **BTM 后台登录项残留**：清理 macOS 13+ Ventura/Sonoma/Sequoia「通用 $\rightarrow$ 登录项」中的幽灵开关残留；
-- **特权辅助工具（PrivilegedHelperTools）**：针对 Docker/Dropbox 等 root 级助手，采用一次性 `osascript` 临时授权删除，**绝对不引入任何持久化常驻 root 守护（坚守零常驻安全防线）**；
-- **现代系统扩展（System Extensions）**：检测 VPN / 代理 / 杀毒工具注入的现代网络过滤扩展并提示注销；
-- **废纸篓前置检查**：当用户在访达直接将 App 丢进废纸篓时，主动检测其残留的 LaunchDaemons / 开机自启项。
+### 3. 【P1 级 · 现代 macOS 特性补全（对齐 Pearcleaner 9 项全域覆盖）】
+- **① App Group 签名提取**：
+  - 通过解析应用的 Code Signing Entitlements（`com.apple.security.application-groups`），精准抓取 `~/Library/Group Containers/group.*` 共享容器（如 `group.com.hako.network` 1.7MB）；
+- **② 补充关键残留目录**：
+  - `~/Library/Application Scripts/`（沙盒自动化脚本）；
+  - `/private/var/folders/`（Darwin 用户的临时目录 `T` 与缓存目录 `C` 下以 BundleId 命名的深层系统缓存）；
+- **③ App 目录递归体积精准统计**：
+  - 修复 `calculateSize` 对应用包内嵌 Frameworks、通用架构（Universal Binaries）及动态库的递归统计，确保与系统实际分配体积（如 Clash 的 276.8 MB）100% 对齐；
+- **④ 现代系统扩展与登录项**：
+  - BTM 后台登录项幽灵开关清理；
+  - `systemextensionsctl`（网络扩展/代理扩展）检测与提示。
 
-### 4. 【P1 级 · 撤销与数学级安全回滚】
+### 4. 【P0 级 · 管理员权限提权兜底（解决“无权访问无法移入废纸篓”报错）】
+- **核心痛点**：
+  - 卸载 `/Applications/Clash.app` 等 root 属主或含系统扩展的应用时，普通用户权限调用 `FileManager.default.trashItem()` 会被系统抛出 `EACCES / 错误码 513`（*“couldn't be moved to the trash because you don't have permission to access it”*）；
+- **落地方案**：
+  - 实行 **双层删除回退机制**：
+    - 第一层：优先调用标准的普通用户 `trashItem`；
+    - 第二层（权限异常拦截）：当捕获到权限不足时，**自动触发 macOS 一次性管理员授权（`osascript with administrator privileges`）**，平滑移入废纸篓，绝不直接弹错误弹窗打断用户！
+
+### 5. 【P1 级 · 撤销与数学级安全回滚】
 - **可回滚卸载历史**：升级 `clean_history.json`，记录每个被卸载子项在废纸篓中的映射关系与原绝对路径，提供短期内的 **「一键完整还原 ↩️」** 能力，使激进卸载在工程上变成可逆的安全操作。
+
 
 ---
 

@@ -65,5 +65,39 @@
 3. **客观克制**：坚决弃用“史诗级”、“绝对封锁”等营销词汇，用平实陈述陈述事实；
 4. **图标去幼稚化**：界面内部图标严格对标 macOS 系统原生应用标准，成熟、极简、克制。
 
+---
+
+## 🧹 六、 系统清理引擎进阶升级蓝图 (Deep Cleaner Architecture Blueprint)
+
+> 💡 **核心目标**：在保持“零常驻负担、纯原生轻量、绝不误杀”的前提下，将可释放空间深度与真实性提升至行业第一梯队（对标 CleanMyMac 与腾讯柠檬）。
+
+### 1. 【P0 级 · 严谨度修复】权限前置探测（消除“扫出却清不掉”的信任崩塌）
+- **核心痛点**：`/private/var/log` 等 root 目录或 Xcode 模拟器受限路径若被标为直接可清理，普通用户权限清理会静默失败，极伤用户信任（“扫得到清不掉”）。
+- **落地方案**：
+  - 扫描时增加 `FileManager.default.isWritableFile(atPath:)` 快速校验，无直接写权限项不混入常规一键清理；
+  - Xcode 模拟器残留引导执行 `xcrun simctl runtime delete` 进行系统级注销，避免产生孤儿 plist。
+
+### 2. 【P1 级 · 释放量破局】补齐 5 大高释放量核心项（突破几十 GB 空间瓶颈）
+- **① APFS 本地快照（10~80GB ⭐ 性价比单项冠军）**：
+  - macOS “系统可清除空间”的主要来源；
+  - 采用系统标准调用 `tmutil thinlocalsnapshots / 10000000000 4` 触发系统级平滑释放，**0 数据风险，瞬间释放巨量空间**。
+- **② iOS 本地设备备份（10~50GB）**：
+  - 深度扫描 `~/Library/Application Support/MobileSync/Backup`，精准识别老旧 iPhone/iPad 备份，展示明细供用户显式确认。
+- **③ Apple Mail 邮件附件缓存（5~20GB）**：
+  - 覆盖 `~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads`，清理重度邮件用户遗留的巨量附件临时副本。
+- **④ Homebrew 旧版本 formulae 堆积（2~10GB）**：
+  - 除下载缓存外，支持安全调用 `brew cleanup --prune=all` 清理 Cellar 中的陈旧版本。
+- **⑤ Docker.raw 稀疏镜像感知**：
+  - 识别 Docker 镜像文件的实际物理占用，并在 UI 中提供一键引导用户通过 Docker 官方指令或面板进行安全 shrink，杜绝粗暴删除导致容器损坏。
+
+### 3. 【P2 级 · 性能与体验优化】
+- **状态栏轮询降频**：主窗口隐藏/后台时，将硬件与磁盘 IO 轮询频率自适应降为 4~5 秒，真正贯彻“零常驻开销”。
+- **文件体积计算性能提升**：大目录遍历改用 `URLResourceKey.totalFileAllocatedSizeKey` 批量批次获取，使几万级小文件目录的扫描速度提升 3~5 倍。
+
+### 4. 【P3 级 · 次级安全增强】
+- **日志保留期策略**：`~/Library/Logs` 默认只清理 30 天以上的陈旧日志，保留近期崩溃日志供排查；
+- **缓存安全时间窗**：对非确定性缓存目录叠加“修改时间 > 7 天”再放行。
+
+
 
 

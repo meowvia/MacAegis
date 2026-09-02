@@ -160,7 +160,8 @@ public struct DashboardView: View {
                 title: l10n("你的 Mac 运行状态良好", "Your Mac is Running Smoothly"),
                 icon: "sparkles",
                 iconColor: Color(hex: "FBBF24"),
-                pillText: l10n("原生轻量架构 · 零常驻负担", "Pure Native · Zero Overhead"),
+                pillText: l10n("纯原生 Swift 构建 · 离线运行", "Pure Native Swift · Local Offline"),
+
                 pillColor: Color(hex: "10B981")
             )
         }

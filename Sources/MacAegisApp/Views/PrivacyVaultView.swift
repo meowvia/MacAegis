@@ -187,7 +187,7 @@ public struct PrivacyVaultView: View {
                 Spacer()
             }
 
-            Text(l10n("即将解除选中的 \(viewModel.selectedItemIds.count) 个项目的隐匿保护。解除后文件将从隐匿列表移出并在访达中恢复正常可见，文件内容 100% 完好无损。", "Selected \(viewModel.selectedItemIds.count) items will be unhidden and removed from privacy protection. Files remain 100% intact."))
+            Text(l10n("即将解除选中的 \(viewModel.selectedItemIds.count) 个项目的隐匿保护。解除后文件将从隐匿列表移出并在访达中恢复正常可见，文件内容完好无损。", "Selected \(viewModel.selectedItemIds.count) items will be unhidden and removed from privacy protection. Files remain fully intact."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
@@ -493,7 +493,7 @@ public struct PrivacyVaultView: View {
 
             Divider().opacity(0.2)
 
-            Text(l10n("这是您保险箱的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥 100% 找回所有已锁文件。", "This is your vault recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
+            Text(l10n("这是您保险箱的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥找回所有已锁文件。", "This is your vault recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)

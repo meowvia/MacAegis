@@ -32,7 +32,8 @@ When working on a Mac, you often have private documents or confidential folders 
 * **Instant Stealth**: Drag folders or files into the app to instantly vanish them from Finder and block QuickLook spacebar previews;
 * **Quick Unlock**: Restore access seamlessly using Touch ID biometric authentication or master password;
 * **Lightweight Maintenance**: Integrates deep system cache cleaning, app uninstaller with progressive file inspection, and menu bar telemetry;
-* **Clean & Restrained**: 100% offline with zero data telemetry. Exiting the app terminates all processes completely without background daemon clutter.
+* **Clean & Restrained**: 100% local and offline. Exiting the app completely releases system memory without persistent background daemons.
+
 
 ---
 
@@ -116,6 +117,12 @@ Persistent menu bar card displaying real-time upload/download network speed, SoC
 ## 🚀 Installation & Troubleshooting
 
 ### 1. Standard Installation
+#### Option A: One-Line Install via Homebrew (Recommended)
+```bash
+brew install meowvia/tap/macaegis
+```
+
+#### Option B: Manual DMG Download
 1. Download the latest `MacAegis-vX.Y.Z.dmg` installer from the [Releases Page](https://github.com/meowvia/MacAegis/releases);
 2. Double-click the DMG image and drag the **MacAegis** icon into the **Applications** folder;
 3. Launch MacAegis from Launchpad or Applications.
@@ -139,7 +146,7 @@ sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
 
 ### 3. Full Disk Access (FDA) Permission
 To enable deep system cache inspection and file reveals in Finder, grant Full Disk Access when prompted:
-* Open **System Settings** $ightarrow$ **Privacy & Security** $ightarrow$ **Full Disk Access**, locate **MacAegis** and toggle it on.
+* Open **System Settings** → **Privacy & Security** → **Full Disk Access**, locate **MacAegis** and toggle it on.
 
 ---
 

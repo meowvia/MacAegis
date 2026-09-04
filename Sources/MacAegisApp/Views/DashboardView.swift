@@ -69,20 +69,27 @@ public struct DashboardView: View {
                 masterReferenceCockpitView
             }
 
-            if viewModel.showingCleanErrorsSheet, let report = viewModel.lastCleanReport {
-                Color.black.opacity(0.4).ignoresSafeArea()
-                    .onTapGesture { viewModel.showingCleanErrorsSheet = false }
-                
-                CleanErrorsSheetView(report: report) {
-                    viewModel.showingCleanErrorsSheet = false
-                }
-                .background(Color(NSColor.windowBackgroundColor))
-                .cornerRadius(12)
-                .shadow(radius: 20)
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                .zIndex(100)
-            }
+
         }
+                .overlay(
+            Group {
+                if viewModel.showingCleanErrorsSheet, let report = viewModel.lastCleanReport {
+                    ZStack {
+                        Color.black.opacity(0.5).ignoresSafeArea()
+                            .onTapGesture { viewModel.showingCleanErrorsSheet = false }
+                        
+                        CleanErrorsSheetView(report: report) {
+                            viewModel.showingCleanErrorsSheet = false
+                        }
+                        .background(Color(NSColor.windowBackgroundColor))
+                        .cornerRadius(12)
+                        .shadow(radius: 20)
+                        .padding(40)
+                    }
+                    .transition(.opacity)
+                }
+            }
+        )
         .onAppear {
             withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
                 isBreathingGlow = true
@@ -420,7 +427,26 @@ public struct DashboardView: View {
             .focusable(false)
             .focusEffectDisabled()
             .padding(.bottom, 16)
-            .onAppear {
+                    .overlay(
+            Group {
+                if viewModel.showingCleanErrorsSheet, let report = viewModel.lastCleanReport {
+                    ZStack {
+                        Color.black.opacity(0.5).ignoresSafeArea()
+                            .onTapGesture { viewModel.showingCleanErrorsSheet = false }
+                        
+                        CleanErrorsSheetView(report: report) {
+                            viewModel.showingCleanErrorsSheet = false
+                        }
+                        .background(Color(NSColor.windowBackgroundColor))
+                        .cornerRadius(12)
+                        .shadow(radius: 20)
+                        .padding(40)
+                    }
+                    .transition(.opacity)
+                }
+            }
+        )
+        .onAppear {
                 withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                     isBreathingGlow = true
                 }
@@ -912,6 +938,25 @@ public struct DashboardView: View {
                 .padding(20)
             }
         }
+                .overlay(
+            Group {
+                if viewModel.showingCleanErrorsSheet, let report = viewModel.lastCleanReport {
+                    ZStack {
+                        Color.black.opacity(0.5).ignoresSafeArea()
+                            .onTapGesture { viewModel.showingCleanErrorsSheet = false }
+                        
+                        CleanErrorsSheetView(report: report) {
+                            viewModel.showingCleanErrorsSheet = false
+                        }
+                        .background(Color(NSColor.windowBackgroundColor))
+                        .cornerRadius(12)
+                        .shadow(radius: 20)
+                        .padding(40)
+                    }
+                    .transition(.opacity)
+                }
+            }
+        )
         .onAppear {
             if viewModel.scanResult == nil && !viewModel.isScanning {
                 viewModel.startScan()

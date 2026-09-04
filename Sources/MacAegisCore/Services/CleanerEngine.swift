@@ -120,39 +120,37 @@ public final class CleanerEngine: Sendable {
             }
         }
 
-        // --- 集中式批量提权清除 (Batch Root Escalation) ---
+        // --- 集中式批量提权清除 (Batch Root Escalation, based on PureMac standard) ---
         if !privilegeQueue.isEmpty && !dryRun {
+            // Write paths NUL-separated to a temp file, then use xargs -0 rm -rf
             let paths = privilegeQueue.map { $0.path }
-            let scriptLines = paths.map { "/bin/rm -rf '\($0.replacingOccurrences(of: "'", with: "'\\''"))'" }
-            // Add 'exit 0' to ensure the bash script always returns 0 to AppleScript,
-            // preventing a single failed file (like SIP protected) from crashing the whole batch AppleScript.
-            let shellContent = "#!/bin/bash\n" + scriptLines.joined(separator: "\n") + "\nexit 0"
+            let payload = paths.joined(separator: "\u{0}")
+            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_root_clean_\(UUID().uuidString).txt")
             
-            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_root_clean_\(UUID().uuidString).sh")
-            try? shellContent.write(to: tempURL, atomically: true, encoding: .utf8)
-            
-            let safeTempPath = tempURL.path.replacingOccurrences(of: "'", with: "'\\''")
-            let command = "/bin/bash '\(safeTempPath)'"
-            let appleScript = "do shell script \"\(command)\" with administrator privileges"
-            
-            var errorInfo: NSDictionary?
-            if let script = NSAppleScript(source: appleScript) {
-                _ = script.executeAndReturnError(&errorInfo)
-                try? FileManager.default.removeItem(at: tempURL)
+            if let data = payload.data(using: .utf8) {
+                try? data.write(to: tempURL, options: .atomic)
+                let safeTempPath = tempURL.path.replacingOccurrences(of: "'", with: "'\\''")
+                // using xargs -0 to handle all spaces, quotes, and newlines safely, exactly like PureMac.
+                let appleScript = "do shell script \"/usr/bin/xargs -0 /bin/rm -rf -- < '\(safeTempPath)'\" with administrator privileges"
                 
-                // Regardless of what AppleScript says, we verify success by checking if the files are ACTUALLY gone.
-                // This is the most bulletproof way to know.
-                for pItem in privilegeQueue {
-                    if !FileManager.default.fileExists(atPath: pItem.path) {
-                        successCount += 1
-                        reclaimedBytes += pItem.sizeBytes
-                        actuallyCleanedPaths.append(pItem.path)
-                        onProgress?(pItem, true, nil)
-                    } else {
-                        failCount += 1
-                        let userFriendlyReason = l10n("【核心保护】\(pItem.name) 即使使用提权也无法删除，可能受到 macOS SIP 或不可撤销的安全锁定。", "[SIP Protected] \(pItem.name) could not be removed even with root privileges.")
-                        errors.append(userFriendlyReason)
-                        onProgress?(pItem, false, userFriendlyReason)
+                var errorInfo: NSDictionary?
+                if let script = NSAppleScript(source: appleScript) {
+                    _ = script.executeAndReturnError(&errorInfo)
+                    try? FileManager.default.removeItem(at: tempURL)
+                    
+                    for pItem in privilegeQueue {
+                        if !FileManager.default.fileExists(atPath: pItem.path) {
+                            successCount += 1
+                            reclaimedBytes += pItem.sizeBytes
+                            actuallyCleanedPaths.append(pItem.path)
+                            onProgress?(pItem, true, nil)
+                        } else {
+                            failCount += 1
+                            let errDesc = (errorInfo?[NSAppleScript.errorMessage] as? String) ?? "SIP Protected"
+                            let userFriendlyReason = l10n("【核心保护】\(pItem.name) 提权删除失败: \(errDesc)", "[SIP/Root Failed] \(pItem.name) could not be removed: \(errDesc)")
+                            errors.append(userFriendlyReason)
+                            onProgress?(pItem, false, userFriendlyReason)
+                        }
                     }
                 }
             }

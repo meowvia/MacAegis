@@ -69,13 +69,7 @@ public struct DashboardView: View {
                 masterReferenceCockpitView
             }
         }
-        .sheet(isPresented: $viewModel.showingCleanErrorsSheet) {
-            if let report = viewModel.lastCleanReport {
-                CleanErrorsSheetView(report: report) {
-                    viewModel.showingCleanErrorsSheet = false
-                }
-            }
-        }
+
         .onAppear {
             withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
                 isBreathingGlow = true

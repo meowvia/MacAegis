@@ -31,7 +31,21 @@ public struct DeveloperRules: CleanRuleProtocol {
             ("Homebrew 安装包下载缓存", "~/Library/Caches/Homebrew", "brew install 下载的软件包压缩包，安装完毕后无需保留", "Homebrew", .safe),
             ("CocoaPods 第三方库源码缓存", "~/Library/Caches/CocoaPods", "CocoaPods 下载的开源库压缩包缓存", "CocoaPods", .safe),
             ("Pip Python 包下载缓存", "~/Library/Caches/pip", "pip 安装 Python 包时保留的 wheel/tar 缓存压缩包", "Python", .safe),
-            ("Rust Cargo 下载缓存", "~/.cargo/registry/cache", "Cargo 下载的 crates 包缓存压缩包", "Rust", .safe)
+            ("Rust Cargo 下载缓存", "~/.cargo/registry/cache", "Cargo 下载的 crates 包缓存压缩包", "Rust", .safe),
+
+            // 4. Advanced mac-cleanup-py Imported Paths (Node, Gradle, Docker, VSCode, Android)
+            ("NPM 全局依赖缓存", "~/.npm/_cacache", "Node.js npm install 产生的下载缓存", "Node.js", .safe),
+            ("Yarn 全局依赖缓存", "~/.yarn/cache", "Yarn 包管理器的缓存包", "Yarn", .safe),
+            ("Yarn v2 全局缓存", "~/.yarn/berry/cache", "Yarn v2 (Berry) 的缓存数据", "Yarn", .safe),
+            ("Gradle 构建与下载缓存", "~/.gradle/caches", "Android/Java 项目使用的 Gradle 依赖包缓存，占用通常达数 GB", "Gradle", .safe),
+            ("Maven 本地仓库包缓存", "~/.m2/repository", "Java 开发中下载的各类 Jar 包与依赖，可随时重新下载", "Maven", .safe),
+            ("Flutter Pub 依赖包缓存", "~/.pub-cache", "Flutter 开发下载的 Dart 第三方包及构建缓存", "Flutter", .safe),
+            ("Composer PHP 依赖缓存", "~/.composer/cache", "PHP Composer 包管理器下载的源码与 Zip 压缩包", "Composer", .safe),
+            ("Ruby Gems 依赖缓存", "~/.gem/cache", "Ruby 开发环境下缓存的 gems 包", "Ruby", .safe),
+            ("VSCode 软件更新与内部缓存", "~/Library/Application Support/Code/Cache", "Visual Studio Code 内部组件更新及运行时渲染缓存", "VSCode", .safe),
+            ("VSCode 扩展下载缓存", "~/Library/Application Support/Code/CachedData", "VSCode 插件市场下载与运行过程中的临时数据包", "VSCode", .safe),
+            ("Docker Desktop 容器缓存", "~/Library/Caches/com.docker.docker", "Docker 桌面端运行时产生的中间件缓存", "Docker", .safe),
+            ("Android Studio 历史无用日志", "~/Library/Logs/Google", "Android Studio 各种历史版本遗留的日志数据", "Android Studio", .safe)
         ]
 
         for target in devTargets {

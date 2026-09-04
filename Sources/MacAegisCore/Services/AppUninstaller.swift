@@ -221,6 +221,86 @@ public final class AppUninstaller: Sendable {
             }
         }
 
+        // 4. Spotlight (mdfind) Deep Search - L2 Intelligence Layer
+        // Extracts all hidden files associated with the Bundle ID using macOS Spotlight
+        if let bId = bundleId {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
+            task.arguments = ["kMDItemCFBundleIdentifier == '\(bId)'"]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            try? task.run()
+            task.waitUntilExit()
+            
+            if let data = try? pipe.fileHandleForReading.readToEnd(),
+               let output = String(data: data, encoding: .utf8) {
+                let mdPaths = output.split(separator: "\n").map { String($0) }
+                for mdPath in mdPaths {
+                    if mdPath == appURL.path || whitelist.isProtected(path: mdPath, mode: .strict) { continue }
+                    
+                    // Check if we already added it
+                    if !items.contains(where: { $0.path == mdPath }) {
+                        let size = FileUtils.calculateSize(atPath: mdPath)
+                        items.append(CleanItem(
+                            name: (mdPath as NSString).lastPathComponent + " [Spotlight 深度追踪]",
+                            path: mdPath,
+                            sizeBytes: max(size, 4096),
+                            category: .orphanLeftovers,
+                            safetyLevel: .safe,
+                            itemDescription: "基于底层 Spotlight 索引追踪到的散落关联文件",
+                            associatedAppName: appName,
+                            isSelected: true
+                        ))
+                    }
+                }
+            }
+        }
+
+        // 5. PKG Receipts Extraction (pkgutil) - L3 Intelligence Layer
+        if let bId = bundleId {
+            let pkgTask = Process()
+            pkgTask.executableURL = URL(fileURLWithPath: "/usr/sbin/pkgutil")
+            pkgTask.arguments = ["--pkgs=\(bId)"]
+            
+            let pkgPipe = Pipe()
+            pkgTask.standardOutput = pkgPipe
+            try? pkgTask.run()
+            pkgTask.waitUntilExit()
+            
+            if pkgTask.terminationStatus == 0 {
+                let fileTask = Process()
+                fileTask.executableURL = URL(fileURLWithPath: "/usr/sbin/pkgutil")
+                fileTask.arguments = ["--only-files", "--files", bId]
+                let filePipe = Pipe()
+                fileTask.standardOutput = filePipe
+                try? fileTask.run()
+                fileTask.waitUntilExit()
+                
+                if let data = try? filePipe.fileHandleForReading.readToEnd(),
+                   let output = String(data: data, encoding: .utf8) {
+                    let pkgFiles = output.split(separator: "\n").map { "/" + String($0) }
+                    for pPath in pkgFiles {
+                        if !fileManager.fileExists(atPath: pPath) || pPath.hasPrefix(appURL.path) || whitelist.isProtected(path: pPath, mode: .strict) { continue }
+                        
+                        if !items.contains(where: { $0.path == pPath }) {
+                            let size = FileUtils.calculateSize(atPath: pPath)
+                            items.append(CleanItem(
+                                name: (pPath as NSString).lastPathComponent + " [PKG 安装收据]",
+                                path: pPath,
+                                sizeBytes: max(size, 4096),
+                                category: .orphanLeftovers,
+                                safetyLevel: .caution,
+                                itemDescription: "通过 pkgutil 还原出的底层安装包残留文件",
+                                associatedAppName: appName,
+                                isSelected: true
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+
         let sysExtDir = appURL.appendingPathComponent("Contents/Library/SystemExtensions").path
         let hasSysExt = fileManager.fileExists(atPath: sysExtDir)
 

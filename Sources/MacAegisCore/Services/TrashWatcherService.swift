@@ -53,18 +53,23 @@ public final class TrashWatcherService: @unchecked Sendable {
         isRunning = false
     }
 
+    private var notifiedApps = Set<String>()
+
     private func handleTrashChange() {
         let trashPath = FileUtils.expandPath("~/.Trash")
         guard let files = try? FileManager.default.contentsOfDirectory(atPath: trashPath) else { return }
 
         for file in files where file.hasSuffix(".app") {
             let appName = (file as NSString).deletingPathExtension
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("MacAegisAppMovedToTrash"),
-                    object: nil,
-                    userInfo: ["appName": appName]
-                )
+            if !notifiedApps.contains(appName) {
+                notifiedApps.insert(appName)
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("MacAegisAppMovedToTrash"),
+                        object: nil,
+                        userInfo: ["appName": appName]
+                    )
+                }
             }
         }
     }

@@ -176,14 +176,14 @@ public final class NetworkAndProxyMonitor: @unchecked Sendable {
             return surgeMode
         }
 
-        // Priority 2: System-Level Proxies (CFNetwork / SCDynamicStore)
-        if let sysMode = checkSystemProxyMode() {
-            return sysMode
-        }
-
-        // Priority 3: Virtual Interface / Default Route Tunnel Mode (WireGuard / VPN)
+        // Priority 2: System-wide VPN Tunnel (Only when default gateway interface is utun/ppp/ipsec)
         if let tunMode = checkTunInterfaceMode() {
             return tunMode
+        }
+
+        // Priority 3: System-Level Proxies (CFNetwork / SCDynamicStore)
+        if let sysMode = checkSystemProxyMode() {
+            return sysMode
         }
 
         // Priority 4: Direct Standard Connection
@@ -223,24 +223,18 @@ public final class NetworkAndProxyMonitor: @unchecked Sendable {
         return nil
     }
 
-    // MARK: - Dynamic Virtual TUN Interface & Default Route Inspector (Pure C memory)
+    // MARK: - Dynamic Virtual TUN Interface & Default Route Inspector
     private func checkTunInterfaceMode() -> ProxyMode? {
-        var ifap: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifap) == 0, let first = ifap else { return nil }
-        defer { freeifaddrs(ifap) }
+        // Query macOS SystemConfiguration for actual Primary Default Route Interface
+        guard let store = SCDynamicStoreCreate(nil, "MacAegisRouteCheck" as CFString, nil, nil),
+              let globalIPv4 = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString) as? [String: Any],
+              let primaryInterface = globalIPv4["PrimaryInterface"] as? String else {
+            return nil
+        }
 
-        var cursor: UnsafeMutablePointer<ifaddrs>? = first
-        while let current = cursor {
-            let flags = Int32(current.pointee.ifa_flags)
-            let isUp = (flags & IFF_UP) != 0
-            let isRunning = (flags & IFF_RUNNING) != 0
-            if isUp && isRunning {
-                let name = String(cString: current.pointee.ifa_name)
-                if name.hasPrefix("utun") || name.hasPrefix("ppp") || name.hasPrefix("ipsec") {
-                    return .global
-                }
-            }
-            cursor = current.pointee.ifa_next
+        let lower = primaryInterface.lowercased()
+        if lower.hasPrefix("utun") || lower.hasPrefix("ppp") || lower.hasPrefix("ipsec") {
+            return .global
         }
         return nil
     }
@@ -267,15 +261,42 @@ public final class NetworkAndProxyMonitor: @unchecked Sendable {
         let isRunning = isProcessActive(named: "v2rayN") || isProcessActive(named: "xray") || isProcessActive(named: "v2ray")
         guard isRunning else { return nil }
 
-        // Check guiNConfig.json for System Proxy Type
+        var sysProxyType = 0
+        var enableTun = false
+
+        // Check guiNConfig.json for System Proxy Type and TUN mode
         let configPath = "\(v2rayDir)/guiConfigs/guiNConfig.json"
         if let data = try? Data(contentsOf: URL(fileURLWithPath: configPath)),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            let sysProxy = json["SystemProxyItem"] as? [String: Any]
-            let sysProxyType = sysProxy?["SysProxyType"] as? Int ?? 0 // 0 = 清除系统代理/不改变 (Direct), 1 = 开启系统代理, 2 = PAC
+            if let sysProxy = json["SystemProxyItem"] as? [String: Any] {
+                sysProxyType = sysProxy["SysProxyType"] as? Int ?? 0 // 0 = 清除系统代理, 1 = 开启系统代理, 2 = PAC
+            }
+            if let tun = json["TunModeItem"] as? [String: Any] {
+                enableTun = tun["EnableTun"] as? Bool ?? false
+            }
+        }
 
-            if sysProxyType == 0 {
-                return .direct
+        // If neither system proxy nor TUN is enabled, it's Direct
+        if sysProxyType == 0 && !enableTun {
+            return .direct
+        }
+
+        // Check binConfigs/config.json for routing rules
+        let xrayConfigPath = "\(v2rayDir)/binConfigs/config.json"
+        if let xrayData = try? Data(contentsOf: URL(fileURLWithPath: xrayConfigPath)),
+           let xrayJson = try? JSONSerialization.jsonObject(with: xrayData) as? [String: Any] {
+            if let routing = xrayJson["routing"] as? [String: Any],
+               let rules = routing["rules"] as? [[String: Any]] {
+                // If rules contain direct outbound tags (e.g. geoip:cn / geosite:cn -> direct), it's Rule Routing
+                let hasDirectRules = rules.contains { rule in
+                    let tag = rule["outboundTag"] as? String ?? ""
+                    return tag.lowercased() == "direct"
+                }
+                if hasDirectRules {
+                    return .rule
+                } else {
+                    return .global
+                }
             }
         }
 

@@ -43,6 +43,7 @@ public struct PrivacyVaultView: View {
     @State private var confirmPasswordInput: String = ""
     @State private var passwordHintInput: String = ""
     @State private var isShowingRecoveryKey: Bool = false
+    @State private var isRecoveryCodeRevealed: Bool = false
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -158,7 +159,9 @@ public struct PrivacyVaultView: View {
                     Color.black.opacity(0.45)
                         .ignoresSafeArea()
                         .onTapGesture {
-                            viewModel.dismissUserNotice()
+                            if viewModel.userNoticeCountdown <= 0 {
+                                viewModel.dismissUserNotice()
+                            }
                         }
 
                     userNoticeModalCard
@@ -187,7 +190,8 @@ public struct PrivacyVaultView: View {
                 Spacer()
             }
 
-            Text(l10n("即将解除选中的 \(viewModel.selectedItemIds.count) 个项目的隐匿保护。解除后文件将从隐匿列表移出并在访达中恢复正常可见，文件内容完好无损。", "Selected \(viewModel.selectedItemIds.count) items will be unhidden and removed from privacy protection. Files remain fully intact."))
+            let validCount = viewModel.items.filter { viewModel.selectedItemIds.contains($0.id) }.count
+            Text(l10n("即将解除选中的 \(validCount) 个项目的隐匿保护。解除后文件将从隐匿列表移出并在访达中恢复正常可见，文件内容完好无损。", "Selected \(validCount) items will be unhidden and removed from privacy protection. Files remain fully intact."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
@@ -396,11 +400,25 @@ public struct PrivacyVaultView: View {
             }
 
             VStack(spacing: 10) {
-                TextField(l10n("AEGIS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "Recovery Key"), text: $viewModel.recoveryCodeInput)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 11, design: .monospaced))
-                    .padding(8)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                HStack(spacing: 6) {
+                    if isRecoveryCodeRevealed {
+                        TextField(l10n("AEGIS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "Recovery Key"), text: $viewModel.recoveryCodeInput)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 11, design: .monospaced))
+                    } else {
+                        SecureField(l10n("AEGIS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "Recovery Key"), text: $viewModel.recoveryCodeInput)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 11, design: .monospaced))
+                    }
+                    Button(action: { isRecoveryCodeRevealed.toggle() }) {
+                        Image(systemName: isRecoveryCodeRevealed ? "eye.slash" : "eye")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
 
                 SecureField(l10n("设置新密码 (至少 6 位)", "New master password (6+ chars)"), text: $viewModel.recoveryNewPasswordInput)
                     .textFieldStyle(.plain)
@@ -493,7 +511,7 @@ public struct PrivacyVaultView: View {
 
             Divider().opacity(0.2)
 
-            Text(l10n("这是您保险箱的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥找回所有已锁文件。", "This is your vault recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
+            Text(l10n("这是你保险箱的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥找回所有已锁文件。", "This is your vault recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
@@ -565,31 +583,33 @@ public struct PrivacyVaultView: View {
                     Image(systemName: "shield.checkered")
                         .font(.system(size: 16))
                         .foregroundColor(Color(hex: "38BDF8"))
-                    Text(l10n("隐私隐匿 · 用户须知", "Privacy Conceal · User Notice"))
+                    Text(l10n("隐私保险箱 · 用户须知", "Privacy Vault · User Notice"))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                 }
 
                 Spacer()
 
-                Button(action: {
-                    viewModel.dismissUserNotice()
-                }) {
-                    Circle()
-                        .fill(Color.secondary.opacity(0.12))
-                        .frame(width: 22, height: 22)
-                        .overlay(
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.secondary)
-                        )
+                if viewModel.userNoticeCountdown <= 0 {
+                    Button(action: {
+                        viewModel.dismissUserNotice()
+                    }) {
+                        Circle()
+                            .fill(Color.secondary.opacity(0.12))
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.secondary)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(l10n("欢迎使用 MacAegis 隐私隐匿功能。为保障您的数据安全与顺畅体验，请在使用前知悉以下事项：", "Welcome to MacAegis Privacy Conceal. Please take note of the following before use:"))
+                    Text(l10n("欢迎使用 MacAegis 隐私保险箱功能。为保障你的数据安全与顺畅体验，请在使用前知悉以下事项：", "Welcome to MacAegis Privacy Vault. Please take note of the following before use:"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .padding(.bottom, 2)
@@ -599,7 +619,7 @@ public struct PrivacyVaultView: View {
                         Text(l10n("1. 妥善保管主密码与恢复码", "1. Safely Keep Master Password & Recovery Key"))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.primary)
-                        Text(l10n("• 本功能专为保护您的私密数据设计，采用纯本地离线安全机制，不会向任何云端上传您的信息；\n• 系统已为您生成专属的「灾难恢复码」，建议您在初次设置后妥善备份（如存入备忘录或密码管理软件中）；\n• 当您不慎遗忘主密码时，该恢复码是协助您安全找回访问权限的唯一凭证。", "• Uses pure offline security without cloud upload.\n• A unique Recovery Key is generated; please back it up.\n• The recovery key is the sole credential to regain access if you forget your password."))
+                        Text(l10n("• 本功能专为保护你的私密数据设计，采用纯本地离线安全机制，不会向任何云端上传你的信息；\n• 系统已为你生成专属的「灾难恢复码」，建议你在初次设置后妥善备份（如存入备忘录或密码管理软件中）；\n• 当你不慎遗忘主密码时，该恢复码是协助你安全找回访问权限的唯一凭证。", "• Uses pure offline security without cloud upload.\n• A unique Recovery Key is generated; please back it up.\n• The recovery key is the sole credential to regain access if you forget your password."))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
@@ -642,34 +662,44 @@ public struct PrivacyVaultView: View {
             }
             .frame(maxHeight: 280)
 
+            let isCountdownActive = viewModel.userNoticeCountdown > 0
             Button(action: {
-                viewModel.dismissUserNotice()
+                if !isCountdownActive {
+                    viewModel.dismissUserNotice()
+                }
             }) {
                 HStack(spacing: 6) {
-                    if viewModel.userNoticeCountdown > 0 {
+                    if isCountdownActive {
                         Text(l10n("我已阅读并知晓 (\(viewModel.userNoticeCountdown)s)", "I have read and understood (\(viewModel.userNoticeCountdown)s)"))
                     } else {
                         Text(l10n("我已阅读并知晓", "I have read and understood"))
                     }
                 }
                 .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(isCountdownActive ? Color.white.opacity(0.45) : .white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
                         .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "38BDF8"), Color(hex: "2563EB")],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            isCountdownActive
+                                ? LinearGradient(
+                                    colors: [Color.secondary.opacity(0.20), Color.secondary.opacity(0.15)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                : LinearGradient(
+                                    colors: [Color(hex: "38BDF8"), Color(hex: "2563EB")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                         )
-                        .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                        .shadow(color: isCountdownActive ? Color.clear : Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
                 )
             }
             .buttonStyle(PureButtonStyle())
             .focusable(false)
+            .disabled(isCountdownActive)
             .padding(.top, 4)
         }
         .padding(20)
@@ -679,59 +709,9 @@ public struct PrivacyVaultView: View {
         .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
     }
 
-    // MARK: - Cosmic Liquid Glass Backdrop
+    // MARK: - Cosmic Liquid Glass Backdrop (Inherited from MainView)
     private var cosmicLiquidGlassBackdrop: some View {
-        ZStack {
-            if colorScheme == .dark {
-                LinearGradient(
-                    colors: [
-                        Color(hex: "17192B"),
-                        Color(hex: "101221"),
-                        Color(hex: "090A12")
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-
-                // Iridescent Magenta / Violet Glow
-                RadialGradient(
-                    colors: [Color(hex: "C084FC").opacity(0.16), Color.clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 550
-                )
-                .ignoresSafeArea()
-
-                // Electric Cyan Caustics Bloom
-                RadialGradient(
-                    colors: [Color(hex: "38BDF8").opacity(0.14), Color.clear],
-                    center: .bottomTrailing,
-                    startRadius: 80,
-                    endRadius: 500
-                )
-                .ignoresSafeArea()
-            } else {
-                LinearGradient(
-                    colors: [
-                        Color(hex: "F8FAFC"),
-                        Color(hex: "EDF2F7"),
-                        Color(hex: "E2E8F0")
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-
-                RadialGradient(
-                    colors: [Color(hex: "38BDF8").opacity(0.18), Color.clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 500
-                )
-                .ignoresSafeArea()
-            }
-        }
+        Color.clear
     }
 
     // MARK: - Unlocked Vault Content
@@ -741,7 +721,7 @@ public struct PrivacyVaultView: View {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(l10n("隐私隐匿", "Privacy Conceal"))
+                        Text(l10n("隐私保险箱", "Privacy Vault"))
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.primary)
                         Image(systemName: "lock.shield.fill")
@@ -922,24 +902,29 @@ public struct PrivacyVaultView: View {
 
                     // Table Header Row with Master Checkbox
                     HStack(spacing: 8) {
+                        let hasItems = !viewModel.displayedItems.isEmpty
+                        let isAllSelected = hasItems && viewModel.selectedItemIds.count == viewModel.displayedItems.count
+                        let isPartiallySelected = hasItems && !viewModel.selectedItemIds.isEmpty && !isAllSelected
+
                         Button(action: {
-                            if viewModel.selectedItemIds.count == viewModel.displayedItems.count && !viewModel.displayedItems.isEmpty {
+                            guard hasItems else { return }
+                            if isAllSelected {
                                 viewModel.deselectAll()
                             } else {
                                 viewModel.selectAll()
                             }
                         }) {
                             HStack(spacing: 6) {
-                                let isAllSelected = !viewModel.displayedItems.isEmpty && viewModel.selectedItemIds.count == viewModel.displayedItems.count
-                                Image(systemName: isAllSelected ? "checkmark.square.fill" : (viewModel.selectedItemIds.isEmpty ? "square" : "minus.square.fill"))
-                                    .foregroundColor(isAllSelected || !viewModel.selectedItemIds.isEmpty ? Color(hex: "38BDF8") : .secondary)
+                                Image(systemName: isAllSelected ? "checkmark.square.fill" : (isPartiallySelected ? "minus.square.fill" : "square"))
+                                    .foregroundColor(hasItems && (isAllSelected || isPartiallySelected) ? Color(hex: "38BDF8") : .secondary.opacity(hasItems ? 0.8 : 0.4))
                                     .font(.system(size: 13))
-                                Text(viewModel.selectedItemIds.isEmpty ? l10n("全选", "Select All") : l10n("已选 \(viewModel.selectedItemIds.count) 项", "Selected \(viewModel.selectedItemIds.count)"))
+                                Text(!hasItems || viewModel.selectedItemIds.isEmpty ? l10n("全选", "Select All") : l10n("已选 \(viewModel.selectedItemIds.count) 项", "Selected \(viewModel.selectedItemIds.count)"))
                                     .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(viewModel.selectedItemIds.isEmpty ? .secondary : Color(hex: "38BDF8"))
+                                    .foregroundColor(hasItems && !viewModel.selectedItemIds.isEmpty ? Color(hex: "38BDF8") : .secondary.opacity(hasItems ? 1.0 : 0.5))
                             }
                         }
                         .buttonStyle(.plain)
+                        .disabled(!hasItems)
                         .frame(width: 140, alignment: .leading)
 
                         Text(l10n("项目名称", "Item Name"))
@@ -1058,7 +1043,7 @@ public struct PrivacyVaultView: View {
             }
 
             // Fixed Lower Area: Dynamic Dock (Normal vs Batch Selected)
-            if viewModel.selectedItemIds.isEmpty {
+            if viewModel.selectedItemIds.isEmpty || viewModel.items.isEmpty {
                 // Default Dock: Centered Shield Lock Button + Footer Note
                 VStack(spacing: 6) {
                     Button(action: { viewModel.lockVault() }) {
@@ -1109,12 +1094,13 @@ public struct PrivacyVaultView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
                 // Batch Action Toolbar Dock
+                let targetCount = viewModel.items.filter { viewModel.selectedItemIds.contains($0.id) }.count
                 HStack(spacing: 14) {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(Color(hex: "38BDF8"))
                             .font(.system(size: 14))
-                        Text(l10n("已选中 \(viewModel.selectedItemIds.count) 项", "Selected \(viewModel.selectedItemIds.count) items"))
+                        Text(l10n("已选中 \(targetCount) 项", "Selected \(targetCount) items"))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.primary)
 
@@ -1191,20 +1177,25 @@ public struct PrivacyVaultView: View {
 
                     // Action 3: Batch Remove Protection
                     Button(action: {
-                        viewModel.isConfirmingBatchRemove = true
+                        if targetCount == 0 {
+                            viewModel.showToast(l10n("未选中任何需要解除保护的文件", "No items selected to remove protection"))
+                        } else {
+                            viewModel.isConfirmingBatchRemove = true
+                        }
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "shield.slash")
                             Text(l10n("批量解除保护", "Remove Protection"))
                         }
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(hex: "F59E0B"))
+                        .foregroundColor(targetCount == 0 ? Color.secondary.opacity(0.4) : Color(hex: "F59E0B"))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "F59E0B").opacity(0.12)))
+                        .background(RoundedRectangle(cornerRadius: 8).fill(targetCount == 0 ? Color.secondary.opacity(0.06) : Color(hex: "F59E0B").opacity(0.12)))
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)
+                    .disabled(targetCount == 0)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
@@ -1236,7 +1227,7 @@ public struct PrivacyVaultView: View {
             }
 
             VStack(spacing: 4) {
-                Text(l10n("隐匿库当前为空", "Privacy Conceal is Empty"))
+                Text(l10n("隐匿库当前为空", "Privacy Vault is Empty"))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.primary)
                 Text(l10n("拖拽私人文件夹或敏感文件至上方区域，即可原位瞬时锁定并隐匿", "Drag private folders or sensitive files above to auto-lock and conceal"))
@@ -1497,65 +1488,29 @@ public struct PrivacyVaultView: View {
         }
     }
 
-    // MARK: - 3D Luminous Vault Sphere (GPU Hardware Composited · Zero CPU Overhead)
+    // MARK: - Holographic Lock Shield Hero (Clean · Enlarged · Minimalist)
     private var luminousVaultSphereHero: some View {
         ZStack {
-            // Layer 1: Ambient Outer Aura Glow
+            // Ambient Aura Glow (Soft glow with no rigid circle border)
             Circle()
                 .fill(
                     RadialGradient(
                         colors: [
                             Color(hex: "38BDF8").opacity(0.25),
-                            Color(hex: "818CF8").opacity(0.18),
+                            Color(hex: "818CF8").opacity(0.12),
                             Color.clear
                         ],
                         center: .center,
-                        startRadius: 20,
-                        endRadius: 100
+                        startRadius: 10,
+                        endRadius: 65
                     )
                 )
-                .frame(width: 190, height: 190)
-                .blur(radius: 14)
+                .frame(width: 130, height: 130)
+                .blur(radius: 18)
 
-            // Layer 2: Glass Sphere Core Body
-            Circle()
-                .fill(.ultraThinMaterial)
-                .frame(width: 150, height: 150)
-                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
-
-            // Layer 3: 3D Iridescent Rim Border
-            Circle()
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.85),
-                            Color(hex: "38BDF8").opacity(0.60),
-                            Color(hex: "818CF8").opacity(0.40),
-                            Color.white.opacity(0.20)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.8
-                )
-                .frame(width: 150, height: 150)
-
-            // Layer 4: Top-Left Specular Shine
-            Ellipse()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.80), Color.white.opacity(0.10), Color.clear],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 44, height: 18)
-                .rotationEffect(.degrees(-35))
-                .offset(x: -36, y: -36)
-
-            // Center Holographic Lock Shield Icon
+            // Enlarged Shield Lock Icon (68pt, vibrant cyan-indigo gradient)
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 42))
+                .font(.system(size: 68, weight: .medium))
                 .foregroundStyle(
                     LinearGradient(
                         colors: [Color.white, Color(hex: "38BDF8"), Color(hex: "818CF8")],
@@ -1563,17 +1518,17 @@ public struct PrivacyVaultView: View {
                         endPoint: .bottom
                     )
                 )
-                .shadow(color: Color(hex: "38BDF8").opacity(0.55), radius: 10, x: 0, y: 2)
+                .shadow(color: Color(hex: "38BDF8").opacity(0.45), radius: 14, x: 0, y: 4)
         }
-        .frame(width: 190, height: 190)
+        .frame(height: 110)
     }
 
     // MARK: - First Time Setup Content
     private var firstTimeSetupContent: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Spacer()
 
-            // 3D Luminous Vault Sphere
+            // Holographic Lock Shield
             luminousVaultSphereHero
 
             VStack(spacing: 6) {
@@ -1649,20 +1604,15 @@ public struct PrivacyVaultView: View {
 
     // MARK: - Locked Gate Content
     private var lockedGateContent: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Spacer()
 
-            // 3D Luminous Vault Sphere
+            // Holographic Lock Shield
             luminousVaultSphereHero
 
-            VStack(spacing: 6) {
-                Text(l10n("保险箱已锁定", "Vault is Locked"))
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-                Text(l10n("输入密码或使用 Touch ID 解锁", "Enter password or use Touch ID to unlock"))
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
+            Text(l10n("输入密码或使用 Touch ID 解锁", "Enter password or use Touch ID to unlock"))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
 
             // Glass Unlock Card
             VStack(spacing: 12) {

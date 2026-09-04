@@ -14,6 +14,8 @@ public final class ScannerEngine: Sendable {
                 DownloadsRules(),
                 AppCacheRules(),
                 SystemCacheRules(),
+                CreativeProjectRules(),
+                GamingJunkRules(),
                 OrphanHunterRules(),
                 LargeFileRules(),
                 ExternalDriveRules()
@@ -58,8 +60,8 @@ public final class ScannerEngine: Sendable {
             return combined
         }
 
-        // Apply strict Privacy Conceal anti-leak hard filter on final combined items
-        var safeItems = allItems.filter { !privacyVault.isLockedForScanSkip(path: $0.path) }
+        // Apply strict Privacy Conceal anti-leak hard filter and eliminate 0-byte items
+        var safeItems = allItems.filter { !privacyVault.isLockedForScanSkip(path: $0.path) && $0.sizeBytes > 0 }
 
         // Strict 0-9, A-Z natural deterministic sorting (cannot be manually overridden)
         safeItems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

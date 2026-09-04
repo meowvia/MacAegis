@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import LocalAuthentication
 
 public final class KeychainHelper: Sendable {
     public static let shared = KeychainHelper()
@@ -41,14 +42,18 @@ public final class KeychainHelper: Sendable {
         return fallbackStatus == errSecSuccess
     }
 
-    public func load(service: String, account: String) -> Data? {
-        let query: [String: Any] = [
+    public func load(service: String, account: String, context: LAContext? = nil) -> Data? {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
+
+        if let authContext = context {
+            query[kSecUseAuthenticationContext as String] = authContext
+        }
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)

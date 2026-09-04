@@ -88,6 +88,9 @@ public final class StatusBarController: NSObject {
         popover?.performClose(nil)
     }
 
+    private var cachedLogoImages: [ProxyMode: NSImage] = [:]
+    private var lastRenderedMode: ProxyMode?
+
     public func updateVisibility(enabled: Bool) {
         statusItem?.isVisible = enabled
     }
@@ -95,38 +98,56 @@ public final class StatusBarController: NSObject {
     public func updateStatusItemTitle() {
         guard let button = statusItem?.button, let vm = dashboardVM else { return }
 
-        let attributed = NSMutableAttributedString()
+        let mode = vm.networkSpeed.proxyMode
+        if lastRenderedMode != mode {
+            button.image = cachedLogo(for: mode)
+            button.imagePosition = .imageOnly
+            lastRenderedMode = mode
+        }
+        button.attributedTitle = NSAttributedString()
+        button.title = ""
+        button.toolTip = "\(AppConfig.appName) · \(mode.localizedTitle) (↓\(vm.networkSpeed.compactDownString) ↑\(vm.networkSpeed.compactUpString))"
+    }
 
-        // 1. Network Speed (Colorized based on Proxy Mode: Red for Global, Green for Rule, Neutral for Direct)
-        let speedString = vm.networkSpeed.menuBarDisplayString
-        let proxyHex = vm.networkSpeed.proxyMode.colorHex
-        let speedColor = NSColor(hexString: proxyHex) ?? .labelColor
+    private func cachedLogo(for mode: ProxyMode) -> NSImage {
+        if let cached = cachedLogoImages[mode] {
+            return cached
+        }
+        let img = createLogoImage(for: mode)
+        cachedLogoImages[mode] = img
+        return img
+    }
 
-        let speedAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .bold),
-            .foregroundColor: speedColor
-        ]
-        attributed.append(NSAttributedString(string: speedString, attributes: speedAttr))
+    private func createLogoImage(for proxyMode: ProxyMode) -> NSImage {
+        let size = NSSize(width: 18, height: 18)
+        let color: NSColor
+        switch proxyMode {
+        case .global:
+            color = NSColor(red: 239/255.0, green: 68/255.0, blue: 68/255.0, alpha: 1.0) // #EF4444 (Crimson)
+        case .rule:
+            color = NSColor(red: 16/255.0, green: 185/255.0, blue: 129/255.0, alpha: 1.0) // #10B981 (Emerald)
+        case .direct:
+            color = NSColor(red: 2/255.0, green: 132/255.0, blue: 199/255.0, alpha: 1.0) // #0284C7 (Ocean Blue)
+        }
 
-        // 2. Divider / Space
-        let spaceAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.headerTextColor
-        ]
-        attributed.append(NSAttributedString(string: "  ", attributes: spaceAttr))
+        let baseConfig = NSImage.SymbolConfiguration(pointSize: 13, weight: .bold)
+        let colorConfig = NSImage.SymbolConfiguration(paletteColors: [color])
+        let finalConfig = baseConfig.applying(colorConfig)
 
-        // 3. Compact Temp | CPU (e.g. "48°C | 12%")
-        let tempString = vm.thermalAndFan.formattedTemperature
-        let cpuString = "\(String(format: "%.0f", vm.systemMetrics.cpuUsagePercent))%"
-        let combinedTelemetry = "\(tempString) | \(cpuString)"
-
-        let telemetryAttr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.headerTextColor
-        ]
-        attributed.append(NSAttributedString(string: combinedTelemetry, attributes: telemetryAttr))
-
-        button.attributedTitle = attributed
+        let image = NSImage(size: size, flipped: false) { rect in
+            if let sfSymbol = NSImage(systemSymbolName: "shield.fill", accessibilityDescription: nil)?.withSymbolConfiguration(finalConfig) {
+                let destRect = NSRect(
+                    x: (rect.width - sfSymbol.size.width) / 2,
+                    y: (rect.height - sfSymbol.size.height) / 2,
+                    width: sfSymbol.size.width,
+                    height: sfSymbol.size.height
+                )
+                sfSymbol.draw(in: destRect)
+            }
+            return true
+        }
+        image.isTemplate = false
+        return image
     }
 }
 

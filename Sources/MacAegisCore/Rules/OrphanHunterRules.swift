@@ -35,7 +35,7 @@ public struct OrphanHunterRules: CleanRuleProtocol {
             guard let subdirs = try? fileManager.contentsOfDirectory(atPath: expandedRoot) else { continue }
 
             for sub in subdirs {
-                if sub.hasPrefix(".") || sub.lowercased() == "apple" || sub.hasPrefix("com.apple.") || sub.hasPrefix("group.com.apple.") {
+                if sub.hasPrefix(".") || sub.lowercased().contains("macaegis") || sub.lowercased() == "apple" || sub.hasPrefix("com.apple.") || sub.hasPrefix("group.com.apple.") {
                     continue
                 }
                 let fullPath = (expandedRoot as NSString).appendingPathComponent(sub)
@@ -66,7 +66,7 @@ public struct OrphanHunterRules: CleanRuleProtocol {
         let launchAgentsPath = FileUtils.expandPath("~/Library/LaunchAgents")
         if let agentFiles = try? fileManager.contentsOfDirectory(atPath: launchAgentsPath) {
             for file in agentFiles {
-                if file.hasPrefix("com.apple.") || !file.hasSuffix(".plist") { continue }
+                if file.hasPrefix("com.apple.") || file.lowercased().contains("macaegis") || !file.hasSuffix(".plist") { continue }
                 let fullPath = (launchAgentsPath as NSString).appendingPathComponent(file)
                 if whitelist.isProtected(path: fullPath, mode: .strict) { continue }
 

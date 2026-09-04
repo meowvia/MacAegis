@@ -2,22 +2,44 @@ import Foundation
 import IOKit
 
 public struct ThermalAndFanStatus: Sendable {
-    public let chipTemperatureCelsius: Double
+    public let chipTemperatureCelsius: Double?
+    public let isTemperatureReal: Bool
     public let hasFan: Bool
     public let fanSpeedRPM: Int?
     public let isFanSpeedReal: Bool
     public let thermalStateDescription: String
     public let thermalBadge: String
 
+    public init(
+        chipTemperatureCelsius: Double?,
+        isTemperatureReal: Bool = true,
+        hasFan: Bool,
+        fanSpeedRPM: Int?,
+        isFanSpeedReal: Bool,
+        thermalStateDescription: String,
+        thermalBadge: String
+    ) {
+        self.chipTemperatureCelsius = chipTemperatureCelsius
+        self.isTemperatureReal = isTemperatureReal
+        self.hasFan = hasFan
+        self.fanSpeedRPM = fanSpeedRPM
+        self.isFanSpeedReal = isFanSpeedReal
+        self.thermalStateDescription = thermalStateDescription
+        self.thermalBadge = thermalBadge
+    }
+
     public var formattedTemperature: String {
         formattedTemperature(isCelsius: UserDefaults.standard.object(forKey: "tempUnitCelsius") as? Bool ?? true)
     }
 
     public func formattedTemperature(isCelsius: Bool) -> String {
+        guard let temp = chipTemperatureCelsius, isTemperatureReal else {
+            return l10n("— (负载推算)", "— (Estimated)")
+        }
         if isCelsius {
-            return String(format: "%.0f°C", chipTemperatureCelsius)
+            return String(format: "%.0f°C", temp)
         } else {
-            let fahrenheit = (chipTemperatureCelsius * 9.0 / 5.0) + 32.0
+            let fahrenheit = (temp * 9.0 / 5.0) + 32.0
             return String(format: "%.0f°F", fahrenheit)
         }
     }
@@ -42,35 +64,30 @@ public final class ThermalAndFanDetector: @unchecked Sendable {
         let thermalState = ProcessInfo.processInfo.thermalState
         let isAir = isMacBookAir()
 
-        // 1. Read REAL Physical Hardware Temperature Sensor (Prioritizing CPU/SoC core sensors)
-        let realTemp = readRealHardwareCPUTemperature()
+        // 1. Read REAL Physical Hardware Temperature Sensor (Apple Silicon IOHID & Intel AppleSMC)
+        let realTemp = readRealHardwareCPUTemperature() ?? readAppleSMCTemperature()
+        let isTempReal = (realTemp != nil)
 
         // 2. Read REAL Physical Hardware Fan Speed via AppleSMC / IOHID
         let (realFanSpeed, hasPhysicalFan) = isAir ? (nil, false) : readRealHardwareFanSpeed()
 
-        let temp: Double
         let desc: String
         let badge: String
 
         switch thermalState {
         case .nominal:
-            temp = realTemp ?? 48.0
             desc = l10n("清凉高效", "Cool & Efficient")
             badge = "🟢"
         case .fair:
-            temp = realTemp ?? 55.0
             desc = l10n("温热正常", "Nominal")
             badge = "🟢"
         case .serious:
-            temp = realTemp ?? 75.0
             desc = l10n("较高负荷", "Warm High Load")
             badge = "🟡"
         case .critical:
-            temp = realTemp ?? 90.0
             desc = l10n("过热降频", "Throttled Hot")
             badge = "🔴"
         @unknown default:
-            temp = realTemp ?? 48.0
             desc = l10n("正常", "Nominal")
             badge = "🟢"
         }
@@ -84,13 +101,13 @@ public final class ThermalAndFanDetector: @unchecked Sendable {
             effectiveFanSpeed = rpm
             isFanSpeedReal = true
         } else {
-            // Fallback estimation only if SMC is inaccessible
-            effectiveFanSpeed = (thermalState == .serious ? 3200 : (thermalState == .critical ? 4800 : (temp > 65 ? 1800 : 0)))
+            effectiveFanSpeed = nil
             isFanSpeedReal = false
         }
 
         return ThermalAndFanStatus(
-            chipTemperatureCelsius: temp,
+            chipTemperatureCelsius: realTemp,
+            isTemperatureReal: isTempReal,
             hasFan: hasPhysicalFan,
             fanSpeedRPM: effectiveFanSpeed,
             isFanSpeedReal: isFanSpeedReal,
@@ -165,6 +182,74 @@ public final class ThermalAndFanDetector: @unchecked Sendable {
         allTemps.sort()
         let median = allTemps[allTemps.count / 2]
         return median
+    }
+
+    /// Read physical CPU temperature using AppleSMC (Intel Macs)
+    private func readAppleSMCTemperature() -> Double? {
+        var connect: io_connect_t = 0
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSMC"))
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+
+        guard IOServiceOpen(service, mach_task_self_, 0, &connect) == kIOReturnSuccess else { return nil }
+        defer { IOServiceClose(connect) }
+
+        let tempKeys = ["TC0P", "TC0D", "TC0C", "TC0E", "TC0F", "TCAH", "TB0T"]
+        for key in tempKeys {
+            var keyInt: UInt32 = 0
+            for char in key.utf8 {
+                keyInt = (keyInt << 8) | UInt32(char)
+            }
+
+            var inputStruct = SMCParamStruct()
+            inputStruct.key = keyInt
+            inputStruct.data8 = 5 // kSMCGetKeyInfo
+
+            var outputStruct = SMCParamStruct()
+            var outputSize = MemoryLayout<SMCParamStruct>.size
+
+            let result = IOConnectCallStructMethod(
+                connect,
+                2, // kSMCHandleYPCEvent
+                &inputStruct,
+                MemoryLayout<SMCParamStruct>.size,
+                &outputStruct,
+                &outputSize
+            )
+            guard result == kIOReturnSuccess && outputStruct.keyInfo.dataSize > 0 else { continue }
+
+            inputStruct.keyInfo.dataSize = outputStruct.keyInfo.dataSize
+            inputStruct.data8 = 6 // kSMCReadKey
+
+            var valStruct = SMCParamStruct()
+            var valSize = MemoryLayout<SMCParamStruct>.size
+
+            let readResult = IOConnectCallStructMethod(
+                connect,
+                2,
+                &inputStruct,
+                MemoryLayout<SMCParamStruct>.size,
+                &valStruct,
+                &valSize
+            )
+            guard readResult == kIOReturnSuccess else { continue }
+
+            let bytes = [valStruct.bytes.0, valStruct.bytes.1, valStruct.bytes.2, valStruct.bytes.3]
+            // sp78 format (fixed point 8.8)
+            if valStruct.keyInfo.dataSize == 2 {
+                let raw = Double(Int(bytes[0]) << 6 | Int(bytes[1]) >> 2) / 64.0
+                if raw >= 20.0 && raw <= 115.0 {
+                    return raw
+                }
+            } else if valStruct.keyInfo.dataSize == 4 {
+                let rawBits = UInt32(bytes[0]) | (UInt32(bytes[1]) << 8) | (UInt32(bytes[2]) << 16) | (UInt32(bytes[3]) << 24)
+                let floatVal = Double(Float(bitPattern: rawBits))
+                if floatVal >= 20.0 && floatVal <= 115.0 {
+                    return floatVal
+                }
+            }
+        }
+        return nil
     }
 
     /// Read real physical fan speed (RPM) from AppleSMC (F0Ac / F1Ac) or IOHID Event System

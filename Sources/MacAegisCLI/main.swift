@@ -22,7 +22,7 @@ func printBanner() {
  | |  | |/ _` | _/ ___ \\  __/ (_| | \\__ \\
  |_|  |_|\\__,_(_)_/   \\_\\___|\\__, |_|___/
                              |___/       
-\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私隐匿 v\(AppConfig.appVersion)\(TerminalColor.reset)
+\(TerminalColor.reset)\(TerminalColor.dim)  Mac 之盾 · 极简原生轻量清理、硬件遥测与隐私保险箱 v\(AppConfig.appVersion)\(TerminalColor.reset)
 """)
 }
 
@@ -136,7 +136,7 @@ func runScan(args: [String]) async {
 
         print("\n\(TerminalColor.bold)🚀 正在执行安全清理 (\(safeItems.count) 个安全项，释放 \(result.safeFormattedSize))...\(TerminalColor.reset)")
         let cleaner = CleanerEngine()
-        let report = cleaner.clean(items: safeItems, dryRun: false, useTrash: true)
+        let report = await cleaner.clean(items: safeItems, dryRun: false, useTrash: true)
 
         print(String(repeating: "─", count: 68))
         print("\(TerminalColor.green)✅ 清理完成！成功清理: \(report.successfulCount) 项，释放空间: \(ByteFormatter.format(report.totalReclaimedBytes))\(TerminalColor.reset)")
@@ -173,27 +173,6 @@ func main() async {
             print("  • \(app.icon) [PID: \(app.id)] \(TerminalColor.bold)\(app.name)\(TerminalColor.reset) \(TerminalColor.dim)(\(app.bundleId ?? "无 Bundle ID"))\(TerminalColor.reset)")
         }
         print("")
-    case "dev-reset":
-        let appSupport = FileUtils.expandPath("~/Library/Application Support/MacAegis")
-        let metadataPath = (appSupport as NSString).appendingPathComponent("vault_metadata.json")
-        let authPath = (appSupport as NSString).appendingPathComponent("vault_auth.json")
-        
-        if FileManager.default.fileExists(atPath: metadataPath),
-           let data = try? Data(contentsOf: URL(fileURLWithPath: metadataPath)),
-           let items = try? JSONDecoder().decode([VaultItem].self, from: data), !items.isEmpty {
-            print("⚠️ 发现 \(items.count) 个未解锁的测试项目，正在执行安全解锁与特征还原...")
-            let vault = PrivacyVaultManager.shared
-            for item in items {
-                print("  🔓 正在安全还原: \(item.path)")
-                vault.openAndHighlightInFinder(path: item.path, revealInFinder: false)
-            }
-            print("✅ 所有测试文件已 100% 字节级安全解锁并恢复原始属性！")
-        } else {
-            print("✨ 未发现遗留上锁文件，环境整洁。")
-        }
-        try? "[]".write(toFile: metadataPath, atomically: true, encoding: .utf8)
-        try? FileManager.default.removeItem(atPath: authPath)
-        print("🧼 隐私隐匿与账户已安全重置为出厂默认状态。")
     case "help", "--help", "-h":
         showHelp()
     default:

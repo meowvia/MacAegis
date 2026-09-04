@@ -20,7 +20,7 @@ public enum VaultError: LocalizedError, Sendable {
         case .authenticationRequired:
             return "尚未验证主密码或凭据已过期。"
         case .vaultLocked:
-            return "隐私隐匿处于锁定状态，需验证主密码后方可操作。"
+            return "隐私保险箱处于锁定状态，需验证主密码后方可操作。"
         }
     }
 }
@@ -118,6 +118,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         self.metadataURL = appSupportURL.appendingPathComponent("vault_metadata.json")
         self.authConfigURL = appSupportURL.appendingPathComponent("vault_auth.json")
         loadMetadata()
+        if !self.isTestIsolation {
+            setupAutoLockObservers()
+        }
     }
 
     // MARK: - Checksum Computation (SHA-256 First 8 Bytes Hex)
@@ -460,8 +463,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return true
     }
 
+    private func updateActiveKey(_ key: Data?) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.activeKey = key
+    }
+
     // MARK: - Biometric / Touch ID Authentication
-    public func authenticateWithBiometrics(reason: String = "请验证 Touch ID 指纹以解锁隐私隐匿") async -> Bool {
+    public func authenticateWithBiometrics(reason: String = "请验证 Touch ID 指纹以解锁隐私保险箱") async -> Bool {
         let context = LAContext()
         context.localizedCancelTitle = "使用密码"
         var error: NSError?
@@ -469,12 +478,20 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             do {
                 let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
-                if success && !isTestIsolation {
-                    if let key = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount) {
-                        self.activeKey = key
+                guard success else { return false }
+
+                if !isTestIsolation {
+                    if let key = KeychainHelper.shared.load(service: keychainService, account: Self.derivedKeyAccount, context: context), !key.isEmpty {
+                        updateActiveKey(key)
+                        return true
+                    } else {
+                        // Keychain access failed or was canceled (e.g. user pressed ESC)
+                        updateActiveKey(nil)
+                        return false
                     }
+                } else {
+                    return true
                 }
-                return success
             } catch {
                 return false
             }
@@ -503,9 +520,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         if length < 0 && (errno == EACCES || errno == EPERM) {
             var statBuf = stat()
             if lstat(path, &statBuf) == 0 {
+                // Symlink defense: Never follow or manipulate symlink targets
+                if (statBuf.st_mode & S_IFMT) == S_IFLNK { return nil }
                 let originalMode = statBuf.st_mode
                 let cPath = (path as NSString).fileSystemRepresentation
-                _ = chflags(cPath, 0)
+                _ = lchflags(cPath, 0)
                 chmod(path, 0o700)
                 length = getxattr(path, Self.xattrVaultKey, nil, 0, 0, 0)
                 if length > 0 {
@@ -514,11 +533,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                         getxattr(path, Self.xattrVaultKey, bytes.baseAddress, length, 0, 0)
                     }
                     chmod(path, originalMode)
-                    _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+                    _ = lchflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
                     return String(data: data, encoding: .utf8)
                 }
                 chmod(path, originalMode)
-                _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+                _ = lchflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
             }
         }
         guard length > 0 else { return nil }
@@ -708,6 +727,12 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             return nil
         }
 
+        // Symlink defense: Never lock or follow symbolic links into vault to prevent system path traversal
+        var symStat = stat()
+        if lstat(path, &symStat) == 0 && (symStat.st_mode & S_IFMT) == S_IFLNK {
+            return nil
+        }
+
         if let existing = items.first(where: { $0.path == path }) {
             return existing
         }
@@ -751,13 +776,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     private func calculateLockedItemSize(at path: String) -> Int64 {
         var statBuf = stat()
         guard lstat(path, &statBuf) == 0 else { return 0 }
+        if (statBuf.st_mode & S_IFMT) == S_IFLNK { return 0 }
         let originalMode = statBuf.st_mode
         let cPath = (path as NSString).fileSystemRepresentation
-        _ = chflags(cPath, 0)
+        _ = lchflags(cPath, 0)
         chmod(path, 0o755)
         defer {
             chmod(path, originalMode)
-            _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+            _ = lchflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
         }
         let size = FileUtils.calculateSize(atPath: path)
         return size
@@ -1068,8 +1094,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     @discardableResult
     private func setFileHidden(at url: URL, hidden: Bool) -> Bool {
         let path = url.path
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return false }
+        var statBuf = stat()
+        guard lstat(path, &statBuf) == 0 else { return false }
+
+        // Symlink defense: Never follow or lock symbolic links to prevent system directory traversal
+        if (statBuf.st_mode & S_IFMT) == S_IFLNK {
+            return false
+        }
+        let isDir = (statBuf.st_mode & S_IFMT) == S_IFDIR
 
         // Strict Requirement: NO auto-recovery from Keychain. Active key MUST be present in memory.
         guard let _ = activeKey else {
@@ -1080,27 +1112,15 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         let salt = activeSaltHex.isEmpty ? "MacAegisLocked" : activeSaltHex
 
         if hidden {
-            // 1. In-place stream header transformation with XOR idempotency check via atomic xattr
-            if !isDir.boolValue {
-                let xattrPayload = parseVaultXattr(at: path)
-                let alreadyObfuscated = xattrPayload?.isObfuscated ?? false
-                if !alreadyObfuscated {
-                    do {
-                        try applyHeaderTransformation(at: url)
-                    } catch {
-                        return false
-                    }
-                }
-            }
+            // Security Baseline: 100% 0-byte physical file alteration (Zero XOR stream rewriting, zero power-loss corruption risk)
+            // Mark native macOS Extended Attribute (xattr) BEFORE changing permissions
+            setVaultXattr(at: path, saltHex: salt, isObfuscated: false)
 
-            // 2. Mark native macOS Extended Attribute (xattr) BEFORE changing permissions
-            setVaultXattr(at: path, saltHex: salt, isObfuscated: !isDir.boolValue)
-
-            // 3. Darwin C syscall: clear uchg, set POSIX 000, set uchg + hidden (0.03ms instant)
-            _ = chflags(cPath, 0)
+            // Darwin C syscall: clear uchg, set POSIX 000, set uchg + hidden (0.03ms instant)
+            _ = lchflags(cPath, 0)
             let perms: NSNumber = 0o000
             try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
-            _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+            _ = lchflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
 
             var resourceValues = URLResourceValues()
             resourceValues.isHidden = true
@@ -1108,13 +1128,13 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             try? mutableURL.setResourceValues(resourceValues)
         } else {
             // Defensive Unlocking Order:
-            // 1. First temporarily clear immutable flag and grant read-write permission for restoration
-            _ = chflags(cPath, 0)
-            let tempPerms: NSNumber = isDir.boolValue ? 0o700 : 0o600
+            // 1. First temporarily clear immutable flag and grant read-write permission
+            _ = lchflags(cPath, 0)
+            let tempPerms: NSNumber = isDir ? 0o700 : 0o600
             try? FileManager.default.setAttributes([.posixPermissions: tempPerms], ofItemAtPath: path)
 
-            // 2. Reverse header transformation ONLY IF currently obfuscated (Fallback handles legacy files)
-            if !isDir.boolValue {
+            // 2. Backward Compatibility: Reverse header transformation ONLY IF legacy file is flagged obfuscated
+            if !isDir {
                 let xattrPayload = parseVaultXattr(at: path)
                 let isCurrentlyObfuscated = xattrPayload?.isObfuscated ?? false
                 if isCurrentlyObfuscated {
@@ -1124,14 +1144,14 @@ public final class PrivacyVaultManager: @unchecked Sendable {
                         // Restoration failed: Immediately re-lock item and abort to prevent data corruption!
                         let lockPerms: NSNumber = 0o000
                         try? FileManager.default.setAttributes([.posixPermissions: lockPerms], ofItemAtPath: path)
-                        _ = chflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+                        _ = lchflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
                         return false
                     }
                 }
             }
 
-            // 3. Header successfully restored: Now reset standard POSIX permissions and remove xattr
-            let perms: NSNumber = isDir.boolValue ? 0o755 : 0o644
+            // 3. Header verified/restored: Now reset standard POSIX permissions and remove xattr
+            let perms: NSNumber = isDir ? 0o755 : 0o644
             try? FileManager.default.setAttributes([.posixPermissions: perms], ofItemAtPath: path)
             removeVaultXattr(at: path)
 
@@ -1166,5 +1186,28 @@ extension Data {
             index = nextIndex
         }
         self = data
+    }
+}
+import AppKit
+
+extension PrivacyVaultManager {
+    public func setupAutoLockObservers() {
+        // Auto lock on App Quit
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.lockAll()
+        }
+
+        // Auto lock on System Sleep
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.lockAll()
+        }
     }
 }

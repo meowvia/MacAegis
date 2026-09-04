@@ -19,7 +19,7 @@ public struct UninstallerDropView: View {
                 VStack(spacing: 14) {
                     Spacer()
                     ProgressView().scaleEffect(1.1)
-                    Text("正在深度分析应用关联的配置文件与沙盒支持文件...")
+                    Text(l10n("正在深度分析应用关联的配置文件与沙盒支持文件...", "Analyzing associated configurations and sandbox support files..."))
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -59,14 +59,14 @@ public struct UninstallerDropView: View {
             }
         }
         .background(MacAegisTheme.canvasBackground.ignoresSafeArea())
-        .onAppear {
-            viewModel.loadInstalledApps()
-        }
-        .alert("卸载提示", isPresented: Binding(
+        .alert(l10n("卸载提示", "Uninstall Notice"), isPresented: Binding(
             get: { viewModel.alertMessage != nil },
             set: { if !$0 { viewModel.alertMessage = nil } }
         )) {
-            Button("确定", role: .cancel) { viewModel.alertMessage = nil }
+            Button(l10n("确定", "OK"), role: .cancel) { 
+                viewModel.alertMessage = nil 
+                viewModel.loadInstalledApps(forceRefresh: true)
+            }
         } message: {
             if let msg = viewModel.alertMessage {
                 Text(msg)
@@ -77,20 +77,19 @@ public struct UninstallerDropView: View {
     // MARK: - Full Width Apps Browser + Drop Zone
     private var fullWidthBrowserView: some View {
         VStack(spacing: 0) {
-            // Header Bar: App Count Badge & Search Bar Only
+            // Header Bar: Segmented Picker & Search Bar
             HStack(spacing: 14) {
-                // App Count Badge
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: 6, height: 6)
-                    Text(l10n("\(viewModel.filteredApps.count) 个应用", "\(viewModel.filteredApps.count) Apps"))
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                Picker("", selection: $viewModel.displayMode) {
+                    Text(l10n("已安装应用 (\(viewModel.filteredApps.count))", "Installed Apps (\(viewModel.filteredApps.count))")).tag(UninstallerViewModel.DisplayMode.installedApps)
+                    Text(l10n("孤立残留文件 (\(viewModel.orphanLeftovers.count))", "Orphan Leftovers (\(viewModel.orphanLeftovers.count))")).tag(UninstallerViewModel.DisplayMode.orphans)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                .pickerStyle(.segmented)
+                .frame(width: 320)
+                .onChange(of: viewModel.displayMode) { mode in
+                    if mode == .orphans {
+                        viewModel.scanOrphans()
+                    }
+                }
 
                 Spacer()
 
@@ -125,33 +124,37 @@ public struct UninstallerDropView: View {
             Divider().opacity(0.3)
 
             ScrollView {
-                VStack(spacing: 10) {
-                    // Table Header Row
-                    HStack {
-                        Text(l10n("应用名称", "Application"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(l10n("大小", "Size"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 80, alignment: .trailing)
-                        Text(l10n("操作", "Action"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 70, alignment: .trailing)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.top, 6)
+                if viewModel.displayMode == .installedApps {
+                    LazyVStack(spacing: 10) {
+                        // Table Header Row
+                        HStack {
+                            Text(l10n("应用名称", "Application"))
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(l10n("大小", "Size"))
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .frame(width: 80, alignment: .trailing)
+                            Text(l10n("操作", "Action"))
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .frame(width: 70, alignment: .trailing)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.top, 6)
 
-                    // Applications List (Strict 0-9, A-Z natural sort)
-                    LazyVStack(spacing: 6) {
-                        ForEach(viewModel.filteredApps, id: \.bundleURL) { app in
-                            appRow(app: app)
+                        // Applications List
+                        LazyVStack(spacing: 6) {
+                            ForEach(viewModel.filteredApps, id: \.bundleURL) { app in
+                                appRow(app: app)
+                            }
                         }
                     }
+                    .padding(24)
+                } else {
+                    orphanLeftoversView
                 }
-                .padding(24)
             }
         }
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
@@ -171,31 +174,45 @@ public struct UninstallerDropView: View {
         let isExpanded = viewModel.isExpanded(url: app.bundleURL)
         let isAnalyzing = viewModel.analyzingAppUrls.contains(app.bundleURL)
         let bundle = viewModel.analyzedBundles[app.bundleURL]
+        let isChecked = viewModel.isAppChecked(url: app.bundleURL)
+        let isPartial = viewModel.isAppPartiallyChecked(url: app.bundleURL)
 
         return VStack(spacing: 0) {
-            // Main App Row Header (Clickable to Toggle Expansion)
-            Button(action: {
-                viewModel.toggleAppExpansion(url: app.bundleURL)
-            }) {
-                HStack(spacing: 12) {
-                    // Expand Chevron Arrow
+            // Main App Row Header
+            HStack(spacing: 10) {
+                // Expand Chevron Arrow Button
+                Button(action: {
+                    viewModel.toggleAppExpansion(url: app.bundleURL)
+                }) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundColor(.secondary.opacity(0.75))
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .frame(width: 12)
+                        .frame(width: 14, height: 14)
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
 
-                    // App Icon Badge
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 7)
-                            .fill(Color.blue.opacity(0.12))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: "app.fill")
-                            .foregroundColor(Color.blue)
-                            .font(.system(size: 15))
-                    }
+                // App Checkbox (Empty Square -> Checked Square)
+                Button(action: {
+                    viewModel.toggleAppCheck(url: app.bundleURL)
+                }) {
+                    Image(systemName: isChecked ? "checkmark.square.fill" : (isPartial ? "minus.square.fill" : "square"))
+                        .font(.system(size: 15))
+                        .foregroundColor(isChecked || isPartial ? Color.blue : Color.secondary.opacity(0.45))
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .help(l10n("勾选以选择卸载此应用", "Check to select for uninstall"))
 
-                    // App Name & Bundle ID
+                // App Native Icon (Async Background Fetch, 0 main thread blocking!)
+                AsyncAppIcon(url: app.bundleURL, size: 32)
+
+                // App Name & Bundle ID (Clickable to Expand)
+                Button(action: {
+                    viewModel.toggleAppExpansion(url: app.bundleURL)
+                }) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
                             Text(app.name)
@@ -217,55 +234,53 @@ public struct UninstallerDropView: View {
                                 .lineLimit(1)
                         }
                     }
-
-                    Spacer()
-
-                    // App Size (Dynamic live sum when analyzed)
-                    Text(viewModel.appSize(for: app))
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .frame(width: 80, alignment: .trailing)
-
-                    // Finder Reveal of .app
-                    Button(action: {
-                        viewModel.revealSubItemInFinder(path: app.bundleURL.path)
-                    }) {
-                        Image(systemName: "folder")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                            .padding(6)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
-                    }
-                    .buttonStyle(PureButtonStyle())
-                    .focusable(false)
-                    .focusEffectDisabled()
-                    .help(l10n("在访达中显示主程序包", "Reveal in Finder"))
-
-                    // Uninstall Button
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                            viewModel.analyzeApp(url: app.bundleURL)
-                        }
-                    }) {
-                        Text(l10n("卸载", "Uninstall"))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color.blue)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.12)))
-                    }
-                    .buttonStyle(PureButtonStyle())
-                    .focusable(false)
-                    .focusEffectDisabled()
-                    .frame(width: 70, alignment: .trailing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+
+                // App Size (Dynamic sum of selected items)
+                Text(viewModel.appSize(for: app))
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 80, alignment: .trailing)
+
+                // Finder Reveal of .app
+                Button(action: {
+                    viewModel.revealSubItemInFinder(path: app.bundleURL.path)
+                }) {
+                    Image(systemName: "folder")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(6)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .focusEffectDisabled()
+                .help(l10n("在访达中显示主程序包", "Reveal in Finder"))
+
+                // Uninstall Button
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        viewModel.executeUninstallForApp(url: app.bundleURL)
+                    }
+                }) {
+                    Text(l10n("卸载", "Uninstall"))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color.blue)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue.opacity(0.12)))
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .focusEffectDisabled()
+                .frame(width: 70, alignment: .trailing)
             }
-            .buttonStyle(PureButtonStyle())
-            .focusable(false)
-            .focusEffectDisabled()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
 
             // Inline Expanded Details Breakdown Card
             if isExpanded {
@@ -282,14 +297,16 @@ public struct UninstallerDropView: View {
                     } else if let bundle = bundle {
                         VStack(spacing: 4) {
                             ForEach(bundle.associatedItems) { item in
-                                inlineSubItemRow(item: item)
+                                inlineSubItemRow(appURL: app.bundleURL, item: item)
                             }
                         }
                         .padding(.top, 4)
 
                         // Quick Action Footer inside expanded view
+                        let selectedCount = viewModel.selectedItemsCount(for: app.bundleURL)
+                        let totalCount = bundle.associatedItems.count
                         HStack {
-                            Text(l10n("包含 \(bundle.associatedItems.count) 项关联目录 · 共计 \(bundle.formattedTotalSize)", "Contains \(bundle.associatedItems.count) items · Total \(bundle.formattedTotalSize)"))
+                            Text(l10n("已勾选 \(selectedCount)/\(totalCount) 项 · 共计 \(viewModel.formattedSelectedSize(for: app))", "Selected \(selectedCount)/\(totalCount) items · Total \(viewModel.formattedSelectedSize(for: app))"))
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
 
@@ -297,17 +314,17 @@ public struct UninstallerDropView: View {
 
                             Button(action: {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                    viewModel.analyzeApp(url: app.bundleURL)
+                                    viewModel.executeUninstallForApp(url: app.bundleURL)
                                 }
                             }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "trash.fill")
-                                    Text(l10n("进入卸载确认", "Review & Uninstall"))
+                                    Text(l10n("彻底卸载已选项 (\(viewModel.formattedSelectedSize(for: app)))", "Uninstall Selected (\(viewModel.formattedSelectedSize(for: app)))"))
                                 }
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 5)
                                         .fill(MacAegisTheme.roseGradient)
@@ -316,6 +333,7 @@ public struct UninstallerDropView: View {
                             .buttonStyle(PureButtonStyle())
                             .focusable(false)
                             .focusEffectDisabled()
+                            .disabled(selectedCount == 0 || viewModel.isUninstalling)
                         }
                         .padding(.top, 6)
                         .padding(.horizontal, 4)
@@ -329,11 +347,25 @@ public struct UninstallerDropView: View {
         .studioCard(cornerRadius: 8)
     }
 
-    private func inlineSubItemRow(item: CleanItem) -> some View {
-        HStack(spacing: 8) {
-            // Category Icon
+    private func inlineSubItemRow(appURL: URL, item: CleanItem) -> some View {
+        let isItemChecked = viewModel.isItemChecked(appURL: appURL, itemId: item.id)
+
+        return HStack(spacing: 8) {
+            // Interactive Checkbox (Empty Square -> Checked Square)
+            Button(action: {
+                viewModel.toggleItemCheck(appURL: appURL, itemId: item.id)
+            }) {
+                Image(systemName: isItemChecked ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 13))
+                    .foregroundColor(isItemChecked ? Color.blue : Color.secondary.opacity(0.45))
+                    .frame(width: 16, height: 16)
+            }
+            .buttonStyle(PureButtonStyle())
+            .focusable(false)
+
+            // Category Semantic Icon (Outline symbols, not solid squares)
             Image(systemName: iconForSubItem(path: item.path))
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundColor(colorForSubItem(path: item.path))
                 .frame(width: 14)
 
@@ -383,13 +415,14 @@ public struct UninstallerDropView: View {
     }
 
     private func iconForSubItem(path: String) -> String {
-        if path.hasSuffix(".app") { return "app.fill" }
-        if path.contains("Application Support") || path.contains("Containers") || path.contains("Group Containers") { return "folder.fill" }
-        if path.contains("Caches") || path.contains("WebKit") || path.contains("HTTPStorages") { return "bolt.fill" }
-        if path.contains("Preferences") { return "gearshape.fill" }
-        if path.contains("LaunchAgents") || path.contains("LaunchDaemons") { return "paperplane.fill" }
-        if path.contains("Logs") { return "doc.text.fill" }
-        return "folder"
+        if path.hasSuffix(".app") { return "macwindow" }
+        if path.contains("Containers") || path.contains("Group Containers") { return "shippingbox" }
+        if path.contains("Application Support") { return "folder" }
+        if path.contains("Caches") || path.contains("WebKit") || path.contains("HTTPStorages") { return "bolt.horizontal" }
+        if path.contains("Preferences") { return "slider.horizontal.3" }
+        if path.contains("LaunchAgents") || path.contains("LaunchDaemons") { return "cpu" }
+        if path.contains("Logs") { return "doc.text" }
+        return "doc"
     }
 
     private func colorForSubItem(path: String) -> Color {
@@ -439,14 +472,7 @@ public struct UninstallerDropView: View {
                 .focusable(false)
                 .focusEffectDisabled()
 
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.blue.opacity(0.15))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "app.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(Color.blue)
-                }
+                AsyncAppIcon(url: bundle.appURL, size: 36)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(bundle.appName)
@@ -484,18 +510,46 @@ public struct UninstallerDropView: View {
 
             Divider().opacity(0.3)
 
+            // System Extensions Pre-flight Advisory Banner
+            if bundle.hasSystemExtensions {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .foregroundColor(Color(hex: "F59E0B"))
+                        .font(.system(size: 14))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(l10n("检测到系统扩展 (System Extension)", "System Extension Detected"))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text(l10n("该应用包含系统级内核或网络扩展。根据 macOS 安全规范，建议在卸载前先在原应用设置中将其停用，以防系统留下无法清理的扩展残余。", "This app contains System Extensions. Due to macOS restrictions, please deactivate the extension in the app's settings first to prevent system leftovers."))
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "F59E0B").opacity(0.12)))
+                .padding(.horizontal, 14)
+                .padding(.top, 8)
+            }
+
             // Detailed Associated Files List
             ScrollView {
                 VStack(spacing: 4) {
                     ForEach(bundle.associatedItems) { item in
                         HStack(spacing: 12) {
-                            Toggle(isOn: Binding(
-                                get: { viewModel.selectedItemIds.contains(item.id) },
-                                set: { _ in viewModel.toggleItemSelection(id: item.id) }
-                            )) {
-                                EmptyView()
+                            Button(action: {
+                                viewModel.toggleItemSelection(id: item.id)
+                            }) {
+                                let isSelected = viewModel.selectedItemIds.contains(item.id)
+                                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isSelected ? Color.blue : Color.secondary.opacity(0.45))
+                                    .frame(width: 18, height: 18)
                             }
-                            .toggleStyle(.checkbox)
+                            .buttonStyle(PureButtonStyle())
+                            .focusable(false)
 
                             VStack(alignment: .leading, spacing: 1) {
                                 HStack(spacing: 6) {
@@ -526,5 +580,126 @@ public struct UninstallerDropView: View {
                 .padding(14)
             }
         }
+    }
+    private var orphanLeftoversView: some View {
+        VStack(spacing: 10) {
+            if viewModel.isScanningOrphans {
+                ProgressView().scaleEffect(1.1)
+                    .padding(40)
+            } else if viewModel.orphanLeftovers.isEmpty {
+                Text(l10n("未发现残留文件，您的系统非常干净。", "No leftover files found. Your system is very clean."))
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .padding(40)
+            } else {
+                HStack {
+                    Button(action: {
+                        if viewModel.checkedOrphanIds.count == viewModel.orphanLeftovers.count {
+                            viewModel.checkedOrphanIds.removeAll()
+                        } else {
+                            viewModel.checkedOrphanIds = Set(viewModel.orphanLeftovers.map { $0.id })
+                        }
+                    }) {
+                        let isAllSelected = viewModel.checkedOrphanIds.count == viewModel.orphanLeftovers.count && !viewModel.orphanLeftovers.isEmpty
+                        Image(systemName: isAllSelected ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 14))
+                            .foregroundColor(isAllSelected ? Color.blue : Color.secondary.opacity(0.45))
+                    }
+                    .buttonStyle(PureButtonStyle())
+                    
+                    Text(l10n("关联残留", "Orphaned File"))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.secondary)
+                        
+                    Spacer()
+                    
+                    let totalSize = viewModel.orphanLeftovers.filter { viewModel.checkedOrphanIds.contains($0.id) }.reduce(0) { $0 + $1.sizeBytes }
+                    
+                    Button(action: { viewModel.cleanSelectedOrphans() }) {
+                        Text(l10n("清理选中 (\(ByteFormatter.format(totalSize)))", "Clean Selected (\(ByteFormatter.format(totalSize)))"))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.blue))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.checkedOrphanIds.isEmpty || viewModel.isUninstalling)
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 6)
+
+                LazyVStack(spacing: 6) {
+                    ForEach(viewModel.orphanLeftovers, id: \.id) { item in
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                if viewModel.checkedOrphanIds.contains(item.id) {
+                                    viewModel.checkedOrphanIds.remove(item.id)
+                                } else {
+                                    viewModel.checkedOrphanIds.insert(item.id)
+                                }
+                            }) {
+                                let isSelected = viewModel.checkedOrphanIds.contains(item.id)
+                                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isSelected ? Color.blue : Color.secondary.opacity(0.45))
+                                    .frame(width: 18, height: 18)
+                            }
+                            .buttonStyle(PureButtonStyle())
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.primary)
+                                Text(item.path)
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                            Spacer()
+                            Text(ByteFormatter.format(item.sizeBytes))
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .studioCard(cornerRadius: 6)
+                    }
+                }
+            }
+        }
+        .padding(24)
+    }
+}
+struct AsyncAppIcon: View {
+    let url: URL
+    let size: CGFloat
+    @State private var image: NSImage?
+    
+    var body: some View {
+        Group {
+            if let img = image {
+                Image(nsImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Color.secondary.opacity(0.1) // Placeholder
+            }
+        }
+        .frame(width: size, height: size)
+        .cornerRadius(size * 0.22)
+        .shadow(color: Color.black.opacity(0.12), radius: 2, x: 0, y: 1)
+        .task {
+            if image == nil {
+                image = await fetchIcon()
+            }
+        }
+    }
+    
+    private func fetchIcon() async -> NSImage {
+        return await Task.detached(priority: .background) {
+            AppIconCache.shared.icon(for: url)
+        }.value
     }
 }

@@ -3,7 +3,7 @@ import ServiceManagement
 import MacAegisCore
 
 public struct SettingsView: View {
-    @AppStorage("appLanguage") private var appLanguage: String = AppLanguage.zh.rawValue
+    @ObservedObject private var loc = LocalizationManager.shared
     @AppStorage("cleanToTrash") private var cleanToTrash: Bool = true
     @AppStorage("launchAtLogin") private var launchAtLogin: Bool = false
     @AppStorage("tempUnitCelsius") private var tempUnitCelsius: Bool = true
@@ -90,13 +90,13 @@ public struct SettingsView: View {
                             }
                             Spacer(minLength: 16)
 
-                            Picker("", selection: $appLanguage) {
-                                Text("简体中文").tag(AppLanguage.zh.rawValue)
-                                Text("English").tag(AppLanguage.en.rawValue)
+                            Picker("", selection: $loc.appLanguage) {
+                                Text("简体中文").tag(AppLanguage.zh)
+                                Text("English").tag(AppLanguage.en)
                             }
                             .pickerStyle(.segmented)
                             .frame(width: controlWidth)
-                            .id("lang_picker_\(appLanguage)")
+
                         }
                     }
 
@@ -119,7 +119,7 @@ public struct SettingsView: View {
                             }
                             .pickerStyle(.segmented)
                             .frame(width: controlWidth)
-                            .id("temp_picker_\(appLanguage)")
+
                         }
 
                         Divider().opacity(0.18)
@@ -160,7 +160,7 @@ public struct SettingsView: View {
                             }
                             .pickerStyle(.segmented)
                             .frame(width: controlWidth)
-                            .id("clean_mode_\(appLanguage)")
+
                         }
 
                         Divider().opacity(0.18)
@@ -218,7 +218,7 @@ public struct SettingsView: View {
                             }
                             .pickerStyle(.segmented)
                             .frame(width: controlWidth)
-                            .id("close_action_\(appLanguage)")
+
                         }
 
                         Divider().opacity(0.18)
@@ -261,6 +261,37 @@ public struct SettingsView: View {
                                 .buttonStyle(.plain)
                             }
                         }
+
+                        Divider().opacity(0.18)
+
+                        // App Management Permission
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(l10n("App 管理权限 (App Management)", "App Management Permission"))
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text(l10n("允许 MacAegis 移动或彻底卸载 /Applications 中的受保护应用", "Allows MacAegis to move or uninstall apps in /Applications"))
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer(minLength: 16)
+
+                            Button(action: {
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AppBundles") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text(l10n("去设置", "Configure"))
+                                    Image(systemName: "arrow.up.forward.app")
+                                }
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(Color(hex: "38BDF8")))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
                     // 4. 隐私政策与安全承诺 (Privacy & Security Commitment)
@@ -273,7 +304,7 @@ public struct SettingsView: View {
                                 Text(l10n("100% 纯本地离线运行", "100% Offline & Local Execution"))
                                     .font(.system(size: 11, weight: .bold))
                             }
-                            Text(l10n("MacAegis 所有磁盘扫描、空间清理与隐匿锁定操作均在您的 Mac 本地执行，不含任何远程分析或云端上传，零外网数据通信。", "All scans, cleaning, and concealment operations run locally on your Mac without remote analytics or cloud transmission."))
+                            Text(l10n("MacAegis 所有磁盘扫描、空间清理与隐匿锁定操作均在你的 Mac 本地执行，不含任何远程分析或云端上传，零外网数据通信。", "All scans, cleaning, and concealment operations run locally on your Mac without remote analytics or cloud transmission."))
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
 
@@ -286,7 +317,7 @@ public struct SettingsView: View {
                                 Text(l10n("钥匙串与硬件安全集成", "macOS Keychain & Hardware Isolation"))
                                     .font(.system(size: 11, weight: .bold))
                             }
-                            Text(l10n("隐私隐匿主密码与数据密钥通过 macOS 原生钥匙串与 PBKDF2 10万次哈希存储，受 Apple 系统安全机制严格保护。", "Master passwords and encryption keys are stored via macOS native Keychain with 100,000 iterations PBKDF2."))
+                            Text(l10n("隐私保险箱主密码与数据密钥通过 macOS 原生钥匙串与 PBKDF2 10万次哈希存储，受 Apple 系统安全机制严格保护。", "Master passwords and encryption keys are stored via macOS native Keychain with 100,000 iterations PBKDF2."))
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                         }
@@ -295,7 +326,7 @@ public struct SettingsView: View {
                 }
                 .padding(20)
             }
-            .id("settings_scroll_\(appLanguage)")
+
 
             Divider().opacity(0.25)
 
@@ -344,7 +375,7 @@ public struct SettingsView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
-        .id("settings_root_\(appLanguage)")
+
         .onChange(of: launchAtLogin) { _, newValue in
             if #available(macOS 13.0, *) {
                 do {

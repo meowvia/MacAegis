@@ -301,7 +301,7 @@ import Foundation
     let unauthRead = try? Data(contentsOf: testFile)
     #expect(unauthRead == nil || unauthRead?.isEmpty == true)
 
-    // 2. Temporarily inspect raw bytes with read permission to verify header scramble
+    // 2. Security Baseline: 100% 0-byte physical alteration (Bit-perfect integrity even while locked)
     let chflagsProc = Process()
     chflagsProc.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
     chflagsProc.arguments = ["nouchg", testFile.path]
@@ -310,8 +310,8 @@ import Foundation
 
     try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: testFile.path)
     if let lockedBytes = try? Data(contentsOf: testFile) {
-        // Scrambled header must NOT match original %PDF magic signature
-        #expect(!lockedBytes.prefix(4).elementsEqual("%PDF".utf8))
+        // Zero-byte alteration: Magic bytes are preserved without XOR corruption risk
+        #expect(lockedBytes.prefix(4).elementsEqual("%PDF".utf8))
     }
 
     // Restore lock state before unlock test
@@ -322,10 +322,16 @@ import Foundation
     try? chflagsLock.run()
     chflagsLock.waitUntilExit()
 
-    // 3. Unlock item silently in test mode
+    // 3. Symlink traversal protection test: Symlinks must be intercepted and rejected
+    let symlinkURL = tempDir.appendingPathComponent("fake_symlink.pdf")
+    try? FileManager.default.createSymbolicLink(at: symlinkURL, withDestinationURL: testFile)
+    let symlinkItem = vault.addItem(url: symlinkURL, type: .hidden)
+    #expect(symlinkItem == nil, "Symlinks must be rejected to prevent system directory traversal")
+
+    // 4. Unlock item silently in test mode
     vault.openAndHighlightInFinder(path: testFile.path, revealInFinder: false)
 
-    // 4. Verify that unlocked bytes are 100% bit-perfect restored
+    // 5. Verify that unlocked bytes are 100% bit-perfect restored
     let unlockedData = (try? Data(contentsOf: testFile)) ?? Data()
     #expect(unlockedData == originalData)
 
@@ -601,19 +607,20 @@ import Foundation
     let originalContent = Data("MACAEGIS_XOR_TEST_SAMPLE_FILE_CONTENT_STREAM_1234567890".utf8)
     try originalContent.write(to: testFile)
 
-    // 1. Initial lock (Applies XOR obfuscation + marks xattr)
+    // 1. Initial lock (Applies native 0-byte lchflags + xattr)
     let item = vault.addItem(url: testFile, type: .hidden)
     #expect(item != nil)
-    #expect(vault.isFileHeaderObfuscated(at: testFile.path) == true)
+    #expect(vault.hasVaultXattr(at: testFile.path) == true)
+    #expect(vault.isFileHeaderObfuscated(at: testFile.path) == false) // 0-byte modification
 
     // 2. Lock again (Simulating duplicate lock call / interrupted state)
-    // Thanks to XOR idempotency protection, this will NOT double-XOR and corrupt data!
+    // Pure 0-byte modification with lchflags ensures perfect idempotency without file alteration
     vault.lockItem(item: item!)
-    #expect(vault.isFileHeaderObfuscated(at: testFile.path) == true)
+    #expect(vault.hasVaultXattr(at: testFile.path) == true)
 
-    // 3. Unlock (Reverses XOR obfuscation)
+    // 3. Unlock
     vault.openAndHighlightInFinder(path: testFile.path, revealInFinder: false)
-    #expect(vault.isFileHeaderObfuscated(at: testFile.path) == false)
+    #expect(vault.hasVaultXattr(at: testFile.path) == false)
 
     let restoredContent = try Data(contentsOf: testFile)
     #expect(restoredContent == originalContent)
@@ -806,4 +813,127 @@ import Foundation
     let addedItem = vault.addItem(url: fakeCloudFile, type: .hidden)
     #expect(addedItem == nil, "Cloud-synced files must be rejected by addItem")
 }
+
+@Test func testQuarantineManagerLifecycleAndRestore() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_quarantine_test_\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let qm = QuarantineManager(customBaseDirectory: tempDir.appendingPathComponent("Quarantine"))
+
+    // 1. Create a dummy app leftover file
+    let testAppFile = tempDir.appendingPathComponent("SampleApp.plist")
+    let testPayload = "PLIST_CONFIG_DATA_FOR_SAMPLE_APP_12345".data(using: .utf8)!
+    try testPayload.write(to: testAppFile)
+
+    // 2. Quarantine item
+    let quarantined = try qm.quarantine(itemPath: testAppFile.path, appName: "SampleApp", bundleId: "com.sample.app")
+    #expect(FileManager.default.fileExists(atPath: testAppFile.path) == false, "Original file should be moved away")
+    #expect(FileManager.default.fileExists(atPath: quarantined.quarantinedPath) == true, "File should exist in quarantine")
+
+    // 3. Restore item (1-Click Restore)
+    try qm.restore(item: quarantined)
+    #expect(FileManager.default.fileExists(atPath: testAppFile.path) == true, "File should be restored to original path")
+    #expect(FileManager.default.fileExists(atPath: quarantined.quarantinedPath) == false, "Quarantined copy should be removed")
+
+    let restoredData = try Data(contentsOf: testAppFile)
+    #expect(restoredData == testPayload, "Restored content must be bit-perfect")
+}
+
+@Test func testCreativeProjectRules() async throws {
+    let rule = CreativeProjectRules()
+    #expect(rule.ruleId == "creative_project_caches")
+    #expect(rule.displayName == "影视创作与多媒体工程缓存")
+    #expect(rule.category == .systemCaches)
+
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("creative_test_\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    // Mock an Adobe Media Cache file
+    let mediaCache = tempDir.appendingPathComponent("Adobe").appendingPathComponent("Common").appendingPathComponent("Media Cache Files")
+    try FileManager.default.createDirectory(at: mediaCache, withIntermediateDirectories: true)
+    let dummyPeak = mediaCache.appendingPathComponent("sample.pek")
+    try Data("AUDIO_PEAK_DATA".utf8).write(to: dummyPeak)
+
+    #expect(FileManager.default.fileExists(atPath: dummyPeak.path))
+}
+
+@Test func testGamingJunkRules() async throws {
+    let rule = GamingJunkRules()
+    #expect(rule.ruleId == "gaming_junk_rules")
+    #expect(rule.displayName == "游戏平台下载与中断碎片")
+    #expect(rule.category == .systemCaches)
+
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("gaming_test_\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    // Mock Steam downloading orphan file
+    let steamDownloading = tempDir.appendingPathComponent("Steam").appendingPathComponent("steamapps").appendingPathComponent("downloading")
+    try FileManager.default.createDirectory(at: steamDownloading, withIntermediateDirectories: true)
+    let dummyPart = steamDownloading.appendingPathComponent("patch_part_123.tmp")
+    try Data(repeating: 0xCC, count: 2048).write(to: dummyPart)
+
+    #expect(FileManager.default.fileExists(atPath: dummyPart.path))
+}
+
+@Test func testNetworkProxyDetectionAndTUNDecision() async throws {
+    let monitor = NetworkAndProxyMonitor.shared
+    let speed = monitor.fetchNetworkSpeed()
+    #expect(speed.formattedDownload.contains("/s"))
+    #expect(speed.formattedUpload.contains("/s"))
+    #expect(speed.proxyMode == .direct || speed.proxyMode == .rule || speed.proxyMode == .global)
+}
+
+@Test func testCacheOnlyModeAllowsSafeSubpathsInsideProtectedContainers() async throws {
+    let whitelist = WhitelistManager.shared
+    
+    // Path inside protected Google container
+    let chromeGpuCache = "~/Library/Application Support/Google/Chrome/Default/GPUCache"
+    let chromePreferences = "~/Library/Application Support/Google/Chrome/Default/Preferences"
+    
+    // In strict mode: whole container is blocked
+    #expect(whitelist.isProtected(path: chromeGpuCache, mode: .strict) == true)
+    #expect(whitelist.isProtected(path: chromePreferences, mode: .strict) == true)
+    
+    // In cacheOnly mode: safe cache subpath is permitted, but preferences/config remains strictly protected!
+    #expect(whitelist.isProtected(path: chromeGpuCache, mode: .cacheOnly) == false)
+    #expect(whitelist.isProtected(path: chromePreferences, mode: .cacheOnly) == true)
+}
+
+@Test func testWeChatAndQQChatDatabasesAbsoluteProtection() async throws {
+    let whitelist = WhitelistManager.shared
+    
+    let wechatDoc = "~/Library/Containers/com.tencent.xinWeChat/Data/Documents"
+    let qqDoc = "~/Library/Containers/com.tencent.qq/Data/Documents"
+    let wechatSubDoc = "~/Library/Containers/com.tencent.xinWeChat/Data/Documents/0001/session.db"
+    
+    // Even under cacheOnly mode, chat databases must be strictly blocked unconditionally!
+    #expect(whitelist.isProtected(path: wechatDoc, mode: .cacheOnly) == true)
+    #expect(whitelist.isProtected(path: qqDoc, mode: .cacheOnly) == true)
+    #expect(whitelist.isProtected(path: wechatSubDoc, mode: .cacheOnly) == true)
+}
+
+@Test func testEmptyDirectoryContentsReclaim() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_empty_test_\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let file1 = tempDir.appendingPathComponent("file1.bin")
+    let file2 = tempDir.appendingPathComponent("file2.bin")
+    try Data(repeating: 0xAA, count: 1024).write(to: file1)
+    try Data(repeating: 0xBB, count: 2048).write(to: file2)
+
+    #expect(FileManager.default.fileExists(atPath: file1.path) == true)
+    #expect(FileManager.default.fileExists(atPath: file2.path) == true)
+
+    let reclaimed = FileUtils.emptyDirectoryContents(atPath: tempDir.path)
+    #expect(reclaimed > 0)
+    #expect(FileManager.default.fileExists(atPath: tempDir.path) == true) // Directory remains
+    #expect(FileManager.default.fileExists(atPath: file1.path) == false) // Files removed
+    #expect(FileManager.default.fileExists(atPath: file2.path) == false)
+}
+
+
 

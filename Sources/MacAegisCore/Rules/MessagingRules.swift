@@ -33,13 +33,13 @@ public struct MessagingRules: CleanRuleProtocol {
             // 5. Signal
             ("Signal 临时媒体渲染流", "~/Library/Application Support/Signal/Cache", "Signal 客户端离线媒体流", "Signal", .safe),
 
-            // 6. 微信 (WeChat) - 定点隔离，绝不碰 .db 核心数据库
-            ("微信 聊天视频离线缓存", "~/Library/Containers/com.tencent.xinWeChat/Data/Documents", "微信接收的旧视频离线包 (已物理隔离聊天文字数据库)", "WeChat", .caution),
-            ("微信 应用运行与缩略图缓存", "~/Library/Containers/com.tencent.xinWeChat/Data/Library/Caches", "微信公众号网页、表情包缩略图与临时运行包", "WeChat", .safe),
+            // 6. 微信 (WeChat) - 仅清理纯运行与网页缓存，绝对物理排除 Documents 核心聊天数据库
+            ("微信 运行与网页临时缓存", "~/Library/Containers/com.tencent.xinWeChat/Data/Library/Caches", "微信公众号网页、表情包缩略图与临时运行包 (绝对不包含聊天记录与文件)", "WeChat", .safe),
+            ("微信 客户端系统缓存", "~/Library/Caches/com.tencent.xinWeChat", "微信 macOS 客户端临时网络会话缓存", "WeChat", .safe),
 
-            // 7. QQ
-            ("QQ 群聊图片与离线视频", "~/Library/Containers/com.tencent.qq/Data/Documents", "QQ 群接收的视频与媒体附件 (已物理隔离核心聊天记录)", "QQ", .caution),
-            ("QQ 运行与离线网页缓存", "~/Library/Containers/com.tencent.qq/Data/Library/Caches", "QQ 客户端临时预览文件", "QQ", .safe),
+            // 7. QQ - 仅清理纯临时缓存，绝对物理排除 Documents 核心数据库
+            ("QQ 运行与离线网页缓存", "~/Library/Containers/com.tencent.qq/Data/Library/Caches", "QQ 客户端临时预览文件与表情缓存 (绝对不包含核心聊天记录)", "QQ", .safe),
+            ("QQ 客户端系统缓存", "~/Library/Caches/com.tencent.qq", "QQ macOS 客户端临时网络会话缓存", "QQ", .safe),
 
             // 8. 飞书 (Feishu / Lark) & 钉钉 (DingTalk)
             ("飞书 离线文档与音视频缓存", "~/Library/Application Support/Feishu/app_cache", "飞书工作群文件离线预览与会议临时数据", "Feishu", .safe),

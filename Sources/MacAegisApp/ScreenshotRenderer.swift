@@ -6,7 +6,6 @@ import MacAegisCore
 public struct ScreenshotRenderer {
     public static func renderAll(outputDirectory: URL) {
         UserDefaults.standard.set("en", forKey: "appLanguage")
-        LocalizationManager.shared.currentLanguage = "en"
 
         try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
@@ -191,7 +190,7 @@ struct MainFrameContainer<Content: View>: View {
 
                 // Center Navigation Tabs
                 HStack(spacing: 4) {
-                    TabPillButton(title: "Smart Clean", icon: "sparkles", isSelected: activeTab == .dashboard)
+                    TabPillButton(title: "Smart Clean", icon: "bolt.shield.fill", isSelected: activeTab == .dashboard)
                     TabPillButton(title: "Uninstaller", icon: "trash", isSelected: activeTab == .uninstaller)
                     TabPillButton(title: "Privacy Conceal", icon: "lock.shield", isSelected: activeTab == .privacyVault)
                 }
@@ -796,9 +795,9 @@ struct MockDashboardCleanView: View {
                         Text("Your Mac is Running Smoothly")
                             .font(.system(size: 26, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
-                        Image(systemName: "sparkles")
+                        Image(systemName: "checkmark.shield.fill")
                             .font(.system(size: 20))
-                            .foregroundColor(Color(hex: "FBBF24"))
+                            .foregroundColor(Color(hex: "10B981"))
                     }
 
                     Text("Pure Native Architecture · Smart Deep Clean · Privacy Shield")
@@ -989,7 +988,7 @@ struct MockSettingsView: View {
                 Divider().opacity(0.2)
 
                 HStack {
-                    Text("MacAegis v0.2.0 · Check for Updates")
+                    Text("MacAegis v0.2.1 · Check for Updates")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                     Spacer()

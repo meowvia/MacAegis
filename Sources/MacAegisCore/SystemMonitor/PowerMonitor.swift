@@ -7,6 +7,13 @@ public struct PowerAndThermalInfo: Sendable {
     public let batteryPercentage: Int?
     public let isCharging: Bool?
     public let isPluggedIn: Bool?
+
+    public var powerSourceDescription: String {
+        if let plugged = isPluggedIn {
+            return plugged ? l10n("AC 电源", "AC Power") : l10n("电池供电", "Battery Power")
+        }
+        return l10n("未知", "Unknown")
+    }
 }
 
 public final class PowerMonitor: Sendable {
@@ -21,19 +28,19 @@ public final class PowerMonitor: Sendable {
         let badge: String
         switch thermal {
         case .nominal:
-            thermalStr = "清凉"
+            thermalStr = l10n("清凉", "Cool")
             badge = "🟢"
         case .fair:
-            thermalStr = "正常"
+            thermalStr = l10n("正常", "Nominal")
             badge = "🟢"
         case .serious:
-            thermalStr = "发热"
+            thermalStr = l10n("发热", "Warm")
             badge = "🟡"
         case .critical:
-            thermalStr = "高温降频"
+            thermalStr = l10n("高温降频", "Throttled Hot")
             badge = "🔴"
         @unknown default:
-            thermalStr = "正常"
+            thermalStr = l10n("正常", "Nominal")
             badge = "🟢"
         }
 

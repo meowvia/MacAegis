@@ -101,6 +101,36 @@ public struct SystemCacheRules: CleanRuleProtocol {
             }
         }
 
+        // 6. APFS Local Snapshots Detection (tmutil listlocalsnapshots /)
+        let tmProcess = Process()
+        tmProcess.executableURL = URL(fileURLWithPath: "/usr/bin/tmutil")
+        tmProcess.arguments = ["listlocalsnapshots", "/"]
+        let pipe = Pipe()
+        tmProcess.standardOutput = pipe
+        if (try? tmProcess.run()) != nil {
+            tmProcess.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8), !output.isEmpty {
+                let lines = output.components(separatedBy: .newlines)
+                let snapshots = lines.filter { $0.contains("com.apple.TimeMachine") }
+                if !snapshots.isEmpty {
+                    let estimatedSize: Int64 = Int64(snapshots.count) * 2_500_000_000
+                    let snapshotPath = FileUtils.expandPath("~/Library/Caches/com.apple.TimeMachine.Snapshots")
+                    let item = CleanItem(
+                        name: "APFS 本地快照 (\(snapshots.count) 个)",
+                        path: snapshotPath,
+                        sizeBytes: estimatedSize,
+                        category: .systemCaches,
+                        safetyLevel: .caution,
+                        itemDescription: "macOS 自动创建的 APFS 本地恢复快照，通过系统 tmutil 平滑释放，不影响外置磁盘备份。",
+                        isSelected: false
+                    )
+                    items.append(item)
+                    onFoundItem?(item)
+                }
+            }
+        }
+
         return items
     }
 

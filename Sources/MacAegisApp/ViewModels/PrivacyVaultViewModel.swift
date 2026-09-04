@@ -80,11 +80,15 @@ public final class PrivacyVaultViewModel: ObservableObject {
         self.passwordHint = vaultManager.getPasswordHint()
         self.items = vaultManager.fetchItems()
         self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
+        let existingIds = Set(items.map { $0.id })
+        self.selectedItemIds = self.selectedItemIds.intersection(existingIds)
     }
 
     public func reloadItems() {
         self.items = vaultManager.fetchItems()
         self.masterRecoveryCode = vaultManager.getMasterRecoveryCode()
+        let existingIds = Set(items.map { $0.id })
+        self.selectedItemIds = self.selectedItemIds.intersection(existingIds)
     }
 
     public func isItemFolder(_ item: VaultItem) -> Bool {
@@ -393,14 +397,14 @@ public final class PrivacyVaultViewModel: ObservableObject {
             let success = await vaultManager.authenticateWithBiometrics()
             await MainActor.run {
                 self.isAuthenticating = false
-                if success {
+                if success && self.vaultManager.isSessionActive {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
                         self.isUnlocked = true
                         self.reloadItems()
                         self.executePendingActionIfAny()
                     }
                 } else {
-                    self.showToast(l10n("指纹验证未通过，请输入金库主密码", "Touch ID failed. Enter password."))
+                    self.showToast(l10n("指纹验证未通过，请输入主密码", "Touch ID failed. Enter password."))
                 }
             }
         }
@@ -412,7 +416,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.isUnlocked = false
             self.passwordInput = ""
             self.reloadItems()
-            self.showToast(l10n("隐私隐匿已安全锁定", "Privacy Conceal is safely locked"))
+            self.showToast(l10n("隐私保险箱已安全锁定", "Privacy Vault is safely locked"))
         }
     }
 
@@ -516,6 +520,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.vaultManager.removeItem(id: item.id)
             DispatchQueue.main.async {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    self.selectedItemIds.remove(item.id)
                     self.reloadItems()
                     self.showToast(l10n("已解除「\(item.name)」保护（文件原件完好保留）", "Protection removed for '\(item.name)' (file intact)"))
                 }
@@ -648,6 +653,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func dismissUserNotice() {
+        guard userNoticeCountdown <= 0 else { return }
         UserDefaults.standard.set(true, forKey: "MacAegis_HasSeenUserNotice_v1")
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             self.isShowingUserNotice = false

@@ -1,10 +1,12 @@
 import Foundation
+import Security
 
 public struct AppUninstallBundle: Sendable {
     public let appName: String
     public let bundleId: String?
     public let appURL: URL
     public let associatedItems: [CleanItem]
+    public let hasSystemExtensions: Bool
     
     public var totalSizeBytes: Int64 {
         return associatedItems.reduce(0) { $0 + $1.sizeBytes }
@@ -13,12 +15,46 @@ public struct AppUninstallBundle: Sendable {
     public var formattedTotalSize: String {
         return ByteFormatter.format(totalSizeBytes)
     }
+
+    public init(
+        appName: String,
+        bundleId: String?,
+        appURL: URL,
+        associatedItems: [CleanItem],
+        hasSystemExtensions: Bool = false
+    ) {
+        self.appName = appName
+        self.bundleId = bundleId
+        self.appURL = appURL
+        self.associatedItems = associatedItems
+        self.hasSystemExtensions = hasSystemExtensions
+    }
 }
 
 public final class AppUninstaller: Sendable {
     public static let shared = AppUninstaller()
 
     public init() {}
+
+    /// Extract App Groups from Code Signature Entitlements
+    public func extractEntitlementsAppGroups(from appURL: URL) -> [String] {
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(appURL as CFURL, [], &staticCode) == errSecSuccess,
+              let code = staticCode else {
+            return []
+        }
+        var signingInfo: CFDictionary?
+        guard SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation), &signingInfo) == errSecSuccess,
+              let info = signingInfo as? [String: Any] else {
+            return []
+        }
+        if let entitlements = info[kSecCodeInfoEntitlementsDict as String] as? [String: Any] {
+            if let groups = entitlements["com.apple.security.application-groups"] as? [String] {
+                return groups
+            }
+        }
+        return []
+    }
 
     /// Analyze an application bundle URL and find all associated leftovers across macOS
     public func analyzeApp(at appURL: URL) -> AppUninstallBundle? {
@@ -40,13 +76,13 @@ public final class AppUninstaller: Sendable {
             sizeBytes: appSize,
             category: .orphanLeftovers,
             safetyLevel: .safe,
-            itemDescription: "应用程序的核心执行二进制文件与资源包",
-            associatedAppName: appName
+            itemDescription: "应用程序二进制主包，位于 \(appURL.path)",
+            associatedAppName: appName,
+            isSelected: true
         ))
 
-        // Extract Info.plist extra tokens
-        var searchTokens = Set<String>()
-        searchTokens.insert(appName.lowercased())
+        // 2. Identify search tokens
+        var searchTokens: Set<String> = [appName.lowercased()]
         if let infoDict = bundle?.infoDictionary {
             if let cfName = infoDict["CFBundleName"] as? String {
                 searchTokens.insert(cfName.lowercased())
@@ -65,11 +101,50 @@ public final class AppUninstaller: Sendable {
             if let last = subTokens.last {
                 searchTokens.insert(String(last))
             }
+            // Add base domain prefix (e.g. com.khanov.Blocker for com.khanov.BlockerX)
+            if subTokens.count >= 3 {
+                let baseDomain = subTokens.dropLast().joined(separator: ".")
+                searchTokens.insert(baseDomain)
+            }
+        }
+
+        // Discover embedded app extensions (.appex)
+        let pluginsDir = appURL.appendingPathComponent("Contents/PlugIns")
+        if let plugins = try? fileManager.contentsOfDirectory(at: pluginsDir, includingPropertiesForKeys: nil) {
+            for plugin in plugins where plugin.pathExtension == "appex" {
+                if let plugBundle = Bundle(url: plugin), let plugBId = plugBundle.bundleIdentifier?.lowercased() {
+                    searchTokens.insert(plugBId)
+                    if let last = plugBId.split(separator: ".").last {
+                        searchTokens.insert(String(last))
+                    }
+                }
+            }
+        }
+
+        // 3. Entitlements-driven App Groups Discovery (L1 Intelligence Layer)
+        let appGroups = extractEntitlementsAppGroups(from: appURL)
+        let groupContainersDir = FileUtils.expandPath("~/Library/Group Containers")
+        for group in appGroups {
+            let groupPath = (groupContainersDir as NSString).appendingPathComponent(group)
+            if fileManager.fileExists(atPath: groupPath) && !whitelist.isProtected(path: groupPath, mode: .strict) {
+                let size = FileUtils.calculateSize(atPath: groupPath)
+                items.append(CleanItem(
+                    name: "\(group) [App Group 共享沙盒]",
+                    path: groupPath,
+                    sizeBytes: max(size, 4096),
+                    category: .orphanLeftovers,
+                    safetyLevel: .caution,
+                    itemDescription: "基于 Apple 代码签名 Entitlements 精准定位的共享沙盒目录",
+                    associatedAppName: appName,
+                    isSelected: false
+                ))
+            }
         }
 
         // Directories to inspect for app-specific leftovers (User & System-wide)
         let candidateDirectories: [(dir: String, cat: String, safety: SafetyLevel)] = [
             ("~/Library/Application Support", "配置与核心数据", .caution),
+            ("~/Library/Application Scripts", "沙盒扩展脚本", .caution),
             ("~/Library/Caches", "运行缓存", .safe),
             ("~/Library/Containers", "沙盒隔离容器", .caution),
             ("~/Library/Group Containers", "共享数据组", .caution),
@@ -78,6 +153,7 @@ public final class AppUninstaller: Sendable {
             ("~/Library/WebKit", "内置网页缓存", .safe),
             ("~/Library/HTTPStorages", "网络缓存", .safe),
             ("~/Library/Logs", "运行日志", .safe),
+            ("~/Library/CrashReporter", "崩溃报告", .safe),
             ("~/Library/LaunchAgents", "自启守护脚本", .safe),
             ("/Library/Application Support", "系统级配置与数据", .caution),
             ("/Library/Caches", "系统级运行缓存", .safe),
@@ -145,11 +221,15 @@ public final class AppUninstaller: Sendable {
             }
         }
 
+        let sysExtDir = appURL.appendingPathComponent("Contents/Library/SystemExtensions").path
+        let hasSysExt = fileManager.fileExists(atPath: sysExtDir)
+
         return AppUninstallBundle(
             appName: appName,
             bundleId: bundleId,
             appURL: appURL,
-            associatedItems: items
+            associatedItems: items,
+            hasSystemExtensions: hasSysExt
         )
     }
 

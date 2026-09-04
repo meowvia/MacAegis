@@ -40,7 +40,11 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Notes",
         "~/Library/PersonalizationPortrait",
         "~/Library/Suggestions",
-        "~/Library/Application Support/MacAegis"
+        "~/Library/Application Support/MacAegis",
+
+        // Absolute protection of chat history databases
+        "~/Library/Containers/com.tencent.xinWeChat/Data/Documents",
+        "~/Library/Containers/com.tencent.qq/Data/Documents"
     ]
 
     /// Essential app data directories that must not be deleted as an entire bundle,
@@ -58,8 +62,7 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Application Support/Docker Desktop",
         "~/Library/Application Support/v2rayN",
         "~/Library/Application Support/Telegram Desktop",
-        "~/Library/Containers/com.tencent.xinWeChat",
-        "~/Library/Group Containers"
+        "~/Library/Containers/com.tencent.xinWeChat"
     ]
 
     /// Specific folder roots that cannot be deleted themselves
@@ -82,8 +85,11 @@ public final class WhitelistManager: @unchecked Sendable {
     private let allowedCacheSubpathKeywords: [String] = [
         "/Cache/", "/Caches/", "/GPUCache/", "/Code Cache/", "/ScriptCache/",
         "/CacheStorage/", "/tmp/", "/temp/", "/Crashpad/", "/Logs/",
-        "/HTTPStorages/", "/Service Worker/CacheStorage/", "/tdata/user_data/cache",
-        "/tdata/temp", "/Data/Library/Caches/"
+        "/HTTPStorages/", "/Service Worker/CacheStorage/",
+        "/media_cache/", "/media_cache", "/tdata/user_data/cache",
+        "/tdata/user_data/media_cache", "/tdata/temp", "/Data/Library/Caches/",
+        "/GPUCache", "/Code Cache", "/DawnCache", "/GrShaderCache", "/ShaderCache",
+        "/Cache_Data"
     ]
 
     /// Critical file extensions and names that must never be deleted anywhere

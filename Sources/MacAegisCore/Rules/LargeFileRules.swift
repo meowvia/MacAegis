@@ -55,7 +55,7 @@ public struct LargeFileRules: CleanRuleProtocol {
                     sizeBytes: size,
                     category: .largeFiles,
                     safetyLevel: .caution,
-                    itemDescription: "体积超过 500MB 的单体大文件，建议您确认是否仍需保留（默认不勾选）。",
+                    itemDescription: "体积超过 500MB 的单体大文件，建议你确认是否仍需保留（默认不勾选）。",
                     isSelected: false
                 )
                 items.append(item)

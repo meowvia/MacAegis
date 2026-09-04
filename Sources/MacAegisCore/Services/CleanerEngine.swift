@@ -123,14 +123,20 @@ public final class CleanerEngine: Sendable {
         // --- 集中式批量提权清除 (Batch Root Escalation) ---
         if !privilegeQueue.isEmpty && !dryRun {
             let paths = privilegeQueue.map { $0.path }
-            let shellArgs = paths.map { "'\($0.replacingOccurrences(of: "'", with: "'\\''"))'" }.joined(separator: " ")
-            let command = "/bin/rm -rf \(shellArgs)"
-            let safeCommand = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-            let appleScript = "do shell script \"\(safeCommand)\" with administrator privileges"
+            let scriptLines = paths.map { "/bin/rm -rf '\($0.replacingOccurrences(of: "'", with: "'\\''"))'" }
+            let shellContent = "#!/bin/bash\n" + scriptLines.joined(separator: "\n")
+            
+            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_root_clean_\(UUID().uuidString).sh")
+            try? shellContent.write(to: tempURL, atomically: true, encoding: .utf8)
+            
+            let safeTempPath = tempURL.path.replacingOccurrences(of: "'", with: "'\\''")
+            let command = "/bin/bash '\(safeTempPath)'"
+            let appleScript = "do shell script \"\(command)\" with administrator privileges"
             
             var errorInfo: NSDictionary?
             if let script = NSAppleScript(source: appleScript) {
                 let result = script.executeAndReturnError(&errorInfo)
+                try? FileManager.default.removeItem(at: tempURL)
                 if result != nil && errorInfo == nil {
                     for pItem in privilegeQueue {
                         successCount += 1

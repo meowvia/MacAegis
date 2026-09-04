@@ -29,6 +29,7 @@ public final class CleanerEngine: Sendable {
         let whitelist = WhitelistManager.shared
 
         var actuallyCleanedPaths: [String] = []
+        var privilegeQueue: [CleanItem] = []
 
         for item in items where item.isSelected {
             let isCacheCategory: Bool = {
@@ -104,10 +105,47 @@ public final class CleanerEngine: Sendable {
                     }
                 }
 
+                // 自动无痕提权兜底 (Auto-escalation for Traceless Clean)
+                // If normal deletion fails due to macOS Sandbox/TCC, we queue it for a single batch root deletion
+                let errDesc = error.localizedDescription.lowercased()
+                if errDesc.contains("permission") || errDesc.contains("not permitted") || errDesc.contains("denied") || (error as? CocoaError)?.code == .fileWriteNoPermission || (error as? CocoaError)?.code == .fileReadNoPermission {
+                    privilegeQueue.append(item)
+                    continue
+                }
+
                 failCount += 1
                 let userFriendlyReason = CleanerEngine.localizedErrorMessage(for: error, itemName: item.name, path: item.path)
                 errors.append(userFriendlyReason)
                 onProgress?(item, false, userFriendlyReason)
+            }
+        }
+
+        // --- 集中式批量提权清除 (Batch Root Escalation) ---
+        if !privilegeQueue.isEmpty && !dryRun {
+            let paths = privilegeQueue.map { $0.path }
+            let shellArgs = paths.map { "'\($0.replacingOccurrences(of: "'", with: "'\\''"))'" }.joined(separator: " ")
+            let command = "/bin/rm -rf \(shellArgs)"
+            let safeCommand = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            let appleScript = "do shell script \"\(safeCommand)\" with administrator privileges"
+            
+            var errorInfo: NSDictionary?
+            if let script = NSAppleScript(source: appleScript) {
+                let result = script.executeAndReturnError(&errorInfo)
+                if result != nil && errorInfo == nil {
+                    for pItem in privilegeQueue {
+                        successCount += 1
+                        reclaimedBytes += pItem.sizeBytes
+                        actuallyCleanedPaths.append(pItem.path)
+                        onProgress?(pItem, true, nil)
+                    }
+                } else {
+                    for pItem in privilegeQueue {
+                        failCount += 1
+                        let userFriendlyReason = l10n("【授权失败】\(pItem.name) 提权清除失败，可能是您取消了密码输入或由于 SIP 保护。", "[Auth Failed] \(pItem.name) root deletion failed. Password prompt cancelled or SIP protected.")
+                        errors.append(userFriendlyReason)
+                        onProgress?(pItem, false, userFriendlyReason)
+                    }
+                }
             }
         }
 

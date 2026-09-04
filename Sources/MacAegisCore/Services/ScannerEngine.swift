@@ -61,17 +61,7 @@ public final class ScannerEngine: Sendable {
         }
 
         // Apply strict Privacy Conceal anti-leak hard filter and eliminate 0-byte items
-                let hasFDA = FileManager.default.isReadableFile(atPath: NSHomeDirectory() + "/Library/Safari/Bookmarks.plist")
-        var safeItems = allItems.filter { item in
-            guard !privacyVault.isLockedForScanSkip(path: item.path) && item.sizeBytes > 0 else { return false }
-            
-            // If it's a Sandbox Container and we don't have FDA, we CANNOT delete it silently.
-            // Filter it out to prevent false promises and annoying error modals.
-            if item.path.contains("Library/Containers") && !hasFDA {
-                return false
-            }
-            return true
-        }
+        var safeItems = allItems.filter { !privacyVault.isLockedForScanSkip(path: $0.path) && $0.sizeBytes > 0 }
 
         // Strict 0-9, A-Z natural deterministic sorting (cannot be manually overridden)
         safeItems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

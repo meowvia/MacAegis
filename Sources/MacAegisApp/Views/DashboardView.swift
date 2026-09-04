@@ -68,8 +68,21 @@ public struct DashboardView: View {
             } else {
                 masterReferenceCockpitView
             }
-        }
 
+            if viewModel.showingCleanErrorsSheet, let report = viewModel.lastCleanReport {
+                Color.black.opacity(0.4).ignoresSafeArea()
+                    .onTapGesture { viewModel.showingCleanErrorsSheet = false }
+                
+                CleanErrorsSheetView(report: report) {
+                    viewModel.showingCleanErrorsSheet = false
+                }
+                .background(Color(NSColor.windowBackgroundColor))
+                .cornerRadius(12)
+                .shadow(radius: 20)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .zIndex(100)
+            }
+        }
         .onAppear {
             withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
                 isBreathingGlow = true

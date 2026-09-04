@@ -85,7 +85,7 @@ public struct UninstallerDropView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 320)
-                .onChange(of: viewModel.displayMode) { mode in
+                .onChange(of: viewModel.displayMode) { _, mode in
                     if mode == .orphans {
                         viewModel.scanOrphans()
                     }

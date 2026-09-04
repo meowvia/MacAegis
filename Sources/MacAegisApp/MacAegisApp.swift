@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
             if runningApps.count > 1 {
                 for app in runningApps where app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
-                    app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                    app.activate(options: [.activateAllWindows])
                 }
                 NSApp.terminate(nil)
                 return

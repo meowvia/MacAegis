@@ -900,7 +900,7 @@ public struct PrivacyVaultView: View {
                     // Floating Liquid Glass Drop Zone
                     dropZoneHero
 
-                    // Table Header Row with Master Checkbox
+                    // Compact Master Checkbox Row
                     HStack(spacing: 8) {
                         let hasItems = !viewModel.displayedItems.isEmpty
                         let isAllSelected = hasItems && viewModel.selectedItemIds.count == viewModel.displayedItems.count
@@ -918,112 +918,94 @@ public struct PrivacyVaultView: View {
                                 Image(systemName: isAllSelected ? "checkmark.square.fill" : (isPartiallySelected ? "minus.square.fill" : "square"))
                                     .foregroundColor(hasItems && (isAllSelected || isPartiallySelected) ? Color(hex: "38BDF8") : .secondary.opacity(hasItems ? 0.8 : 0.4))
                                     .font(.system(size: 13))
-                                Text(!hasItems || viewModel.selectedItemIds.isEmpty ? l10n("全选", "Select All") : l10n("已选 \(viewModel.selectedItemIds.count) 项", "Selected \(viewModel.selectedItemIds.count)"))
+                                Text(!hasItems || viewModel.selectedItemIds.isEmpty ? l10n("全选当前视图下所有项", "Select All in View") : l10n("已勾选 \(viewModel.selectedItemIds.count) 项，可批量解锁/锁定", "Selected \(viewModel.selectedItemIds.count) items for batch actions"))
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(hasItems && !viewModel.selectedItemIds.isEmpty ? Color(hex: "38BDF8") : .secondary.opacity(hasItems ? 1.0 : 0.5))
                             }
                         }
                         .buttonStyle(.plain)
                         .disabled(!hasItems)
-                        .frame(width: 140, alignment: .leading)
-
-                        Text(l10n("项目名称", "Item Name"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 150, alignment: .leading)
-
-                        Text(l10n("原始路径", "Original Path"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-
+                        
                         Spacer()
-
-                        Text(l10n("状态", "Status"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 80, alignment: .center)
-
-                        Text(l10n("操作", "Actions"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 180, alignment: .trailing)
                     }
                     .padding(.horizontal, 14)
+                    .padding(.bottom, 4)
 
                     // Vault Items List
                     if viewModel.items.isEmpty {
                         emptyVaultPlaceholder
                     } else if viewModel.filterType == .all {
-                        // Section 1: Folders
-                        if !viewModel.displayedFolderItems.isEmpty {
+                        // Side-by-Side Dual Column Layout
+                        HStack(alignment: .top, spacing: 16) {
+                            // Section 1: Folders (Left Column)
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
                                     Image(systemName: "folder.fill")
                                         .foregroundColor(Color(hex: "F59E0B"))
                                         .font(.system(size: 12))
-                                    Text(l10n("已隐匿文件夹", "Concealed Folders"))
+                                    Text(l10n("隐匿文件夹", "Folders"))
                                         .font(.system(size: 12, weight: .bold))
                                         .foregroundColor(.primary)
                                     Text("(\(viewModel.displayedFolderItems.count))")
                                         .font(.system(size: 11))
                                         .foregroundColor(.secondary)
-
                                     Spacer()
-
-                                    Button(action: {
-                                        viewModel.selectAllFolders()
-                                    }) {
-                                        Text(l10n("全选文件夹", "Select All Folders"))
-                                            .font(.system(size: 10))
-                                            .foregroundColor(Color(hex: "38BDF8"))
+                                    if !viewModel.displayedFolderItems.isEmpty {
+                                        Button(action: { viewModel.selectAllFolders() }) {
+                                            Text(l10n("全选", "Select All")).font(.system(size: 10)).foregroundColor(Color(hex: "38BDF8"))
+                                        }.buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
-                                .padding(.horizontal, 6)
-                                .padding(.top, 4)
+                                .padding(.horizontal, 6).padding(.top, 4)
 
-                                LazyVStack(spacing: 6) {
-                                    ForEach(viewModel.displayedFolderItems) { item in
-                                        vaultItemRow(item)
+                                if viewModel.displayedFolderItems.isEmpty {
+                                    Text(l10n("暂无文件夹", "No Folders")).font(.system(size: 12)).foregroundColor(.secondary).padding(.vertical, 20).frame(maxWidth: .infinity, alignment: .center)
+                                } else {
+                                    LazyVStack(spacing: 6) {
+                                        ForEach(viewModel.displayedFolderItems) { item in
+                                            vaultItemRow(item)
+                                        }
                                     }
                                 }
                             }
-                        }
+                            .frame(maxWidth: .infinity)
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.04)))
 
-                        // Section 2: Individual Files
-                        if !viewModel.displayedFileItems.isEmpty {
+                            // Section 2: Individual Files (Right Column)
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
                                     Image(systemName: "doc.fill")
                                         .foregroundColor(Color(hex: "38BDF8"))
                                         .font(.system(size: 12))
-                                    Text(l10n("已隐匿单体文件", "Concealed Files"))
+                                    Text(l10n("隐匿文件", "Files"))
                                         .font(.system(size: 12, weight: .bold))
                                         .foregroundColor(.primary)
                                     Text("(\(viewModel.displayedFileItems.count))")
                                         .font(.system(size: 11))
                                         .foregroundColor(.secondary)
-
                                     Spacer()
-
-                                    Button(action: {
-                                        viewModel.selectAllFiles()
-                                    }) {
-                                        Text(l10n("全选文件", "Select All Files"))
-                                            .font(.system(size: 10))
-                                            .foregroundColor(Color(hex: "38BDF8"))
+                                    if !viewModel.displayedFileItems.isEmpty {
+                                        Button(action: { viewModel.selectAllFiles() }) {
+                                            Text(l10n("全选", "Select All")).font(.system(size: 10)).foregroundColor(Color(hex: "38BDF8"))
+                                        }.buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
-                                .padding(.horizontal, 6)
-                                .padding(.top, 8)
+                                .padding(.horizontal, 6).padding(.top, 4)
 
-                                LazyVStack(spacing: 6) {
-                                    ForEach(viewModel.displayedFileItems) { item in
-                                        vaultItemRow(item)
+                                if viewModel.displayedFileItems.isEmpty {
+                                    Text(l10n("暂无单体文件", "No Files")).font(.system(size: 12)).foregroundColor(.secondary).padding(.vertical, 20).frame(maxWidth: .infinity, alignment: .center)
+                                } else {
+                                    LazyVStack(spacing: 6) {
+                                        ForEach(viewModel.displayedFileItems) { item in
+                                            vaultItemRow(item)
+                                        }
                                     }
                                 }
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.04)))
                         }
                     } else if viewModel.filterType == .folders {
                         LazyVStack(spacing: 6) {
@@ -1309,33 +1291,17 @@ public struct PrivacyVaultView: View {
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(.secondary)
             }
-            .frame(width: 140, alignment: .leading)
+            .frame(width: 110, alignment: .leading)
 
-            // Path
-            Text(item.path)
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+            // Path (Omitted in dual-column to save horizontal space, name is enough)
 
             Spacer()
 
             // Status Badge
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(item.status == .hidden ? Color(hex: "10B981") : Color(hex: "38BDF8"))
-                    .frame(width: 5, height: 5)
-                Text(item.status == .hidden ? l10n("已锁定", "Locked") : l10n("已解锁", "Unlocked"))
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(item.status == .hidden ? Color(hex: "10B981") : Color(hex: "38BDF8"))
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                Capsule()
-                    .fill((item.status == .hidden ? Color(hex: "10B981") : Color(hex: "38BDF8")).opacity(0.12))
-            )
-            .frame(width: 80, alignment: .center)
+            Circle()
+                .fill(item.status == .hidden ? Color(hex: "10B981") : Color(hex: "38BDF8"))
+                .frame(width: 6, height: 6)
+                .help(item.status == .hidden ? l10n("已锁定", "Locked") : l10n("已解锁", "Unlocked"))
 
             // 3 Actions: Unlock / Lock / Finder / Remove Protection
             HStack(spacing: 6) {

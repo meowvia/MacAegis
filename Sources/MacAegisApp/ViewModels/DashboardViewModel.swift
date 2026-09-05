@@ -99,7 +99,7 @@ public final class DashboardViewModel: ObservableObject {
     private func startTelemetryPolling() {
         // Offload telemetry computation completely to background utility queue (0ms main thread blocking)
         // Hard constraint: Drives polling is COMPLETELY decoupled from 1.5s timer to preserve mechanical HDD lifetime
-        telemetryTimer = Timer.publish(every: 1.5, on: .main, in: .common)
+        telemetryTimer = Timer.publish(every: 3.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }

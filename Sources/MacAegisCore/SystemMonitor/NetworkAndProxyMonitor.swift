@@ -86,7 +86,7 @@ public final class NetworkAndProxyMonitor: @unchecked Sendable {
 
     private func startPeriodicProbe() {
         // Run active dynamic probe in background every 1.0 second for instant reactivity
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.runActiveProbe()
         }
@@ -345,17 +345,8 @@ public final class NetworkAndProxyMonitor: @unchecked Sendable {
 
     /// Fast, non-blocking zero-fork process detection via NSWorkspace and Darwin sysctl
     private func isProcessActive(named processName: String) -> Bool {
-        let running = NSWorkspace.shared.runningApplications
-        for app in running {
-            if let name = app.localizedName, name.localizedCaseInsensitiveContains(processName) {
-                return true
-            }
-            if let bId = app.bundleIdentifier, bId.localizedCaseInsensitiveContains(processName) {
-                return true
-            }
-        }
-
-        // Fast Darwin kernel process table inspection in memory (< 0.05ms)
+        // NSWorkspace is extremely heavy via IPC and causes mouse stutter when polled frequently.
+        // We solely rely on the ultra-fast Darwin kernel process table inspection in memory (< 0.05ms)
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
         var size: size_t = 0
         guard sysctl(&mib, 4, nil, &size, nil, 0) == 0 else { return false }

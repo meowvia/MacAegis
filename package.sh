@@ -55,10 +55,10 @@ mkdir -p "${STAGING_DIR}"
 mv "${APP_BUNDLE}" "${STAGING_DIR}/"
 
 # 4. Add Applications symlink
-ln -s /Applications "${STAGING_DIR}/Applications"
+ln -s /Applications "${STAGING_DIR}/ ➡️ 拖动安装到此处 (Applications)"
 
-# 5. Add robust one-click installer
-cat <<'SCRIPT' > "${STAGING_DIR}/一键替换安装.command"
+# 5. Add robust one-click installer (Rename for clarity)
+cat <<'SCRIPT' > "${STAGING_DIR}/[老用户更新] 一键覆盖安装.command"
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 APP_NAME="MacAegis.app"
@@ -112,7 +112,7 @@ open "$DEST"
 # Auto-close the Terminal window that executed this command
 osascript -e 'tell application "Terminal" to close first window' & exit 0
 SCRIPT
-chmod +x "${STAGING_DIR}/一键替换安装.command"
+chmod +x "${STAGING_DIR}/[老用户更新] 一键覆盖安装.command"
 
 # 6. Create DMG
 hdiutil create -volname "${APP_NAME}" -srcfolder "${STAGING_DIR}" -ov -format UDZO "${APP_NAME}-${VERSION}.dmg"

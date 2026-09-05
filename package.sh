@@ -54,23 +54,23 @@ codesign --force --deep -s - "${APP_BUNDLE}"
 mkdir -p "${STAGING_DIR}"
 mv "${APP_BUNDLE}" "${STAGING_DIR}/"
 
-# 4. Add Applications symlink
-ln -s /Applications "${STAGING_DIR}/ ➡️ 拖动安装到此处 (Applications)"
+# 4. Add Applications symlink (Elegant Bilingual)
+ln -s /Applications "${STAGING_DIR}/➡️ Drag to Install (拖拽至此安装)"
 
-# 5. Add robust one-click installer (Rename for clarity)
-cat <<'SCRIPT' > "${STAGING_DIR}/[老用户更新] 一键覆盖安装.command"
+# 5. Add robust one-click installer (Elegant Bilingual)
+cat <<'SCRIPT' > "${STAGING_DIR}/Update Assistant (更新助手).command"
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 APP_NAME="MacAegis.app"
 DEST="/Applications/${APP_NAME}"
 
 echo "======================================"
-echo "      MacAegis 一键替换安装程序        "
-echo "  MacAegis One-Click Install Utility   "
+echo "  MacAegis One-Click Update Utility   "
+echo "      MacAegis 一键覆盖更新程序       "
 echo "======================================"
 echo ""
 
-echo "[1/4] 正在强制关闭所有运行中的旧版本... (Force killing all running instances...)"
+echo "[1/4] Force killing old processes... (正在强制关闭旧版本进程)"
 # Use killall with signal 9 to ensure no zombies are left
 # 1. First, gracefully ask it to quit to unregister any launchd/SMAppService hooks
 osascript -e 'tell application id "com.studio.macaegis" to quit' 2>/dev/null || true
@@ -87,32 +87,32 @@ osascript -e 'tell application id "com.studio.macaegis" to quit' 2>/dev/null || 
 sleep 1
 
 if [ -d "$DEST" ]; then
-    echo "[2/4] 发现旧版本，正在深度移除... (Found older version, deep removing...)"
+    echo "[2/4] Found older version, deep removing... (发现旧版本，正在深度移除)"
     # First try normal rm
     rm -rf "$DEST" 2>/dev/null || true
     
     # If it still exists (permission denied), prompt for admin privileges via AppleScript
     if [ -d "$DEST" ]; then
-        echo "--> 检测到权限限制，需要授权以彻底清除旧版本... (Permission required)"
+        echo "--> Permission required to clear old version... (需要授权以彻底清除旧版本)"
         osascript -e "do shell script \"rm -rf '$DEST'\" with administrator privileges"
     fi
 fi
 
-echo "[3/4] 正在将新版本复制到应用程序文件夹... (Copying new version to /Applications...)"
+echo "[3/4] Copying new version to /Applications... (正在复制新版本至应用程序)"
 cp -R "${DIR}/${APP_NAME}" "/Applications/"
 
-echo "[4/4] 清理隔离属性以解除苹果拦截提示... (Clearing quarantine attributes...)"
+echo "[4/4] Clearing quarantine attributes... (清理隔离属性以解除系统拦截)"
 xattr -cr "$DEST" 2>/dev/null || true
 
 echo "--------------------------------------"
-echo "✅ 安装已成功完成！ (Installation completed successfully!)"
-echo "🚀 正在拉起新版 MacAegis... (Launching MacAegis...)"
+echo "✅ Update completed successfully! (更新已成功完成)"
+echo "🚀 Launching MacAegis... (正在拉起新版 MacAegis)"
 open "$DEST"
 
 # Auto-close the Terminal window that executed this command
 osascript -e 'tell application "Terminal" to close first window' & exit 0
 SCRIPT
-chmod +x "${STAGING_DIR}/[老用户更新] 一键覆盖安装.command"
+chmod +x "${STAGING_DIR}/Update Assistant (更新助手).command"
 
 # 6. Create DMG
 hdiutil create -volname "${APP_NAME}" -srcfolder "${STAGING_DIR}" -ov -format UDZO "${APP_NAME}-${VERSION}.dmg"

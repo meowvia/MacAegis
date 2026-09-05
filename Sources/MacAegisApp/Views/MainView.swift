@@ -36,6 +36,7 @@ public struct MainView: View {
     @State private var showingSettingsModal: Bool = false
     @State private var showLanguageBubble: Bool = false
     @State private var isBreathingGlow: Bool = false
+    @State private var showOnboarding: Bool = false
 
     public init() {}
 
@@ -90,6 +91,12 @@ public struct MainView: View {
             }
 
             // Settings Inline Overlay Drawer (Zero AppKit Sheet Deadlocks, 100% Smooth)
+            // 首次启动前置权限引导 (Onboarding)
+            if showOnboarding {
+                OnboardingView(isPresented: $showOnboarding)
+                    .zIndex(1001)
+            }
+
             if showingSettingsModal {
                 ZStack {
                     Color.black.opacity(0.45)
@@ -119,6 +126,13 @@ public struct MainView: View {
         .onAppear {
             withAnimation(Animation.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) {
                 isBreathingGlow = true
+            }
+            
+            // Onboarding FDA Check
+            let tccPath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC"
+            let hasFDA = (try? FileManager.default.contentsOfDirectory(atPath: tccPath)) != nil
+            if !hasFDA {
+                showOnboarding = true
             }
             if !hasShownLanguageHint {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

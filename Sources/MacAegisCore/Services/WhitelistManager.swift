@@ -172,7 +172,7 @@ public final class WhitelistManager: @unchecked Sendable {
                 if mode == .cacheOnly {
                     // Under .cacheOnly mode, verify if this specific target path is a safe cache subpath
                     let containsCacheKeyword = allowedCacheSubpathKeywords.contains { expanded.contains($0) }
-                    if containsCacheKeyword || expanded.hasSuffix("/Cache") || expanded.hasSuffix("/Caches") || expanded.hasSuffix("/GPUCache") || expanded.hasSuffix("/Code Cache") {
+                    if containsCacheKeyword || expanded.hasSuffix("/Cache") || expanded.hasSuffix("/Caches") || expanded.hasSuffix("/GPUCache") || expanded.hasSuffix("/Code Cache") || expanded.hasSuffix("/CacheStorage") || expanded.hasSuffix("/ScriptCache") || expanded.hasSuffix("/CachedData") {
                         return false // Allow cleaning safe cache subpaths!
                     }
                 }

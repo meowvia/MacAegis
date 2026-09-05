@@ -86,17 +86,28 @@ public final class CleanerEngine: Sendable {
                     do {
                         try await FileUtils.moveToTrash(path: item.path)
                     } catch {
-                        // trashItem on sandbox containers often fails due to macOS security quirks even with FDA.
-                        // We immediately fallback to raw FileManager deletion if trash fails.
-                        try FileManager.default.removeItem(atPath: item.path)
+                        failCount += 1
+                        let errStr = l10n("【废纸篓受阻】\(item.name) 未能移入废纸篓，已按设置安全中止(未做永久删除)。", "[Trash Blocked] \(item.name) could not be moved to Trash. Aborted safely.")
+                        errors.append(errStr)
+                        onProgress?(item, false, errStr)
+                        continue
                     }
                 } else {
                     try FileManager.default.removeItem(atPath: item.path)
                 }
-                successCount += 1
-                reclaimedBytes += item.sizeBytes
-                actuallyCleanedPaths.append(item.path)
-                onProgress?(item, true, nil)
+                
+                let isSnapshotPath = item.path.hasSuffix("com.apple.TimeMachine.Snapshots")
+                if isSnapshotPath || !FileManager.default.fileExists(atPath: item.path) {
+                    successCount += 1
+                    reclaimedBytes += item.sizeBytes
+                    actuallyCleanedPaths.append(item.path)
+                    onProgress?(item, true, nil)
+                } else {
+                    failCount += 1
+                    let errStr = l10n("【未生效】\(item.name) 清理后仍存在于原位", "[Ineffective] \(item.name) still exists")
+                    errors.append(errStr)
+                    onProgress?(item, false, errStr)
+                }
             } catch {
                 // Fallback: If deleting the entire cache folder failed (e.g. running browser holding an open socket/lock),
                 if isCacheCategory {

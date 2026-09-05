@@ -189,7 +189,7 @@ public final class DashboardViewModel: ObservableObject {
     }
 
     public func selectAll() {
-        guard let result = scanResult else { return }
+        guard let result = scanResult, !isCleaning else { return }
         selectedItemIds = Set(result.items.map { $0.id })
     }
 
@@ -286,7 +286,7 @@ public final class DashboardViewModel: ObservableObject {
     }
 
     public func executeClean() {
-        guard let result = scanResult else { return }
+        guard let result = scanResult, !isCleaning else { return }
         isCleaning = true
         let useTrash = UserDefaults.standard.object(forKey: "cleanToTrash") as? Bool ?? true
 

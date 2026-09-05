@@ -63,6 +63,9 @@ public final class TrashWatcherService: @unchecked Sendable {
             let appName = (file as NSString).deletingPathExtension
             if !notifiedApps.contains(appName) {
                 notifiedApps.insert(appName)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+                    self.notifiedApps.remove(appName)
+                }
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(
                         name: NSNotification.Name("MacAegisAppMovedToTrash"),

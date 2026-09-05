@@ -130,6 +130,31 @@ public struct SystemCacheRules: CleanRuleProtocol {
                 }
             }
         }
+        // Parse system log archives
+        let sysLogDir = "/private/var/log"
+        if fileManager.fileExists(atPath: sysLogDir) {
+            if let files = try? fileManager.contentsOfDirectory(atPath: sysLogDir) {
+                for f in files {
+                    let p = (sysLogDir as NSString).appendingPathComponent(f)
+                    if whitelist.isProtected(path: p) { continue }
+                    var isDir: ObjCBool = false
+                    if fileManager.fileExists(atPath: p, isDirectory: &isDir), !isDir.boolValue {
+                        let size = FileUtils.calculateSize(atPath: p)
+                        if size > 1_000_000 {
+                            let item = CleanItem(
+                                name: "系统日志归档: \(f)",
+                                path: p, sizeBytes: size,
+                                category: .systemLogs, safetyLevel: .safe,
+                                itemDescription: "newsyslog 轮替归档的系统日志",
+                                isSelected: true)
+                            items.append(item)
+                            onFoundItem?(item)
+                        }
+                    }
+                }
+            }
+        }
+
 
         return items
     }

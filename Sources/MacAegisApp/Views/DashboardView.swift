@@ -108,7 +108,7 @@ public struct DashboardView: View {
     }
 
     private var dynamicSystemHealth: (title: String, icon: String, iconColor: Color, pillText: String, pillColor: Color) {
-        if viewModel.isScanning {
+        if viewModel.isScanning || viewModel.isCleaning {
             return (
                 title: l10n("正在智能全盘深度分析...", "Scanning Full Disk..."),
                 icon: "waveform.path.ecg",
@@ -169,7 +169,7 @@ public struct DashboardView: View {
     }
 
     private func cardSizeString(for size: Int64) -> String {
-        if viewModel.isScanning {
+        if viewModel.isScanning || viewModel.isCleaning {
             return l10n("分析中...", "Analyzing...")
         }
         if viewModel.scanResult == nil {
@@ -457,7 +457,7 @@ public struct DashboardView: View {
     // MARK: - Grand 3D Luminous Aqua Glass Sphere Bubble (三态自洽一体化核心球)
     private var luminousAquaGlassSphereHero: some View {
         Button(action: {
-            if viewModel.isScanning {
+            if viewModel.isScanning || viewModel.isCleaning {
                 return
             }
             if viewModel.scanResult != nil && !viewModel.selectedItemIds.isEmpty {
@@ -566,7 +566,7 @@ public struct DashboardView: View {
 
                 // Layer 6: Center Big Numbers & Typography Inside the Sphere (自洽三态一体化)
                 VStack(spacing: 5) {
-                    if viewModel.isScanning {
+                    if viewModel.isScanning || viewModel.isCleaning {
                         ProgressView()
                             .scaleEffect(1.25)
                             .padding(.bottom, 6)
@@ -887,7 +887,7 @@ public struct DashboardView: View {
             // Category Cards List
             ScrollView {
                 VStack(spacing: 12) {
-                    if viewModel.isScanning {
+                    if viewModel.isScanning || viewModel.isCleaning {
                         VStack(spacing: 14) {
                             ProgressView()
                                 .scaleEffect(1.2)

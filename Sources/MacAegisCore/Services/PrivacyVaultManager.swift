@@ -264,8 +264,13 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        if let lockout = lockoutUntil, Date() < lockout {
-            return false
+        if let lockout = lockoutUntil {
+            if Date() < lockout {
+                return false
+            } else {
+                failedAttempts = 0
+                lockoutUntil = nil
+            }
         }
 
         var authData = try? Data(contentsOf: authConfigURL)

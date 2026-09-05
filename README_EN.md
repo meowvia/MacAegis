@@ -37,79 +37,72 @@ When working on a Mac, you often have private documents or confidential folders 
 
 ---
 
-## 📸 Feature Walkthrough & Preview
+## 📸 Feature Showcase
 
-### 1. Privacy Conceal & Anti-Inspection
-
-Conceal and lock sensitive folders and standalone files. Set up your master password on first launch, paired with a local disaster recovery key.
-
-#### 1. Password Setup Initialization
+### 1. Dashboard
+Visually displays overall system health, providing a one-click smart clean entry and deep scan feedback with external disk capacity recognition.
 <p align="center">
-  <img src="assets/screenshots/01_vault_setup_password.png" width="800" alt="Master Password Setup" />
+  <img src="assets/screenshots_v2/01_dashboard.png" width="800" alt="Dashboard" />
 </p>
 
-#### 2. Built-in User Notice & Safety Guide
-Displays user onboarding instructions upon first entry, highlighting recovery key management and external download tool co-existence.
+### 2. Vault Unlock Mechanism
+Enforces native macOS Touch ID and system password verification, strongly blocking unauthorized access requests.
 <p align="center">
-  <img src="assets/screenshots/02_vault_user_notice_countdown.png" width="800" alt="User Notice Countdown" />
-</p>
-<p align="center">
-  <img src="assets/screenshots/03_vault_user_notice_full.png" width="800" alt="User Notice Confirmed" />
+  <img src="assets/screenshots_v2/02_vault_unlock.png" width="800" alt="Vault Unlock Mechanism" />
 </p>
 
-#### 3. Concealed Vault List & Category Filtering
-Organizes protected items with category filters (All / Folders / Files), featuring instant Toast confirmations on drag-and-drop addition.
+### 3. Privacy Vault Engine
+Utilizes low-level file path redirection and permission stripping. Supports drag-and-drop rapid import of core data, taking up zero additional storage space.
 <p align="center">
-  <img src="assets/screenshots/04_vault_concealed_list.png" width="800" alt="Concealed Vault List" />
+  <img src="assets/screenshots_v2/03_vault_empty.png" width="800" alt="Privacy Vault Engine" />
 </p>
 
-#### 4. Multi-Select Batch Operations with Safety Confirmation
-Select multiple items to batch lock, unlock, or remove protection with secondary confirmation dialogues.
+### 4. Concealed Assets Management
+Structurally organizes protected files and folders, providing real-time feedback on the lock status of target paths.
 <p align="center">
-  <img src="assets/screenshots/05_vault_batch_operations.png" width="800" alt="Batch Operations" />
+  <img src="assets/screenshots_v2/04_vault_list.png" width="800" alt="Concealed Assets Management" />
 </p>
 
----
-
-### 2. Smart Cleaning Cockpit
-
-Dynamically evaluates system health based on existing disk clutter, supporting 1-click quick cleaning, full deep scanning, and external drive detection.
-
+### 5. Batch Operations
+Supports multi-select and global select-all. Complete unlocking or relocking of massive amounts of files in milliseconds with a single click.
 <p align="center">
-  <img src="assets/screenshots/06_dashboard_clean.png" width="800" alt="Smart Cleaning Cockpit" />
+  <img src="assets/screenshots_v2/05_vault_batch.png" width="800" alt="Batch Operations" />
 </p>
 
----
-
-### 3. Preferences & Security Commitments
-
-Customize system appearance (Light / Dark mode), switch between English and Chinese seamlessly, select temperature units, configure Trash monitoring, and manage Full Disk Access (FDA).
-
+### 6. User Notice & Disaster Recovery
+Built-in idiot-proof design and recovery code mechanism to ensure users can safely retrieve data even if permissions are accidentally lost or passwords forgotten.
 <p align="center">
-  <img src="assets/screenshots/07_settings_general.png" width="800" alt="General Preferences" />
+  <img src="assets/screenshots_v2/06_vault_notice_1.png" width="800" alt="User Notice 1" />
 </p>
 <p align="center">
-  <img src="assets/screenshots/08_settings_security.png" width="800" alt="Security & Permissions" />
+  <img src="assets/screenshots_v2/07_vault_notice_2.png" width="800" alt="User Notice 2" />
 </p>
 
----
-
-### 4. App Uninstaller with Progressive Disclosure
-
-Drag or select apps to inspect underlying binaries, sandbox containers, Application Support, caches, and preference files, with 1-click Finder reveal (`🔍 Reveal`).
-
+### 7. Deep Uninstaller
+Penetrates system sandboxes to precisely locate and enumerate installed applications and their physical storage footprints.
 <p align="center">
-  <img src="assets/screenshots/09_uninstaller_progressive.png" width="800" alt="App Uninstaller Progressive Disclosure" />
+  <img src="assets/screenshots_v2/08_uninstaller_list.png" width="800" alt="Deep Uninstaller" />
 </p>
 
----
-
-### 5. Real-Time Menu Bar Telemetry
-
-Persistent menu bar card displaying real-time upload/download network speed, SoC core temperature, fan speed, unified memory pressure, and multi-volume disk storage.
-
+### 8. Orphan Leftover Crushing
+Automatically tracks low-level residual files of uninstalled programs (including group containers and preferences). Supports blind-spot-free cleaning via root escalation.
 <p align="center">
-  <img src="assets/screenshots/10_menubar_telemetry.png" width="360" alt="Menu Bar Telemetry" />
+  <img src="assets/screenshots_v2/09_uninstaller_leftovers.png" width="800" alt="Orphan Leftover Crushing" />
+</p>
+
+### 9. Preferences
+Automatically adapts to system-level light/dark modes. Offers seamless hot-reloading for English/Chinese bilingual support and customizable hardware telemetry settings.
+<p align="center">
+  <img src="assets/screenshots_v2/10_settings_light.png" width="800" alt="Light and Dark Mode" />
+</p>
+<p align="center">
+  <img src="assets/screenshots_v2/11_settings_en.png" width="800" alt="Bilingual Support" />
+</p>
+
+### 10. Menubar Telemetry
+Utilizes low-latency kernel polling technology to display real-time network throughput, SoC core temperature, fan speed, and polymorphic memory usage.
+<p align="center">
+  <img src="assets/screenshots_v2/12_menubar.png" width="360" alt="Menubar Telemetry" />
 </p>
 
 ---

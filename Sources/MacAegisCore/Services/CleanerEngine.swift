@@ -83,9 +83,15 @@ public final class CleanerEngine: Sendable {
 
             do {
                 if useTrash {
-                    try await FileUtils.moveToTrash(path: item.path)
+                    do {
+                        try await FileUtils.moveToTrash(path: item.path)
+                    } catch {
+                        // trashItem on sandbox containers often fails due to macOS security quirks even with FDA.
+                        // We immediately fallback to raw FileManager deletion if trash fails.
+                        try FileManager.default.removeItem(atPath: item.path)
+                    }
                 } else {
-                    try await FileUtils.removePermanently(path: item.path)
+                    try FileManager.default.removeItem(atPath: item.path)
                 }
                 successCount += 1
                 reclaimedBytes += item.sizeBytes
@@ -93,7 +99,6 @@ public final class CleanerEngine: Sendable {
                 onProgress?(item, true, nil)
             } catch {
                 // Fallback: If deleting the entire cache folder failed (e.g. running browser holding an open socket/lock),
-                // attempt to clean unheld internal cache items so space is still reclaimed!
                 if isCacheCategory {
                     let internalReclaimed = FileUtils.emptyDirectoryContents(atPath: item.path)
                     if internalReclaimed > 0 {
@@ -105,22 +110,24 @@ public final class CleanerEngine: Sendable {
                     }
                 }
 
-                // 自动无痕提权兜底 (Auto-escalation for Traceless Clean)
                 let errDesc = error.localizedDescription.lowercased()
                 if errDesc.contains("permission") || errDesc.contains("not permitted") || errDesc.contains("denied") || (error as? CocoaError)?.code == .fileWriteNoPermission || (error as? CocoaError)?.code == .fileReadNoPermission {
                     
-                    // UX Interaction Fix: Never prompt for Root Password if we mathematically know TCC will block it anyway.
-                    // ~/Library/Containers strictly requires Full Disk Access. Root (sudo rm) cannot bypass TCC.
-                    let hasFDA = FileManager.default.isReadableFile(atPath: NSHomeDirectory() + "/Library/Safari/Bookmarks.plist")
+                    // Robust FDA Check: reading TCC directory.
+                    let tccPath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC"
+                    let hasFDA = (try? FileManager.default.contentsOfDirectory(atPath: tccPath)) != nil
+                    
                     if item.path.contains("Library/Containers") && !hasFDA {
                         failCount += 1
-                        let userFriendlyReason = l10n("【缺失 FDA 权限】\(item.name) 是沙盒容器。macOS TCC 保护机制禁止在未开启“完全磁盘访问权限”时清理，即使输入密码也无效。请前往“系统设置 > 隐私与安全性”授权。", 
-                        "[FDA Missing] \(item.name) is a sandbox container. macOS TCC blocks deletion without Full Disk Access. Root password cannot bypass this. Grant FDA in System Settings.")
+                        let userFriendlyReason = l10n("【缺失 FDA 权限】\(item.name) 是受限容器。当前 App 未获得完全磁盘访问权限，系统级提权也会被底层 TCC 拦截，无法清理。请在“系统设置”中授权。", 
+                        "[FDA Missing] \(item.name) is restricted. MacAegis lacks FDA, so even root AppleScript is blocked by macOS TCC.")
                         errors.append(userFriendlyReason)
                         onProgress?(item, false, userFriendlyReason)
                         continue
                     }
                     
+                    // If we reach here, either we have FDA but it still failed (maybe root-owned system file),
+                    // or it's not a container file. Safe to throw to root AppleScript.
                     privilegeQueue.append(item)
                     continue
                 }

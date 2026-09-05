@@ -106,9 +106,21 @@ public final class CleanerEngine: Sendable {
                 }
 
                 // 自动无痕提权兜底 (Auto-escalation for Traceless Clean)
-                // If normal deletion fails due to macOS Sandbox/TCC, we queue it for a single batch root deletion
                 let errDesc = error.localizedDescription.lowercased()
                 if errDesc.contains("permission") || errDesc.contains("not permitted") || errDesc.contains("denied") || (error as? CocoaError)?.code == .fileWriteNoPermission || (error as? CocoaError)?.code == .fileReadNoPermission {
+                    
+                    // UX Interaction Fix: Never prompt for Root Password if we mathematically know TCC will block it anyway.
+                    // ~/Library/Containers strictly requires Full Disk Access. Root (sudo rm) cannot bypass TCC.
+                    let hasFDA = FileManager.default.isReadableFile(atPath: NSHomeDirectory() + "/Library/Safari/Bookmarks.plist")
+                    if item.path.contains("Library/Containers") && !hasFDA {
+                        failCount += 1
+                        let userFriendlyReason = l10n("【缺失 FDA 权限】\(item.name) 是沙盒容器。macOS TCC 保护机制禁止在未开启“完全磁盘访问权限”时清理，即使输入密码也无效。请前往“系统设置 > 隐私与安全性”授权。", 
+                        "[FDA Missing] \(item.name) is a sandbox container. macOS TCC blocks deletion without Full Disk Access. Root password cannot bypass this. Grant FDA in System Settings.")
+                        errors.append(userFriendlyReason)
+                        onProgress?(item, false, userFriendlyReason)
+                        continue
+                    }
+                    
                     privilegeQueue.append(item)
                     continue
                 }
@@ -146,8 +158,17 @@ public final class CleanerEngine: Sendable {
                             onProgress?(pItem, true, nil)
                         } else {
                             failCount += 1
-                            let errDesc = (errorInfo?[NSAppleScript.errorMessage] as? String) ?? "SIP Protected"
-                            let userFriendlyReason = l10n("【核心保护】\(pItem.name) 提权删除失败: \(errDesc)", "[SIP/Root Failed] \(pItem.name) could not be removed: \(errDesc)")
+                            let errDesc = (errorInfo?[NSAppleScript.errorMessage] as? String) ?? ""
+                            let userFriendlyReason: String
+                            
+                            if errDesc.contains("Operation not permitted") {
+                                userFriendlyReason = l10n("【需完全磁盘访问权限】macOS 底层沙盒 (TCC) 拦截了删除请求。即使输入密码提权，也必须在“系统设置 > 隐私与安全性 > 完全磁盘访问权限”中勾选 MacAegis 才能清理此容器。", 
+                                "[FDA Required] macOS TCC blocked deletion. Even with root password, you must grant Full Disk Access in System Settings to clean this container.")
+                            } else if errDesc.contains("User canceled") || errDesc.contains("canceled") {
+                                userFriendlyReason = l10n("【已取消】您取消了密码授权，跳过提权清理。", "[Cancelled] You cancelled the password prompt.")
+                            } else {
+                                userFriendlyReason = l10n("【系统级锁定】\(pItem.name) 提权失败，受 macOS SIP 严格保护。\(errDesc)", "[SIP/Root Failed] \(pItem.name) could not be removed. \(errDesc)")
+                            }
                             errors.append(userFriendlyReason)
                             onProgress?(pItem, false, userFriendlyReason)
                         }

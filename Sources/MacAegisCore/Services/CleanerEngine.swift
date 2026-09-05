@@ -119,8 +119,8 @@ public final class CleanerEngine: Sendable {
                     
                     if item.path.contains("Library/Containers") && !hasFDA {
                         failCount += 1
-                        let userFriendlyReason = l10n("【缺失 FDA 权限】\(item.name) 是受限容器。当前 App 未获得完全磁盘访问权限，系统级提权也会被底层 TCC 拦截，无法清理。请在“系统设置”中授权。", 
-                        "[FDA Missing] \(item.name) is restricted. MacAegis lacks FDA, so even root AppleScript is blocked by macOS TCC.")
+                        let userFriendlyReason = l10n("【缺失 FDA 权限】清理 \(item.name) 被系统拦截。请前往“系统设置 > 隐私与安全性 > 完全磁盘访问权限”授权。\n⚠️ 开源版更新提示：若开关已开启但仍报错，是因为应用更新导致签名重置。请选中 MacAegis 点击“-”移除，再点击“+”重新添加。", 
+                        "[FDA Missing] TCC blocked \(item.name). Grant Full Disk Access in System Settings.\n⚠️ Open-Source Update Note: If the switch is already on, macOS reset the signature due to an app update. Please click '-' to remove MacAegis, then '+' to re-add it.")
                         errors.append(userFriendlyReason)
                         onProgress?(item, false, userFriendlyReason)
                         continue

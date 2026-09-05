@@ -5,7 +5,7 @@ swift build -c release
 
 echo "Building DMG..."
 APP_NAME="MacAegis"
-VERSION="v0.2.1-beta"
+VERSION="v0.2.1"
 BUILD_DIR=".build/release"
 APP_BUNDLE="${APP_NAME}.app"
 STAGING_DIR="dmg_staging"
@@ -121,3 +121,11 @@ cp "${APP_NAME}-${VERSION}.dmg" ~/Desktop/
 # Cleanup
 rm -rf "${STAGING_DIR}"
 echo "Done! Saved to Desktop."
+
+# Zip it for GitHub releases
+cd ~/Desktop
+hdiutil attach MacAegis-v0.2.1.dmg -mountpoint /Volumes/MacAegis_Build
+cd /Volumes/MacAegis_Build
+zip -r ~/Desktop/MacAegis-v0.2.1.zip MacAegis.app
+cd ~/Desktop
+hdiutil detach /Volumes/MacAegis_Build

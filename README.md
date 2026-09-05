@@ -37,79 +37,72 @@
 
 ---
 
-## 📸 功能概览与界面预览
+## 📸 功能概览与界面预览 (Feature Showcase)
 
-### 一、 隐私隐匿与防翻看
-
-支持文件夹与文件的快速隐匿与锁定。首次使用时设置独立主密码，并提供本地专属灾难恢复凭证。
-
-#### 1. 初始化设置主密码
+### 1. 核心主控台 (Dashboard)
+直观展示系统整体健康度，提供一键智能清理入口与深度扫描反馈，支持外接磁盘容量识别。
 <p align="center">
-  <img src="assets/screenshots/01_vault_setup_password.png" width="800" alt="设置主密码" />
+  <img src="assets/screenshots_v2/01_dashboard.png" width="800" alt="核心主控台" />
 </p>
 
-#### 2. 内置用户须知与使用指引
-首次进入主动展示使用须知，包含恢复码保管与外部下载协同说明。
+### 2. 隐私解锁机制 (Vault Unlock)
+强制接入 macOS 原生 Touch ID 与系统密码验证，强力阻断未经授权的访问请求。
 <p align="center">
-  <img src="assets/screenshots/02_vault_user_notice_countdown.png" width="800" alt="用户须知倒计时" />
-</p>
-<p align="center">
-  <img src="assets/screenshots/03_vault_user_notice_full.png" width="800" alt="用户须知确认" />
+  <img src="assets/screenshots_v2/02_vault_unlock.png" width="800" alt="隐私解锁机制" />
 </p>
 
-#### 3. 隐匿列表与分类管理
-清晰展示已隐匿的文件夹与单体文件，支持按分类独立筛选，拖拽加入即刻弹出统计反馈。
+### 3. 隐私隐匿引擎 (Vault Engine)
+采用底层文件路径重定向与权限抽离技术，支持拖拽快速导入核心数据，隐匿过程不占用额外存储空间。
 <p align="center">
-  <img src="assets/screenshots/04_vault_concealed_list.png" width="800" alt="隐匿列表" />
+  <img src="assets/screenshots_v2/03_vault_empty.png" width="800" alt="隐私隐匿引擎" />
 </p>
 
-#### 4. 批量多选与解除保护二次确认
-支持全局全选与多选，一键批量执行锁定、解锁或移出保护，配备二次确认防误触。
+### 4. 隐匿资产管理 (Concealed Assets)
+对已保护的文件及文件夹进行结构化排布，实时反馈目标路径的锁定状态。
 <p align="center">
-  <img src="assets/screenshots/05_vault_batch_operations.png" width="800" alt="批量管理" />
+  <img src="assets/screenshots_v2/04_vault_list.png" width="800" alt="隐匿资产管理" />
 </p>
 
----
-
-### 二、 智能清理控制台
-
-根据系统当前的冗余状态进行智能健康评估，支持一键快速清理与全盘深度扫描，支持外接移动硬盘识别。
-
+### 5. 批量状态控制 (Batch Operations)
+支持多选与全局全选，一键完成海量文件的解除保护或重新锁定，操作耗时均在毫秒级。
 <p align="center">
-  <img src="assets/screenshots/06_dashboard_clean.png" width="800" alt="智能清理主控台" />
+  <img src="assets/screenshots_v2/05_vault_batch.png" width="800" alt="批量状态控制" />
 </p>
 
----
-
-### 三、 偏好设置与权限管理
-
-支持跟随系统外观（浅色/深色）、中英双语即时切换、温度单位选择、废纸篓监听配置以及完全磁盘访问权限（FDA）引导。
-
+### 6. 灾备与安全须知 (User Notice & Recovery)
+内置防呆设计与恢复码机制，确保用户在意外丢失权限或忘记密码时依然能够安全取回数据。
 <p align="center">
-  <img src="assets/screenshots/07_settings_general.png" width="800" alt="通用偏好设置" />
+  <img src="assets/screenshots_v2/06_vault_notice_1.png" width="800" alt="安全须知1" />
 </p>
 <p align="center">
-  <img src="assets/screenshots/08_settings_security.png" width="800" alt="安全与权限设置" />
+  <img src="assets/screenshots_v2/07_vault_notice_2.png" width="800" alt="安全须知2" />
 </p>
 
----
-
-### 四、 应用深度卸载与残留定位
-
-拖拽或选择 App 进行深度卸载分析，手风琴式平滑展开主程序包、沙盒容器、应用支持、缓存与偏好设置等详细文件，支持一键在访达中定位子项。
-
+### 7. 深度应用卸载 (Deep Uninstaller)
+穿透系统沙盒，精准定位并枚举系统中已安装的应用及其物理占用体积。
 <p align="center">
-  <img src="assets/screenshots/09_uninstaller_progressive.png" width="800" alt="应用卸载明细" />
+  <img src="assets/screenshots_v2/08_uninstaller_list.png" width="800" alt="深度应用卸载" />
 </p>
 
----
-
-### 五、 状态栏实时监控
-
-常驻菜单栏悬浮卡片，实时呈现上下行网速、SoC 芯片温度、风扇转速、统一内存占用及多磁盘空间状态。
-
+### 8. 孤立残留粉碎 (Leftover Crushing)
+自动追踪已卸载程序的底层残留文件（含群组容器与偏好设置），支持通过特权提升执行无死角清理。
 <p align="center">
-  <img src="assets/screenshots/10_menubar_telemetry.png" width="360" alt="状态栏硬件监控" />
+  <img src="assets/screenshots_v2/09_uninstaller_leftovers.png" width="800" alt="孤立残留粉碎" />
+</p>
+
+### 9. 偏好设置 (Preferences)
+支持跟随系统级别的深浅色模式自动切换，提供中英双语无缝热重载及自定义硬件监测偏好。
+<p align="center">
+  <img src="assets/screenshots_v2/10_settings_light.png" width="800" alt="深浅色模式支持" />
+</p>
+<p align="center">
+  <img src="assets/screenshots_v2/11_settings_en.png" width="800" alt="中英双语支持" />
+</p>
+
+### 10. 状态栏硬件监控 (Menubar Telemetry)
+采用低耗内核级轮询技术，实时呈现网络吞吐率、芯片核心温度、风扇转速及多态内存占用。
+<p align="center">
+  <img src="assets/screenshots_v2/12_menubar.png" width="360" alt="状态栏硬件监控" />
 </p>
 
 ---
@@ -122,10 +115,11 @@
 brew install meowvia/tap/macaegis
 ```
 
-#### 选项 B：手动下载 Zip 压缩包安装
-1. 在 [Releases 发布页面](https://github.com/meowvia/MacAegis/releases) 下载最新的 `MacAegis-vX.Y.Z.zip` 压缩包；
-2. 双击解压后，将 **MacAegis.app** 拖入系统的 **Applications**（应用程序）文件夹中；
-3. 在启动台或访达「应用程序」中直接打开 MacAegis 即可开始使用。
+#### 选项 B：手动下载安装（含一键覆盖更新机制）
+1. 在 [Releases 发布页面](https://github.com/meowvia/MacAegis/releases) 下载最新的 `MacAegis-vX.Y.Z.zip` 或 `.dmg` 格式安装包；
+2. **全新安装**：双击解压后，将 **MacAegis.app** 拖入系统的 **Applications**（应用程序）文件夹中；
+3. **旧版无缝更新**：如果你下载的是 `.dmg` 安装镜像，可直接双击运行内置的 `Update Assistant (更新助手).command`，程序将自动终止并清理旧版残留进程，安全完成深度替换；
+4. 在启动台或访达「应用程序」中直接打开 MacAegis 即可开始使用。
 
 ---
 

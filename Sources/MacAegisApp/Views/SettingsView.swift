@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin: Bool = false
     @AppStorage("tempUnitCelsius") private var tempUnitCelsius: Bool = true
     @AppStorage("menuBarMonitor") private var menuBarMonitor: Bool = true
+    @AppStorage("autoCheckUpdate") private var autoCheckUpdate: Bool = true
     @AppStorage("trashWatcher") private var trashWatcher: Bool = true
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("keepInMemoryOnClose") private var keepInMemoryOnClose: Bool = true
@@ -332,34 +333,53 @@ public struct SettingsView: View {
 
             // Bottom Bar
             HStack {
-                HStack(spacing: 8) {
-                    Text("\(AppConfig.appName) v\(AppConfig.appVersion)")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.primary)
-                    Text("·")
-                        .foregroundColor(.secondary.opacity(0.5))
-                    Button(action: {
-                        Task {
-                            if let update = await UpdateChecker.shared.checkForUpdates(), update.hasUpdate {
-                                if let urlStr = update.downloadURL, let url = URL(string: urlStr) {
-                                    NSWorkspace.shared.open(url)
-                                }
-                            } else {
-                                DispatchQueue.main.async {
-                                    let alert = NSAlert()
-                                    alert.messageText = l10n("当前已是最新版本", "You're up to date")
-                                    alert.informativeText = l10n("MacAegis v\(AppConfig.appVersion) 已是最新稳定版。", "MacAegis v\(AppConfig.appVersion) is the latest release.")
-                                    alert.addButton(withTitle: l10n("好", "OK"))
-                                    alert.runModal()
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text("\(AppConfig.appName) v\(AppConfig.appVersion)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Text("·")
+                            .foregroundColor(.secondary.opacity(0.5))
+                        Button(action: {
+                            Task {
+                                if let update = await UpdateChecker.shared.checkForUpdates(), update.hasUpdate {
+                                    if let urlStr = update.downloadURL, let url = URL(string: urlStr) {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                } else {
+                                    DispatchQueue.main.async {
+                                        let alert = NSAlert()
+                                        alert.messageText = l10n("当前已是最新版本", "You're up to date")
+                                        alert.informativeText = l10n("MacAegis v\(AppConfig.appVersion) 已是最新稳定版。", "MacAegis v\(AppConfig.appVersion) is the latest release.")
+                                        alert.addButton(withTitle: l10n("好", "OK"))
+                                        alert.runModal()
+                                    }
                                 }
                             }
+                        }) {
+                            Text(l10n("检查更新", "Check for Updates"))
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "38BDF8"))
                         }
-                    }) {
-                        Text(l10n("检查更新", "Check for Updates"))
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "38BDF8"))
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    HStack(spacing: 8) {
+                        Text("Built with SwiftUI & IOKit · 100% Local")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(.secondary.opacity(0.6))
+                        Button(action: {
+                            let alert = NSAlert()
+                            alert.messageText = "Open Source Acknowledgements"
+                            alert.informativeText = "MacAegis is built with Apple's native frameworks and respects open-source contributions.\n\nLicenses: MIT / Apache 2.0"
+                            alert.addButton(withTitle: l10n("关闭", "Close"))
+                            alert.runModal()
+                        }) {
+                            Text(l10n("开源许可", "Licenses"))
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 Spacer()
                 Button(l10n("完成", "Done")) {

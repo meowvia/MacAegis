@@ -86,7 +86,6 @@ public struct DashboardView: View {
                         .shadow(radius: 20)
                         .padding(40)
                     }
-                    .transition(.opacity)
                 }
             }
         )
@@ -253,7 +252,6 @@ public struct DashboardView: View {
                             )
                     )
                     .padding(.top, 8)
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 } else if let toast = viewModel.actionToastMessage {
                     HStack(spacing: 6) {
                         Image(systemName: "info.circle.fill")
@@ -267,7 +265,6 @@ public struct DashboardView: View {
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Color.secondary.opacity(0.10)))
                     .padding(.top, 8)
-                    .transition(.opacity)
                 } else {
                     // Status Pill Badge (Centered with extra line spacing)
                     HStack(spacing: 5) {
@@ -394,8 +391,8 @@ public struct DashboardView: View {
                     Circle()
                         .fill(Color(hex: "38BDF8"))
                         .frame(width: 8, height: 8)
-                        .shadow(color: Color(hex: "38BDF8"), radius: isBreathingGlow ? 6 : 1)
-                        .scaleEffect(isBreathingGlow ? 1.25 : 0.85)
+                        .shadow(color: Color(hex: "38BDF8"), radius: 2)
+                        .scaleEffect(0.9)
 
                     Text(l10n("查看全盘深度扫描列表 ↗", "View Full Disk Deep Scan List ↗"))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -411,16 +408,16 @@ public struct DashboardView: View {
                                 .stroke(
                                     LinearGradient(
                                         colors: [
-                                            Color(hex: "38BDF8").opacity(isBreathingGlow ? 0.85 : 0.35),
-                                            Color(hex: "818CF8").opacity(isBreathingGlow ? 0.65 : 0.20)
+                                            Color(hex: "38BDF8").opacity(0.4),
+                                            Color(hex: "818CF8").opacity(0.2)
                                         ],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     ),
-                                    lineWidth: isBreathingGlow ? 1.4 : 0.8
+                                    lineWidth: 0.8
                                 )
                         )
-                        .shadow(color: Color(hex: "38BDF8").opacity(isBreathingGlow ? 0.35 : 0.08), radius: isBreathingGlow ? 10 : 3, x: 0, y: 2)
+                        .shadow(color: Color(hex: "38BDF8").opacity(0.1), radius: 3, x: 0, y: 2)
                 )
             }
             .buttonStyle(PureButtonStyle())
@@ -442,7 +439,6 @@ public struct DashboardView: View {
                         .shadow(radius: 20)
                         .padding(40)
                     }
-                    .transition(.opacity)
                 }
             }
         )
@@ -953,7 +949,6 @@ public struct DashboardView: View {
                         .shadow(radius: 20)
                         .padding(40)
                     }
-                    .transition(.opacity)
                 }
             }
         )

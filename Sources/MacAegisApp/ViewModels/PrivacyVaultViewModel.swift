@@ -42,6 +42,54 @@ public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var isPasswordError: Bool = false
     @Published public var passwordErrorMessage: String?
     @Published public var shakeAttempts: Int = 0
+    @Published public var lockoutCountdown: Int = 0
+    private var lockoutTimer: Timer?
+    
+    private func checkLockoutState() {
+        if let lockout = vaultManager.currentLockoutTime {
+            let remaining = Int(lockout.timeIntervalSinceNow)
+            if remaining > 0 {
+                self.lockoutCountdown = remaining
+                startLockoutTimer()
+            }
+        }
+    }
+    
+    private func startLockoutTimer() {
+        lockoutTimer?.invalidate()
+        lockoutTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
+            var shouldInvalidate = false
+            if let lockout = self.vaultManager.currentLockoutTime {
+                let remaining = Int(lockout.timeIntervalSinceNow)
+                if remaining <= 0 {
+                    shouldInvalidate = true
+                }
+            } else {
+                shouldInvalidate = true
+            }
+            
+            if shouldInvalidate {
+                timer.invalidate()
+            }
+            
+            Task { @MainActor in
+                if let lockout = self.vaultManager.currentLockoutTime {
+                    let remaining = Int(lockout.timeIntervalSinceNow)
+                    if remaining > 0 {
+                        self.lockoutCountdown = remaining
+                    } else {
+                        self.lockoutCountdown = 0
+                    }
+                } else {
+                    self.lockoutCountdown = 0
+                }
+            }
+        }
+    }
 
     // Filter & Batch Selection State
     @Published public var filterType: VaultFilterType = .all
@@ -76,6 +124,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
     }
 
     public func refreshState() {
+        checkLockoutState()
         self.hasMasterPassword = vaultManager.hasMasterPassword
         self.passwordHint = vaultManager.getPasswordHint()
         self.items = vaultManager.fetchItems()
@@ -359,6 +408,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
         let trimmed = passwordInput.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty || !vaultManager.verifyMasterPassword(trimmed) {
             triggerPasswordError()
+            checkLockoutState()
             return
         }
 

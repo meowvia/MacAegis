@@ -50,7 +50,8 @@ public struct UninstallerDropView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .studioCard(cornerRadius: 10, isSelected: true)
-                    .padding(.top, 16)
+                    .padding(.top, 56)
+                    .zIndex(999)
                     .padding(.horizontal, 24)
                     .transition(.move(edge: .top).combined(with: .opacity))
 

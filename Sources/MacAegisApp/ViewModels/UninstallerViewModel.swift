@@ -504,7 +504,10 @@ extension UninstallerViewModel {
     }
 
     public func cleanSelectedOrphans() {
-        let itemsToDelete = orphanLeftovers.filter { checkedOrphanIds.contains($0.id) }
+        var itemsToDelete = orphanLeftovers.filter { checkedOrphanIds.contains($0.id) }
+        for i in 0..<itemsToDelete.count {
+            itemsToDelete[i].isSelected = true
+        }
         guard !itemsToDelete.isEmpty else { return }
         
         isUninstalling = true

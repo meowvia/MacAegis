@@ -115,6 +115,14 @@ public struct FileUtils: Sendable {
 
         _ = script.executeAndReturnError(&errorInfo)
 
+        // macOS's /bin/mv often throws non-zero exit codes (like 1) when moving .app bundles to Trash
+        // due to extended attributes (xattrs) or ACLs failing to copy completely, EVEN THOUGH the move succeeded.
+        // Therefore, if the source file is no longer there, we consider it an absolute success and ignore AppleScript errors!
+        if !FileManager.default.fileExists(atPath: expanded) {
+            return // Success!
+        }
+
+        // If it still exists, evaluate the error
         if let err = errorInfo {
             let errNumber = err[NSAppleScript.errorNumber] as? Int ?? 0
             if errNumber == -128 {
@@ -128,6 +136,7 @@ public struct FileUtils: Sendable {
             ])
         }
 
+        // Fallback check
         if FileManager.default.fileExists(atPath: expanded) {
             throw NSError(domain: "MacAegisError", code: 513, userInfo: [
                 NSLocalizedDescriptionKey: l10n("管理员权限执行后文件仍未被移除", "File remains unremoved after privileged execution")
@@ -167,6 +176,14 @@ public struct FileUtils: Sendable {
 
         _ = script.executeAndReturnError(&errorInfo)
 
+        // macOS's /bin/mv often throws non-zero exit codes (like 1) when moving .app bundles to Trash
+        // due to extended attributes (xattrs) or ACLs failing to copy completely, EVEN THOUGH the move succeeded.
+        // Therefore, if the source file is no longer there, we consider it an absolute success and ignore AppleScript errors!
+        if !FileManager.default.fileExists(atPath: expanded) {
+            return // Success!
+        }
+
+        // If it still exists, evaluate the error
         if let err = errorInfo {
             let errNumber = err[NSAppleScript.errorNumber] as? Int ?? 0
             if errNumber == -128 {
@@ -180,6 +197,7 @@ public struct FileUtils: Sendable {
             ])
         }
 
+        // Fallback check
         if FileManager.default.fileExists(atPath: expanded) {
             throw NSError(domain: "MacAegisError", code: 513, userInfo: [
                 NSLocalizedDescriptionKey: l10n("管理员权限执行后文件仍未被移除", "File remains unremoved after privileged execution")

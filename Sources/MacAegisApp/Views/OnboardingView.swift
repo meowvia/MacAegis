@@ -6,7 +6,6 @@ struct OnboardingView: View {
     @Binding var isPresented: Bool
     @State private var isHoveringSettings = false
     @State private var isHoveringSkip = false
-    @State private var isChecking = false
 
     var body: some View {
         ZStack {
@@ -66,30 +65,17 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                     .onHover { isHoveringSettings = $0 }
                     
-                    HStack(spacing: 20) {
-                        Button(action: {
-                            checkFDAStatus()
-                        }) {
-                            Text(isChecking ? l10n("检查中...", "Checking...") : l10n("我已授权，重新检查", "I've granted it, check again"))
-                                .font(.system(size: 13))
-                                .foregroundColor(.blue)
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isPresented = false
                         }
-                        .buttonStyle(.plain)
-                        
-                        Text("|").foregroundColor(.white.opacity(0.3))
-                        
-                        Button(action: {
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                isPresented = false
-                            }
-                        }) {
-                            Text(l10n("暂不授权 (受限模式)", "Skip (Restricted Mode)"))
-                                .font(.system(size: 13))
-                                .foregroundColor(isHoveringSkip ? .white : .white.opacity(0.5))
-                        }
-                        .buttonStyle(.plain)
-                        .onHover { isHoveringSkip = $0 }
+                    }) {
+                        Text(l10n("暂不授权 (受限模式)", "Skip (Restricted Mode)"))
+                            .font(.system(size: 13))
+                            .foregroundColor(isHoveringSkip ? .white : .white.opacity(0.5))
                     }
+                    .buttonStyle(.plain)
+                    .onHover { isHoveringSkip = $0 }
                 }
                 .padding(.top, 10)
             }
@@ -104,6 +90,9 @@ struct OnboardingView: View {
             )
             .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 15)
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            checkFDAStatusSilent()
+        }
     }
     
     private func openSystemSettings() {
@@ -112,19 +101,12 @@ struct OnboardingView: View {
         }
     }
     
-    private func checkFDAStatus() {
-        isChecking = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let tccPath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC"
-            let hasFDA = (try? FileManager.default.contentsOfDirectory(atPath: tccPath)) != nil
-            isChecking = false
-            if hasFDA {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    isPresented = false
-                }
-            } else {
-                // Give a subtle shake or feedback here if needed, but visual checking is enough for now.
-                NSSound.beep()
+    private func checkFDAStatusSilent() {
+        let tccPath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC"
+        let hasFDA = (try? FileManager.default.contentsOfDirectory(atPath: tccPath)) != nil
+        if hasFDA {
+            withAnimation(.easeOut(duration: 0.3)) {
+                isPresented = false
             }
         }
     }

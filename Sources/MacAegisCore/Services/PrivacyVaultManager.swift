@@ -259,6 +259,15 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
     private var failedAttempts: Int = 0
     private var lockoutUntil: Date?
+    
+    public var currentLockoutTime: Date? {
+        lock.lock()
+        defer { lock.unlock() }
+        if let lockout = lockoutUntil, Date() < lockout {
+            return lockout
+        }
+        return nil
+    }
 
     public func verifyMasterPassword(_ password: String) -> Bool {
         lock.lock()

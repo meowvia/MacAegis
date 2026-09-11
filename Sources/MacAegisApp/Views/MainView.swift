@@ -34,6 +34,8 @@ public struct MainView: View {
     @StateObject private var uninstallerVM = UninstallerViewModel()
     @State private var selectedTab: NavigationTab = .dashboard
     @State private var showingSettingsModal: Bool = false
+    @State private var hasNewVersion: Bool = false
+    @AppStorage("autoCheckUpdate") private var autoCheckUpdate: Bool = true
     @State private var showLanguageBubble: Bool = false
     @State private var isBreathingGlow: Bool = false
     @State private var showOnboarding: Bool = false
@@ -141,6 +143,27 @@ public struct MainView: View {
                     }
                 }
             }
+            
+            // 3-Day Silent Auto Update Check
+            if autoCheckUpdate {
+                Task {
+                    let lastCheck = UserDefaults.standard.double(forKey: "lastUpdateCheckTime")
+                    let now = Date().timeIntervalSince1970
+                    // 3 days = 3 * 24 * 3600 = 259200
+                    if now - lastCheck > 259200 {
+                        if let update = await UpdateChecker.shared.checkForUpdates(), update.hasUpdate {
+                            DispatchQueue.main.async {
+                                hasNewVersion = true
+                                UserDefaults.standard.set(now, forKey: "lastUpdateCheckTime")
+                            }
+                        } else {
+                            DispatchQueue.main.async {
+                                UserDefaults.standard.set(now, forKey: "lastUpdateCheckTime")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -165,10 +188,10 @@ public struct MainView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(l10n("支持中英文双语切换", "Switch to Chinese / English"))
+                    Text("Switch to English")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white)
-                    Text(l10n("点击设置齿轮可切换语言", "Click Settings to change language"))
+                    Text("Click Settings ⚙️ to change language")
                         .font(.system(size: 9))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -327,11 +350,19 @@ public struct MainView: View {
                         withAnimation { showLanguageBubble = false }
                         showingSettingsModal = true
                     }) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .padding(5)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(5)
+                                .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+                            if hasNewVersion {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 6, height: 6)
+                                    .offset(x: 2, y: -2)
+                            }
+                        }
                     }
                     .buttonStyle(PureButtonStyle())
                     .focusable(false)

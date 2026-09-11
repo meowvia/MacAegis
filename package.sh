@@ -5,7 +5,7 @@ swift build -c release
 
 echo "Building DMG..."
 APP_NAME="MacAegis"
-VERSION="v0.2.1"
+VERSION="v0.2.2"
 BUILD_DIR=".build/release"
 APP_BUNDLE="${APP_NAME}.app"
 STAGING_DIR="dmg_staging"
@@ -18,6 +18,7 @@ rm -f "${APP_NAME}-${VERSION}.dmg"
 mkdir -p "${APP_BUNDLE}/Contents/MacOS"
 mkdir -p "${APP_BUNDLE}/Contents/Resources"
 cp "${BUILD_DIR}/MacAegisApp" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+strip -x "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
 if [ -f AppIcon.icns ]; then cp AppIcon.icns "${APP_BUNDLE}/Contents/Resources/"; fi
 
 cat <<PLIST > "${APP_BUNDLE}/Contents/Info.plist"
@@ -36,7 +37,7 @@ cat <<PLIST > "${APP_BUNDLE}/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2.1</string>
+    <string>0.2.2</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -124,8 +125,8 @@ echo "Done! Saved to Desktop."
 
 # Zip it for GitHub releases
 cd ~/Desktop
-hdiutil attach MacAegis-v0.2.1.dmg -mountpoint /Volumes/MacAegis_Build
+hdiutil attach MacAegis-v0.2.2.dmg -mountpoint /Volumes/MacAegis_Build
 cd /Volumes/MacAegis_Build
-zip -r ~/Desktop/MacAegis-v0.2.1.zip MacAegis.app
+zip -r ~/Desktop/MacAegis-v0.2.2.zip MacAegis.app
 cd ~/Desktop
 hdiutil detach /Volumes/MacAegis_Build

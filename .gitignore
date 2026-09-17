@@ -28,3 +28,9 @@ DerivedData/
 *.dmg
 
 PRODUCT_MEMO.md
+
+*.md
+.github/
+docs/
+assets/
+*.dmg

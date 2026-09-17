@@ -13,6 +13,7 @@ public final class StatusBarController: NSObject {
     private var dashboardVM: DashboardViewModel?
     private var isSetup = false
 
+    private var lastClickTime: TimeInterval = 0
     private var pendingClickWorkItem: DispatchWorkItem?
     private var staticLogoImage: NSImage?
 
@@ -72,9 +73,15 @@ public final class StatusBarController: NSObject {
 
     @objc private func handleStatusBarClick(_ sender: AnyObject?) {
         guard let button = statusItem?.button, let popover = popover else { return }
+        
+        let now = Date().timeIntervalSince1970
+        let timeDiff = now - lastClickTime
+        lastClickTime = now
+        
         let clickCount = NSApp.currentEvent?.clickCount ?? 1
 
-        if clickCount >= 2 {
+        // Use custom time-based double click detection since NSStatusItem swallows click counts
+        if clickCount >= 2 || timeDiff < 0.45 {
             pendingClickWorkItem?.cancel()
             pendingClickWorkItem = nil
             hidePopover()
@@ -98,7 +105,7 @@ public final class StatusBarController: NSObject {
             }
         }
         self.pendingClickWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: workItem)
     }
 
     public func hidePopover() {
@@ -112,7 +119,7 @@ public final class StatusBarController: NSObject {
     }
 
     public func updateStatusItemTitle() {
-        guard let button = statusItem?.button, let vm = dashboardVM else { return }
-        button.toolTip = "\(AppConfig.appName) (↓\(vm.networkSpeed.compactDownString) ↑\(vm.networkSpeed.compactUpString))"
+        guard let button = statusItem?.button else { return }
+        button.toolTip = AppConfig.appName
     }
 }

@@ -64,6 +64,25 @@ struct OnboardingView: View {
                     }
                     .buttonStyle(.plain)
                     .onHover { isHoveringSettings = $0 }
+
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle")
+                            Text(l10n("我已完成授权，进入", "I have authorized, continue"))
+                                .fontWeight(.medium)
+                        }
+                        .frame(width: 240, height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white.opacity(0.1))
+                        )
+                        .foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
                     
                     Button(action: {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -71,7 +90,7 @@ struct OnboardingView: View {
                         }
                     }) {
                         Text(l10n("暂不授权 (受限模式)", "Skip (Restricted Mode)"))
-                            .font(.system(size: 13))
+                            .font(.system(size: 12))
                             .foregroundColor(isHoveringSkip ? .white : .white.opacity(0.5))
                     }
                     .buttonStyle(.plain)
@@ -102,9 +121,7 @@ struct OnboardingView: View {
     }
     
     private func checkFDAStatusSilent() {
-        let tccPath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC"
-        let hasFDA = (try? FileManager.default.contentsOfDirectory(atPath: tccPath)) != nil
-        if hasFDA {
+        if FullDiskAccessHelper.shared.hasFullDiskAccess() {
             withAnimation(.easeOut(duration: 0.3)) {
                 isPresented = false
             }

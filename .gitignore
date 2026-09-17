@@ -26,3 +26,5 @@ DerivedData/
 *.zip
 *.icns
 *.dmg
+
+PRODUCT_MEMO.md

@@ -24,6 +24,7 @@ public struct UninstallerDropView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let bundle = viewModel.selectedBundle {
                 appDetailShowcase(bundle: bundle)
             } else {

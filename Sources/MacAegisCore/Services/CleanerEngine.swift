@@ -86,22 +86,13 @@ public final class CleanerEngine: Sendable {
                     do {
                         try await FileUtils.moveToTrash(path: item.path)
                     } catch {
-                        // Intelligent Fallback: If it's an App Bundle, request admin privileges instead of giving up.
-                        let isAppBundle = item.path.hasSuffix(".app") || item.path.hasSuffix(".app/")
-                        if isAppBundle {
-                            do {
-                                try FileUtils.privilegedMoveToTrash(path: item.path)
-                            } catch let privilegedError as NSError {
-                                failCount += 1
-                                let detail = privilegedError.userInfo[NSLocalizedDescriptionKey] as? String ?? privilegedError.localizedDescription
-                                let errStr = l10n("【卸载受阻】\(item.name) 提权失败: \(detail)", "[Uninstall Blocked] \(item.name) failed: \(detail)")
-                                errors.append(errStr)
-                                onProgress?(item, false, errStr)
-                                continue
-                            }
-                        } else {
+                        // Intelligent Fallback: Request admin privileges instead of giving up.
+                        do {
+                            try FileUtils.privilegedMoveToTrash(path: item.path)
+                        } catch let privilegedError as NSError {
                             failCount += 1
-                            let errStr = l10n("【废纸篓受阻】\(item.name) 未能移入废纸篓，已按设置安全中止(未做永久删除)。", "[Trash Blocked] \(item.name) could not be moved to Trash. Aborted safely.")
+                            let detail = privilegedError.userInfo[NSLocalizedDescriptionKey] as? String ?? privilegedError.localizedDescription
+                            let errStr = l10n("【权限受阻】\(item.name) 提权删除失败: \(detail)", "[Permission Blocked] \(item.name) failed to delete with privileges: \(detail)")
                             errors.append(errStr)
                             onProgress?(item, false, errStr)
                             continue

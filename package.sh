@@ -5,7 +5,7 @@ swift build -c release
 
 echo "Building DMG..."
 APP_NAME="MacAegis"
-VERSION="v0.2.2"
+VERSION="v0.2.3"
 BUILD_DIR=".build/release"
 APP_BUNDLE="${APP_NAME}.app"
 STAGING_DIR="dmg_staging"
@@ -37,7 +37,7 @@ cat <<PLIST > "${APP_BUNDLE}/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2.2</string>
+    <string>0.2.3</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -99,10 +99,18 @@ if [ -d "$DEST" ]; then
     fi
 fi
 
-echo "[3/4] Copying new version to /Applications... (正在复制新版本至应用程序)"
+
+echo "[3/4] Resetting System TCC & LaunchServices cache... (正在重置系统授权缓存)"
+# Reset TCC so macOS doesn't silently block the new Ad-Hoc signature
+# tccutil reset All com.studio.macaegis (removed to keep app in FDA list) 2>/dev/null || true
+# Unregister from LaunchServices to kill ghosts
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$DEST" 2>/dev/null || true
+
+echo "[4/5] Copying new version to /Applications... (正在复制新版本至应用程序)"
+
 cp -R "${DIR}/${APP_NAME}" "/Applications/"
 
-echo "[4/4] Clearing quarantine attributes... (清理隔离属性以解除系统拦截)"
+echo "[5/5] Clearing quarantine attributes... (清理隔离属性以解除系统拦截)"
 xattr -cr "$DEST" 2>/dev/null || true
 
 echo "--------------------------------------"
@@ -122,11 +130,3 @@ cp "${APP_NAME}-${VERSION}.dmg" ~/Desktop/
 # Cleanup
 rm -rf "${STAGING_DIR}"
 echo "Done! Saved to Desktop."
-
-# Zip it for GitHub releases
-cd ~/Desktop
-hdiutil attach MacAegis-v0.2.2.dmg -mountpoint /Volumes/MacAegis_Build
-cd /Volumes/MacAegis_Build
-zip -r ~/Desktop/MacAegis-v0.2.2.zip MacAegis.app
-cd ~/Desktop
-hdiutil detach /Volumes/MacAegis_Build

@@ -125,15 +125,22 @@ public struct MainView: View {
         .background(MacAegisTheme.canvasBackground)
         .preferredColorScheme(appearanceMode.colorScheme)
         .id("main_view_\(loc.appLanguage.rawValue)")
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notif in
+            if let window = notif.object as? NSWindow, window.className.contains("Window"), !(window is NSPanel) {
+                if let appDelegate = NSApp.delegate as? AppDelegate {
+                    if window.delegate !== appDelegate {
+                        window.delegate = appDelegate
+                    }
+                }
+            }
+        }
         .onAppear {
             withAnimation(Animation.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) {
                 isBreathingGlow = true
             }
             
             // Onboarding FDA Check
-            let tccPath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC"
-            let hasFDA = (try? FileManager.default.contentsOfDirectory(atPath: tccPath)) != nil
-            if !hasFDA {
+            if !FullDiskAccessHelper.shared.hasFullDiskAccess() {
                 showOnboarding = true
             }
             if !hasShownLanguageHint {
@@ -326,23 +333,7 @@ public struct MainView: View {
 
                 // Right Quick Controls (Network Speed + Settings)
                 HStack(spacing: 10) {
-                    // Network Speed & Proxy Mode Indicator (monospaced + minWidth to prevent jitter)
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(Color(hex: dashboardVM.networkSpeed.proxyMode.colorHex))
-                            .frame(width: 6, height: 6)
-                        Text(dashboardVM.networkSpeed.menuBarDisplayString)
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .monospacedDigit()
-                            .foregroundColor(Color(hex: dashboardVM.networkSpeed.proxyMode.colorHex))
-                    }
-                    .frame(minWidth: 105, alignment: .center)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(Color.secondary.opacity(0.08))
-                    )
+
 
                     // Settings Button
                     Button(action: {

@@ -60,6 +60,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        let keepInMemory = UserDefaults.standard.object(forKey: "keepInMemoryOnClose") as? Bool ?? true
+        if keepInMemory {
+            NSApp.setActivationPolicy(.accessory)
+            return false
+        }
+        return true
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         let keepInMemory = UserDefaults.standard.object(forKey: "keepInMemoryOnClose") as? Bool ?? true
         if !keepInMemory {
@@ -78,21 +87,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     public static func showMainWindow() {
         NSApp.setActivationPolicy(.regular)
+        
+        // Super aggressive unhide and activation
+        NSApp.unhide(nil)
         NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { !($0 is NSPanel) && $0.className.contains("Window") }) {
-            if window.isMiniaturized {
-                window.deminiaturize(nil)
+        
+        var foundWindow = false
+        
+        for window in NSApp.windows {
+            if !window.className.contains("NSStatusBarWindow") && !window.className.contains("NSPopover") && !(window is NSPanel) {
+                if window.isMiniaturized {
+                    window.deminiaturize(nil)
+                }
+                window.alphaValue = 1.0
+                window.setIsVisible(true)
+                window.makeKeyAndOrderFront(nil)
+                foundWindow = true
+                break
             }
-            window.isMovableByWindowBackground = true
-            window.setIsVisible(true)
-            window.makeKeyAndOrderFront(nil)
-        } else if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
-            if window.isMiniaturized {
-                window.deminiaturize(nil)
+        }
+        
+        if !foundWindow {
+            // If the window is truly lost, use NSWorkspace to re-launch the app bundle
+            // This natively triggers SwiftUI to recreate the WindowGroup
+            if let bundlePath = Bundle.main.bundlePath as String? {
+                if let url = URL(string: "file://" + bundlePath) {
+                    let config = NSWorkspace.OpenConfiguration()
+                    NSWorkspace.shared.openApplication(at: url, configuration: config, completionHandler: nil)
+                }
             }
-            window.isMovableByWindowBackground = true
-            window.setIsVisible(true)
-            window.makeKeyAndOrderFront(nil)
         }
     }
 }
@@ -102,7 +125,7 @@ struct MacAegisApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        WindowGroup("MacAegis", id: "main_window") {
+        Window("MacAegis", id: "main_window") {
             MainView()
                 .frame(minWidth: 980, minHeight: 660)
                 .onAppear {

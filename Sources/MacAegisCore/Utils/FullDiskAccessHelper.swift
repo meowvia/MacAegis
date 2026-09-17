@@ -8,21 +8,30 @@ public final class FullDiskAccessHelper: Sendable {
 
     /// Check whether MacAegis has been granted Full Disk Access (FDA)
     public func hasFullDiskAccess() -> Bool {
-        // Method 1: Check access to TCC protected user directory
+        // Method 1: Check System TCC Database (Often readable with FDA)
+        let systemTCC = "/Library/Application Support/com.apple.TCC/TCC.db"
+        if FileManager.default.isReadableFile(atPath: systemTCC) {
+            return true
+        }
+        
+        // Method 2: Check User TCC Database (Legacy macOS)
         let tccUserPath = FileUtils.expandPath("~/Library/Application Support/com.apple.TCC/TCC.db")
         if FileManager.default.isReadableFile(atPath: tccUserPath) {
             return true
         }
 
-        // Method 2: Check access to Safari history/data
-        let safariPath = FileUtils.expandPath("~/Library/Safari")
-        if let contents = try? FileManager.default.contentsOfDirectory(atPath: safariPath), !contents.isEmpty {
+        // METHOD 3 (ACTIVE TRIGGER): Attempt to list contents of the strictly protected Messages directory.
+        // This is CRITICAL: We must use `contentsOfDirectory` (which opens the directory) rather than
+        // `isReadableFile` (which just stats it). Opening a protected directory is what forces macOS 
+        // to automatically add MacAegis to the System Settings FDA list!
+        let messagesDir = FileUtils.expandPath("~/Library/Messages")
+        if let _ = try? FileManager.default.contentsOfDirectory(atPath: messagesDir) {
             return true
         }
-
-        // Method 3: Check system log directory readability
-        let systemLogPath = "/private/var/log/DiagnosticMessages"
-        if FileManager.default.isReadableFile(atPath: systemLogPath) {
+        
+        // METHOD 4 (ACTIVE TRIGGER): Fallback check on Safari's strictly protected sub-files.
+        let safariBookmarks = FileUtils.expandPath("~/Library/Safari/Bookmarks.plist")
+        if let _ = try? Data(contentsOf: URL(fileURLWithPath: safariBookmarks)) {
             return true
         }
 

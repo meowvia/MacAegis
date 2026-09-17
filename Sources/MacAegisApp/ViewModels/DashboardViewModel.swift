@@ -15,7 +15,6 @@ public final class DashboardViewModel: ObservableObject {
     @Published public var systemMetrics: SystemMetrics
     @Published public var mountedDrives: [MountedDriveInfo] = []
     @Published public var powerInfo: PowerAndThermalInfo
-    @Published public var networkSpeed: NetworkSpeedInfo
     @Published public var thermalAndFan: ThermalAndFanStatus
     @Published public var isCleaning: Bool = false
     @Published public var cleanReport: CleanExecutionReport?
@@ -30,7 +29,6 @@ public final class DashboardViewModel: ObservableObject {
     private let cleaner = CleanerEngine()
     private let diskDetector = DiskDetector.shared
     private let powerMonitor = PowerMonitor.shared
-    private let networkMonitor = NetworkAndProxyMonitor.shared
     private let thermalDetector = ThermalAndFanDetector.shared
     private var telemetryTimer: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
@@ -39,7 +37,6 @@ public final class DashboardViewModel: ObservableObject {
         self.systemMetrics = HardwareTelemetry.shared.fetchMetrics()
         self.mountedDrives = diskDetector.fetchMountedDrives()
         self.powerInfo = powerMonitor.fetchInfo()
-        self.networkSpeed = networkMonitor.fetchNetworkSpeed()
         self.thermalAndFan = thermalDetector.fetchStatus()
         setupDiskMountObservers()
         startTelemetryPolling()
@@ -106,13 +103,11 @@ public final class DashboardViewModel: ObservableObject {
                 DispatchQueue.global(qos: .utility).async {
                     let metrics = HardwareTelemetry.shared.fetchMetrics()
                     let power = self.powerMonitor.fetchInfo()
-                    let net = self.networkMonitor.fetchNetworkSpeed()
                     let thermal = self.thermalDetector.fetchStatus()
 
                     Task { @MainActor in
                         self.systemMetrics = metrics
                         self.powerInfo = power
-                        self.networkSpeed = net
                         self.thermalAndFan = thermal
                     }
                 }
@@ -125,14 +120,12 @@ public final class DashboardViewModel: ObservableObject {
             let metrics = HardwareTelemetry.shared.fetchMetrics()
             let drives = self.diskDetector.fetchMountedDrives()
             let power = self.powerMonitor.fetchInfo()
-            let net = self.networkMonitor.fetchNetworkSpeed()
             let thermal = self.thermalDetector.fetchStatus()
 
             Task { @MainActor in
                 self.systemMetrics = metrics
                 self.mountedDrives = drives
                 self.powerInfo = power
-                self.networkSpeed = net
                 self.thermalAndFan = thermal
             }
         }

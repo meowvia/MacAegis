@@ -101,11 +101,7 @@ public final class AppUninstaller: Sendable {
             if let last = subTokens.last {
                 searchTokens.insert(String(last))
             }
-            // Add base domain prefix (e.g. com.khanov.Blocker for com.khanov.BlockerX)
-            if subTokens.count >= 3 {
-                let baseDomain = subTokens.dropLast().joined(separator: ".")
-                searchTokens.insert(baseDomain)
-            }
+            // Removed dangerous baseDomain heuristic to prevent deleting other apps from the same publisher
         }
 
         // Discover embedded app extensions (.appex)
@@ -231,10 +227,10 @@ public final class AppUninstaller: Sendable {
             let pipe = Pipe()
             task.standardOutput = pipe
             try? task.run()
-            task.waitUntilExit()
             
             if let data = try? pipe.fileHandleForReading.readToEnd(),
                let output = String(data: data, encoding: .utf8) {
+                task.waitUntilExit()
                 let mdPaths = output.split(separator: "\n").map { String($0) }
                 for mdPath in mdPaths {
                     if mdPath == appURL.path || whitelist.isProtected(path: mdPath, mode: .strict) { continue }
@@ -266,6 +262,7 @@ public final class AppUninstaller: Sendable {
             let pkgPipe = Pipe()
             pkgTask.standardOutput = pkgPipe
             try? pkgTask.run()
+            _ = try? pkgPipe.fileHandleForReading.readToEnd()
             pkgTask.waitUntilExit()
             
             if pkgTask.terminationStatus == 0 {
@@ -275,10 +272,10 @@ public final class AppUninstaller: Sendable {
                 let filePipe = Pipe()
                 fileTask.standardOutput = filePipe
                 try? fileTask.run()
-                fileTask.waitUntilExit()
                 
                 if let data = try? filePipe.fileHandleForReading.readToEnd(),
                    let output = String(data: data, encoding: .utf8) {
+                    fileTask.waitUntilExit()
                     let pkgFiles = output.split(separator: "\n").map { "/" + String($0) }
                     for pPath in pkgFiles {
                         if !fileManager.fileExists(atPath: pPath) || pPath.hasPrefix(appURL.path) || whitelist.isProtected(path: pPath, mode: .strict) { continue }

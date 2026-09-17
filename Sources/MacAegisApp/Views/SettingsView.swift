@@ -235,7 +235,7 @@ public struct SettingsView: View {
                             }
                             Spacer(minLength: 16)
 
-                            if FullDiskAccessHelper.shared.hasFullDiskAccess() {
+                            if hasFDA {
                                 HStack(spacing: 4) {
                                     Circle().fill(Color(hex: "10B981")).frame(width: 6, height: 6)
                                     Text(l10n("已授权", "Granted"))
@@ -282,7 +282,7 @@ public struct SettingsView: View {
                                 }
                             }) {
                                 HStack(spacing: 4) {
-                                    Text(l10n("去设置", "Configure"))
+                                    Text(l10n("系统内检查", "Check OS"))
                                     Image(systemName: "arrow.up.forward.app")
                                 }
                                 .font(.system(size: 11, weight: .semibold))
@@ -419,7 +419,14 @@ public struct SettingsView: View {
                 TrashWatcherService.shared.stopWatching()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            hasFDA = FullDiskAccessHelper.shared.hasFullDiskAccess()
+        }
     }
+
+    @State private var hoveredTab: String? = nil
+    @State private var hasFDA: Bool = FullDiskAccessHelper.shared.hasFullDiskAccess()
+    @Environment(\.colorScheme) var colorScheme
 
     private func settingsSection<Content: View>(
         title: String,

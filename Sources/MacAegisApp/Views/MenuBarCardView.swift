@@ -20,45 +20,11 @@ public struct MenuBarCardView: View {
 
                 Spacer()
 
-                // Proxy Pill
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color(hex: viewModel.networkSpeed.proxyMode.colorHex))
-                        .frame(width: 6, height: 6)
-                    Text(viewModel.networkSpeed.proxyMode.localizedTitle)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color(hex: viewModel.networkSpeed.proxyMode.colorHex))
-                }
-                .padding(.horizontal, 7)
-                .padding(.vertical, 2.5)
-                .background(Capsule().fill(Color(hex: viewModel.networkSpeed.proxyMode.colorHex).opacity(0.12)))
             }
 
             Divider().opacity(0.4)
 
-            // 2. Real-time Network Speed
-            HStack(spacing: 12) {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.down")
-                        .font(.caption2)
-                        .foregroundColor(Color(hex: "10B981"))
-                    Text(viewModel.networkSpeed.formattedDownload)
-                        .font(.system(.caption, design: .monospaced, weight: .bold))
-                }
 
-                Spacer()
-
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up")
-                        .font(.caption2)
-                        .foregroundColor(Color(hex: "06B6D4"))
-                    Text(viewModel.networkSpeed.formattedUpload)
-                        .font(.system(.caption, design: .monospaced, weight: .bold))
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
 
             // 3. Telemetry Rows (CPU & SoC Temp, RAM, Disk Storage)
             VStack(spacing: 8) {

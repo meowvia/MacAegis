@@ -183,9 +183,7 @@ open "$DEST"
 
 echo ""
 echo "✅ 更新流程完成！(Update finished!)"
-echo "按任意键退出此窗口 (Press any key to close)..."
-read -n 1 -s -r -t 10 2>/dev/null || true
-osascript -e 'tell application "Terminal" to close first window' 2>/dev/null || true
+(sleep 1.2 && osascript -e 'tell application "Terminal" to close (every window whose name contains "Update Assistant")' 2>/dev/null &) &
 exit 0
 SCRIPT
 chmod +x "${STAGING_DIR}/Update Assistant (更新助手).command"
@@ -196,6 +194,9 @@ find "${STAGING_DIR}" -name "._*" -delete 2>/dev/null || true
 find "${STAGING_DIR}" -name "*~" -delete 2>/dev/null || true
 
 # 6. Create Ultra-Lightweight DMG (Apple Native ULMO LZMA)
+hdiutil info | grep "/Volumes/${APP_NAME}" | awk '{print $1}' | while read -r dev; do
+    hdiutil detach "$dev" -force 2>/dev/null || true
+done
 hdiutil create -volname "${APP_NAME}" -srcfolder "${STAGING_DIR}" -ov -format ULMO "${APP_NAME}-${VERSION}.dmg"
 cp -f "${APP_NAME}-${VERSION}.dmg" ~/Desktop/
 

@@ -1574,17 +1574,6 @@ public struct PrivacyVaultView: View {
             // Holographic Lock Shield Hero
             luminousVaultSphereHero
 
-            VStack(spacing: 5) {
-                Text(l10n("独立空间", "Private Space"))
-                    .font(.system(size: 21, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-
-                Text(l10n("验证 Touch ID 或输入主密码以解锁", "Verify Touch ID or enter master password to unlock"))
-                    .font(.system(size: 12.5))
-                    .foregroundColor(.secondary)
-            }
-            .padding(.bottom, 6)
-
             // Glass Unlock Card
             VStack(spacing: 14) {
                 // Official Apple-Style Touch ID Button (Neutral Monochrome)

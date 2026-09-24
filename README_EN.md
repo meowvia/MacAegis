@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>A Pure Native Swift Utility for File Privacy Concealment & Lightweight Maintenance on macOS</strong>
+  <strong>A Pure Swift Native macOS Utility for Instant File Stealth and Lightweight System Maintenance</strong>
 </p>
 
 <p align="center">
@@ -17,141 +17,134 @@
 </p>
 
 <p align="center">
-  <a href="#-feature-walkthrough--preview">Feature Preview</a> •
-  <a href="#-installation--troubleshooting">Installation Guide</a> •
+  <a href="#-feature-showcase">Feature Showcase</a> •
+  <a href="#-installation--usage-guide">Installation Guide</a> •
   <a href="#-download">Download</a> •
-  <a href="README.md">中文版本</a>
+  <a href="README.md">中文版本 (Chinese)</a>
 </p>
 
 ---
 
 ## 📖 Introduction
 
-When working on a Mac, you often have private documents or confidential folders you'd prefer to keep away from prying eyes. **MacAegis** is built specifically for this purpose, providing **Private Space file protection, smart system maintenance, and deep app uninstallation**:
+**MacAegis** is a modern macOS desktop utility crafted for **instant folder & file concealment, deep application leftover inspection, and lightweight system maintenance**.
 
-* **Private Space**: Drag confidential folders or files into the app to instantly conceal them in-place and block QuickLook previews, with seamless Touch ID unlock;
-* **Visual Architecture**: Completely embraces native macOS Liquid Glass design materials with a unified seamless titlebar;
-* **Deep Uninstaller**: Analyzes application leftovers, associated group containers, and caches with root privilege escalation;
-* **System Maintenance**: Reliably scans system caches, dev artifacts, and large dormant files across local and external storage;
-* **Clean & Restrained**: 100% local and offline. Exiting the app completely releases system memory without persistent background daemons.
+When working on a Mac, personal privacy and sensitive work archives often require discreet protection, while the system continually accumulates development caches and uninstalled app leftovers. MacAegis delivers an elegant, pure, and native solution:
+
+* **Embracing Native Liquid Glass Design**: Tailored around macOS modern visual materials, featuring a unified seamless titlebar, refined frosted translucency, and fluid physics-based interactions that integrate naturally into your Mac desktop.
+* **Pure Swift 6 Native Architecture**: Built entirely in pure Swift 6 and optimized for both Apple Silicon (M-series) and Intel architectures. The distribution image is only **~1.7 MB**—free from heavy cross-platform frameworks, launching instantly with near-zero idle background resource footprint.
+* **Instant Stealth with No File Size Limits**: Featuring an intuitive "Private Space" workflow. Whether small documents or massive multi-gigabyte project folders and media libraries (10 GB to 100 GB+), dragging items in conceals them in-place instantly, vanishing them from Finder and system searches. No duplicate copies are created, and zero extra disk space is consumed.
+* **Touch ID Biometrics & Emergency Recovery**: Supports fast biometric verification via native Touch ID or master password unlock, backed by an independent 64-character disaster recovery key for total peace of mind.
+* **Deep Uninstaller & Orphan Residual Analysis**: Traverses system directories to catalog installed applications with physical disk footprints, automatically detecting orphaned configuration files and caches left behind by removed applications.
+* **Menubar Telemetry**: Lives unobtrusively in your status bar with minimal power draw, providing real-time telemetry on SoC core temperature, fan speed, unified memory pressure, and connected storage volumes.
+* **100% Localized & Zero File Content Reading/Writing**: Operates entirely offline on your Mac with zero networking modules and zero telemetry—absolutely no user data is ever uploaded. File concealment takes effect completely in-place, **never reading, copying, transferring, or modifying the actual contents of your personal files**. Quitting the application immediately releases all allocated memory.
 
 ---
 
 ## 📸 Feature Showcase
 
-### 1. Dashboard
-Visually displays overall system health, providing a one-click smart clean entry and deep scan feedback with external disk capacity recognition.
+### 1. Smart Clean Dashboard
+Provides an intuitive overview of storage health, offering one-click smart scanning for temporary caches, logs, and reclaimable junk, complete with large-file inspection.
 <p align="center">
-  <img src="assets/screenshots_v2/01_dashboard.png" width="800" alt="Dashboard" />
+  <img src="assets/screenshots_en/01_dashboard.png" width="800" alt="Smart Clean Dashboard" />
 </p>
 
-### 2. Vault Unlock Mechanism
-Enforces native macOS Touch ID and system password verification, strongly blocking unauthorized access requests.
+### 2. Installed Applications
+Clearly catalogs all installed applications on your Mac, displaying accurate physical disk footprints and bundle versions for quick search and Finder navigation.
 <p align="center">
-  <img src="assets/screenshots_v2/02_vault_unlock.png" width="800" alt="Vault Unlock Mechanism" />
+  <img src="assets/screenshots_en/02_uninstaller_apps.png" width="800" alt="Installed Applications" />
 </p>
 
-### 3. Private Space
-Provides in-place concealment protection for private files and folders. Supports quick drag-and-drop import without redundant disk duplicates.
+### 3. Application Leftovers & Residual Cleanup
+Automatically tracks down orphaned configuration files, application support remnants, and sandbox caches left behind by uninstalled software to reclaim valuable space.
 <p align="center">
-  <img src="assets/screenshots_v2/03_vault_empty.png" width="800" alt="Private Space" />
+  <img src="assets/screenshots_en/03_uninstaller_leftovers.png" width="800" alt="Application Leftovers" />
 </p>
 
-### 4. Concealed Assets Management
-Structurally organizes protected files and folders, providing real-time feedback on the lock status of target paths.
+### 4. Private Space Verification & Unlock Screen
+A minimalist, modern security gateway supporting native Apple Touch ID biometric authentication and master password access, with built-in recovery key reset support.
 <p align="center">
-  <img src="assets/screenshots_v2/04_vault_list.png" width="800" alt="Concealed Assets Management" />
+  <img src="assets/screenshots_en/04_vault_lock.png" width="800" alt="Private Space Verification & Unlock Screen" />
 </p>
 
-### 5. Batch Operations
-Supports multi-select and global select-all. Complete unlocking or relocking of massive amounts of files in milliseconds with a single click.
+### 5. Private Space Ingestion & Ready State
+A clean ingestion canvas allowing you to drag and drop sensitive folders or files for instant in-place concealment, complete with a quick scan for existing hidden items.
 <p align="center">
-  <img src="assets/screenshots_v2/05_vault_batch.png" width="800" alt="Batch Operations" />
+  <img src="assets/screenshots_en/05_vault_empty.png" width="800" alt="Private Space Ingestion" />
 </p>
 
-### 6. User Notice & Disaster Recovery
-Built-in idiot-proof design and recovery code mechanism to ensure users can safely retrieve data even if permissions are accidentally lost or passwords forgotten.
+### 6. Preferences & Permission Controls
+Provides system-level preference toggles including launch at login and close-window behavior, along with clear status indicators for Full Disk Access (FDA) and App Management.
 <p align="center">
-  <img src="assets/screenshots_v2/06_vault_notice_1.png" width="800" alt="User Notice 1" />
-</p>
-<p align="center">
-  <img src="assets/screenshots_v2/07_vault_notice_2.png" width="800" alt="User Notice 2" />
+  <img src="assets/screenshots_en/06_preferences.png" width="800" alt="Preferences & Permission Controls" />
 </p>
 
-### 7. Deep Uninstaller
-Penetrates system sandboxes to precisely locate and enumerate installed applications and their physical storage footprints.
+### 7. Concealed Assets Management
+A structured repository displaying protected folders and files, item sizes (supporting massive 10GB–100GB+ directories), lock status capsules, and quick Finder reveals.
 <p align="center">
-  <img src="assets/screenshots_v2/08_uninstaller_list.png" width="800" alt="Deep Uninstaller" />
+  <img src="assets/screenshots_en/07_vault_concealed.png" width="800" alt="Concealed Assets Management" />
 </p>
 
-### 8. Orphan Leftover Crushing
-Automatically tracks low-level residual files of uninstalled programs (including group containers and preferences). Supports blind-spot-free cleaning via root escalation.
+### 8. Batch Operations & Multi-Select
+A flexible multi-select action bar enabling you to unlock, lock, or release protection across multiple concealed assets simultaneously for effortless file management.
 <p align="center">
-  <img src="assets/screenshots_v2/09_uninstaller_leftovers.png" width="800" alt="Orphan Leftover Crushing" />
+  <img src="assets/screenshots_en/08_vault_batch.png" width="800" alt="Batch Operations & Multi-Select" />
 </p>
 
-### 9. Preferences
-Automatically adapts to system-level light/dark modes. Offers seamless hot-reloading for English/Chinese bilingual support and customizable hardware telemetry settings.
+### 9. Menubar Telemetry Card
+An ultra-lightweight status bar popup providing real-time hardware telemetry: SoC core temperature, fan speed, unified memory pressure, and mounted disk volume capacity.
 <p align="center">
-  <img src="assets/screenshots_v2/10_settings_light.png" width="800" alt="Light and Dark Mode" />
-</p>
-<p align="center">
-  <img src="assets/screenshots_v2/11_settings_en.png" width="800" alt="Bilingual Support" />
-</p>
-
-### 10. Menubar Telemetry
-Utilizes low-latency kernel polling technology to display SoC core temperature, fan speed, and polymorphic memory usage.
-<p align="center">
-  <img src="assets/screenshots_v2/12_menubar.png" width="360" alt="Menubar Telemetry" />
+  <img src="assets/screenshots_en/09_menubar.png" width="360" alt="Menubar Telemetry Card" />
 </p>
 
 ---
 
-## 🚀 Installation & Troubleshooting
+## 🚀 Installation & Usage Guide
 
 ### 1. Standard Installation
-#### Option A: One-Line Install via Homebrew (Recommended)
+
+#### Option A: Install via Homebrew Cask (Recommended)
 ```bash
 brew install meowvia/tap/macaegis
 ```
 
-#### Option B: Manual DMG Download (With One-Click Update Assistant)
-1. Download the latest `MacAegis-vX.Y.Z.dmg` installer from the [Releases Page](https://github.com/meowvia/MacAegis/releases);
+#### Option B: Manual DMG Download
+1. Download the latest `MacAegis-vX.Y.Z.dmg` installer package from the [Releases Page](https://github.com/meowvia/MacAegis/releases);
 2. **First-time Install**: Open the DMG image and drag **MacAegis** onto the "➡️ Drag to Install" shortcut;
-3. **Upgrading / Overwriting (Recommended)**: Double-click `Update Assistant (更新助手).command` inside the DMG. It gracefully terminates older processes, purges system cache, and seamlessly updates the app;
+3. **Upgrading (Recommended)**: Double-click `Update Assistant (更新助手).command` inside the DMG. The assistant will safely terminate older instances, update the application in place, and exit gracefully;
 4. Launch MacAegis from Launchpad or Applications.
 
 ---
 
-### 2. How to Resolve "App is damaged / Cannot verify developer"
+### 2. First-Time Launch & Security Notice
 
-As an indie open-source utility utilizing Ad-Hoc self-signing (without Apple's paid enterprise certificate), macOS Gatekeeper may display a security prompt on initial launch:
-> *"'MacAegis' is damaged and can't be opened. You should move it to the Trash."* or *"Cannot open because the developer cannot be verified"*
+MacAegis is an independent freeware utility utilizing local Ad-Hoc code signing. If macOS Gatekeeper displays an "Unverified Developer" notice on initial launch:
 
-**Resolution (Run once in Terminal):**
-1. Open the built-in **Terminal** app (via Spotlight search: `Terminal`);
-2. Copy, paste, and run the following command (enter your Mac login password if prompted):
+**Quick Resolution:**
+* In Finder's **Applications** folder, locate **MacAegis**, hold the **Control key** and click the icon, then select **"Open"** from the context menu and confirm;
+* Or run this single command in **Terminal** to clear the quarantine attribute:
 ```bash
 sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
 ```
-3. Re-open MacAegis to run smoothly.
 
 ---
 
-### 3. Full Disk Access (FDA) Permission & Upgrade Reset Notice
-To enable deep system cache inspection and file reveals in Finder, grant Full Disk Access when prompted:
-* Open **System Settings** → **Privacy & Security** → **Full Disk Access**, locate **MacAegis** and toggle it on.
-* **⚠️ Important Notice for Upgrades**: Under macOS TCC security architecture, permissions are strictly bound to the unique binary code hash (CDHash) of each build. When overwriting or updating MacAegis, previous FDA authorization becomes silently invalidated by macOS even if the toggle appears enabled. **Please remove the old MacAegis entry [-] in Full Disk Access, and click [+] to re-add `/Applications/MacAegis.app` and toggle it on**. Running the included Update Assistant can automatically take you straight to this settings pane.
+### 3. Full Disk Access (FDA) Permission Notice
+
+To allow deep inspection of system caches and app preferences, grant **Full Disk Access (FDA)** when prompted:
+1. Open macOS **System Settings** → **Privacy & Security** → **Full Disk Access**;
+2. Locate **MacAegis** in the list and toggle it on.
+3. **⚠️ Important Notice for Upgrades**: Under macOS security architecture, permissions are strictly bound to the unique code signature of each build. When overwriting or updating MacAegis, if scanning results appear empty, simply remove the old MacAegis entry [-] in Full Disk Access, and click [+] to re-add `/Applications/MacAegis.app`. Running the included Update Assistant can also guide you directly to this pane.
 
 ---
 
 ## 📦 Download
 
-* **GitHub Releases**: [MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
-* **System Requirements**: macOS 14.0 (Sonoma) or newer, fully compatible with Apple Silicon (M1/M2/M3/M4) and Intel Macs.
+* **GitHub Official Releases**: [MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
+* **System Requirements**: macOS 14.0 (Sonoma) or newer, natively compatible with Apple Silicon (M1/M2/M3/M4 series) and Intel Macs.
 
 ---
 
-## 📄 License
+## 📄 Privacy & Licensing Notice
 
-MacAegis is free software. All operations run 100% locally on your Mac. Feel free to try it out and share your feedback!
+MacAegis is free software. All operations execute 100% locally on your Mac. It contains zero networking capabilities, never uploads any data, and **never reads or modifies the contents of your personal files**. Pure, transparent, and respectful of your privacy. Feedback and suggestions are warmly welcomed!

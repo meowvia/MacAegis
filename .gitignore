@@ -25,3 +25,10 @@ DerivedData/
 *.app/
 *.zip
 *.icns
+*.dmg
+
+PRODUCT_MEMO.md
+
+.github/
+*.dmg
+PRODUCT_MEMO.md

@@ -185,13 +185,13 @@ public struct PrivacyVaultView: View {
                             .font(.system(size: 14))
                     )
 
-                Text(l10n("确认批量解除保护？", "Confirm Batch Remove Protection?"))
+                Text(l10n("确认批量解除保护？", "Confirm Remove Protection?"))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                 Spacer()
             }
 
             let validCount = viewModel.items.filter { viewModel.selectedItemIds.contains($0.id) }.count
-            Text(l10n("即将解除选中的 \(validCount) 个项目的隐匿保护。解除后文件将从隐匿列表移出并在访达中恢复正常可见，文件内容完好无损。", "Selected \(validCount) items will be unhidden and removed from privacy protection. Files remain fully intact."))
+            Text(l10n("即将解除选中的 \(validCount) 个项目。解除后项目将从列表中移出并在访达中恢复正常可见。", "The selected \(validCount) items will be removed from the list and made visible in Finder."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
@@ -384,7 +384,7 @@ public struct PrivacyVaultView: View {
 
             Divider().opacity(0.2)
 
-            Text(l10n("输入 64 位恢复码可直接重置主密码并无损解锁所有文件", "Enter your 64-character recovery key to reset master password and unlock."))
+            Text(l10n("输入 64 位恢复密钥重置主密码并恢复访问权限", "Enter your 64-character recovery key to reset master password and regain access."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
@@ -511,7 +511,7 @@ public struct PrivacyVaultView: View {
 
             Divider().opacity(0.2)
 
-            Text(l10n("这是你独立空间的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥找回所有已锁文件。", "This is your Private Space recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
+            Text(l10n("这是你独立空间的恢复密钥，请妥善保存在安全的离线地点。若遗忘主密码，可通过此密钥重置访问权限。", "This is your recovery key. Please keep it in a secure offline location. If you forget your master password, use this key to regain access."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
@@ -583,7 +583,7 @@ public struct PrivacyVaultView: View {
                     Image(systemName: "shield.checkered")
                         .font(.system(size: 16))
                         .foregroundColor(Color(hex: "38BDF8"))
-                    Text(l10n("独立空间 · 用户须知", "Private Space · User Notice"))
+                    Text(l10n("使用须知", "User Notice"))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                 }
@@ -609,17 +609,17 @@ public struct PrivacyVaultView: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(l10n("欢迎使用 MacAegis 独立空间功能。为保障你的数据安全与顺畅体验，请在使用前知悉以下事项：", "Welcome to MacAegis Private Space. Please take note of the following before use:"))
+                    Text(l10n("欢迎使用 MacAegis 独立空间功能。为保障正常使用体验，请在使用前知悉以下事项：", "Welcome to MacAegis Private Space. Please note the following before use:"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .padding(.bottom, 2)
 
                     // Clause 1
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(l10n("1. 妥善保管主密码与恢复码", "1. Safely Keep Master Password & Recovery Key"))
+                        Text(l10n("1. 主密码与恢复密钥保管", "1. Safely Keep Master Password & Recovery Key"))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.primary)
-                        Text(l10n("• 本功能专为保护你的私密数据设计，采用纯本地离线安全机制，不会向任何云端上传你的信息；\n• 系统已为你生成专属的「恢复密钥」，建议你在初次设置后妥善备份（如存入备忘录或密码管理软件中）；\n• 当你不慎遗忘主密码时，该恢复码是协助你安全找回访问权限的唯一凭证。", "• Uses pure offline security without cloud upload.\n• A unique Recovery Key is generated; please back it up.\n• The recovery key is the sole credential to regain access if you forget your password."))
+                        Text(l10n("• 系统采用本地离线处理机制，不上传任何用户数据；\n• 初次设置后请妥善备份专属恢复密钥；\n• 若遗忘主密码，恢复密钥是重置访问凭据的唯一途径。", "• Operates entirely offline without cloud upload.\n• Please back up your unique recovery key after initial setup.\n• The recovery key is the sole credential to regain access if you forget your password."))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
@@ -627,10 +627,10 @@ public struct PrivacyVaultView: View {
 
                     // Clause 2
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(l10n("2. 避免将下载软件保存路径设为锁定目录", "2. Avoid Setting Download Path to Locked Folders"))
+                        Text(l10n("2. 避免外部下载直接写入锁定目录", "2. Avoid Setting Download Path to Locked Folders"))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.primary)
-                        Text(l10n("• 处于锁定状态的文件夹处于系统级安全保护中，期间将暂停外部写入与修改；\n• 请避免将迅雷、浏览器或网盘等下载工具的默认保存目录直接指向已锁定的文件夹，以防止外部软件因无法写入而提示错误；\n• 建议将文件下载至常规目录（如系统的“下载”文件夹）后，再移入本功能进行保护。", "• Locked folders pause external write/modification.\n• Avoid pointing download tools directly to locked folders to prevent write errors.\n• Download to standard folders first before concealing."))
+                        Text(l10n("• 处于锁定隐藏状态的目录可能导致外部应用写入异常；\n• 请勿将浏览器或下载工具的默认保存路径直接设置为受保护目录；\n• 建议文件下载完成后再移入本空间进行管理。", "• Folders in locked hidden status may cause write errors for external apps.\n• Do not set download tools' default save location directly to a locked folder.\n• Move files into Private Space after downloading completes."))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
@@ -638,10 +638,10 @@ public struct PrivacyVaultView: View {
 
                     // Clause 3
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(l10n("3. 云同步文件的使用建议（iCloud / OneDrive / Dropbox 等）", "3. Cloud Sync File Guidelines"))
+                        Text(l10n("3. 云盘同步目录提示", "3. Cloud Sync Folder Notice"))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.primary)
-                        Text(l10n("• 为避免与各类云盘的后台同步引擎产生数据冲突或异常，系统默认对云端同步目录内的文件进行安全隔离；\n• 如需对云端文件进行隐匿保护，建议先将其拷贝至本地磁盘（如：桌面、下载或外置硬盘）后再加入隐匿。", "• Cloud synced directories are isolated to prevent engine conflicts.\n• Copy files to local disk first before concealing."))
+                        Text(l10n("• 为避免与云盘同步服务发生冲突，建议对本地磁盘文件进行管理；\n• 如需保护云盘中的文件，建议先拷贝至本地磁盘后再添加。", "• To prevent conflicts with cloud synchronization services, manage local files.\n• Copy cloud-stored files to local disk before managing."))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
@@ -649,10 +649,10 @@ public struct PrivacyVaultView: View {
 
                     // Clause 4
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(l10n("4. 原地保护机制与性能说明", "4. In-Place Protection & Performance"))
+                        Text(l10n("4. 本地原位处理说明", "4. Local In-Place Processing"))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.primary)
-                        Text(l10n("• 本功能直接在文件原路径施加隐匿与保护，不产生冗余数据拷贝，不额外占用磁盘存储空间；\n• 无论是单个文件还是大型文件夹，隐匿与恢复操作均为瞬时完成。", "• Conceals files in-place without redundant copies or extra disk usage.\n• Stealth and recovery operations complete instantaneously."))
+                        Text(l10n("• 文件在原始存储路径进行属性调整，不产生额外数据副本；\n• 锁定与恢复操作直接作用于本地文件系统。", "• Adjusts file visibility directly at original paths without redundant duplicates.\n• Conceal and reveal operations apply locally to the filesystem."))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
@@ -711,7 +711,19 @@ public struct PrivacyVaultView: View {
 
     // MARK: - Cosmic Liquid Glass Backdrop (Inherited from MainView)
     private var cosmicLiquidGlassBackdrop: some View {
-        Color.clear
+        ZStack {
+            RadialGradient(
+                colors: [
+                    Color(hex: "38BDF8").opacity(colorScheme == .dark ? 0.07 : 0.03),
+                    Color(hex: "818CF8").opacity(colorScheme == .dark ? 0.04 : 0.02),
+                    Color.clear
+                ],
+                center: .center,
+                startRadius: 40,
+                endRadius: 420
+            )
+            .ignoresSafeArea()
+        }
     }
 
     // MARK: - Unlocked Vault Content
@@ -789,7 +801,7 @@ public struct PrivacyVaultView: View {
                 }) {
                     HStack(spacing: 3) {
                         Image(systemName: "info.circle.fill")
-                        Text(l10n("须知", "Notice"))
+                        Text(l10n("使用须知", "User Notice"))
                     }
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(Color(hex: "38BDF8"))
@@ -807,7 +819,7 @@ public struct PrivacyVaultView: View {
                 }) {
                     HStack(spacing: 3) {
                         Image(systemName: "key.fill")
-                        Text(l10n("密码", "Password"))
+                        Text(l10n("密码修改", "Change Password"))
                     }
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
@@ -824,7 +836,7 @@ public struct PrivacyVaultView: View {
                 }) {
                     HStack(spacing: 3) {
                         Image(systemName: "shield.lefthalf.filled.badge.checkmark")
-                        Text(l10n("恢复码", "Key"))
+                        Text(l10n("恢复密钥", "Recovery Key"))
                     }
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(Color(hex: "10B981"))
@@ -1047,7 +1059,7 @@ public struct PrivacyVaultView: View {
                         Image(systemName: "lock.shield.fill")
                             .foregroundColor(Color(hex: "38BDF8"))
                             .font(.system(size: 10))
-                        Text(l10n("本地私密安全隐匿保护 · 零云端上传 · 文件锁定后在访达与系统视图中原位隐匿且防预览", "On-device privacy protection · Zero cloud sync · Completely hidden in Finder when locked"))
+                        Text(l10n("本地处理 · 锁定后在访达与系统视图中隐藏", "Local processing · Hidden in Finder and system views when locked"))
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
                     }
@@ -1200,9 +1212,6 @@ public struct PrivacyVaultView: View {
                 Text(l10n("空间当前为空", "Private Space is Empty"))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.primary)
-                Text(l10n("拖拽私人文件夹或敏感文件至上方区域，即可原位瞬时锁定并隐匿", "Drag private folders or sensitive files above to auto-lock and conceal"))
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
             }
 
             Button(action: {
@@ -1210,7 +1219,7 @@ public struct PrivacyVaultView: View {
             }) {
                 HStack(spacing: 5) {
                     Image(systemName: "sparkle.magnifyingglass")
-                    Text(l10n("一键扫描并找回本地隐藏文件", "Scan & Recover Hidden Items"))
+                    Text(l10n("扫描本地隐藏项目", "Scan Hidden Items"))
                 }
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(Color(hex: "38BDF8"))
@@ -1456,15 +1465,15 @@ public struct PrivacyVaultView: View {
                         ],
                         center: .center,
                         startRadius: 10,
-                        endRadius: 85
+                        endRadius: 105
                     )
                 )
-                .frame(width: 160, height: 160)
-                .blur(radius: 24)
+                .frame(width: 210, height: 210)
+                .blur(radius: 28)
 
             // Enlarged Shield Lock Icon (vibrant cyan-indigo gradient)
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 86, weight: .medium))
+                .font(.system(size: 106, weight: .medium))
                 .foregroundStyle(
                     LinearGradient(
                         colors: [Color.white, Color(hex: "38BDF8"), Color(hex: "818CF8")],
@@ -1472,10 +1481,10 @@ public struct PrivacyVaultView: View {
                         endPoint: .bottom
                     )
                 )
-                .shadow(color: Color(hex: "38BDF8").opacity(0.45), radius: 14, x: 0, y: 4)
+                .shadow(color: Color(hex: "38BDF8").opacity(0.40), radius: 16, x: 0, y: 5)
         }
         .frame(height: 140)
-        .padding(.bottom, 16) // Shift layout up relative to the card
+        .padding(.bottom, 8)
     }
 
     // MARK: - First Time Setup Content
@@ -1559,129 +1568,150 @@ public struct PrivacyVaultView: View {
 
     // MARK: - Locked Gate Content
     private var lockedGateContent: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             Spacer()
 
-            // Holographic Lock Shield
+            // Holographic Lock Shield Hero
             luminousVaultSphereHero
 
+            VStack(spacing: 5) {
+                Text(l10n("独立空间", "Private Space"))
+                    .font(.system(size: 21, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+
+                Text(l10n("验证 Touch ID 或输入主密码以解锁", "Verify Touch ID or enter master password to unlock"))
+                    .font(.system(size: 12.5))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 6)
 
             // Glass Unlock Card
-            VStack(spacing: 16) {
-                
-                // Unified Apple-Style Input Bar
-                HStack(spacing: 0) {
-                    // Left Lock Icon
-                    Image(systemName: viewModel.lockoutCountdown > 0 ? "lock.slash.fill" : "lock.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(viewModel.lockoutCountdown > 0 ? Color(hex: "F59E0B") : (viewModel.isPasswordError ? Color(hex: "EF4444") : .secondary.opacity(0.6)))
-                        .padding(.leading, 14)
-                    
-                    // Center Input Area
+            VStack(spacing: 14) {
+                // Official Apple-Style Touch ID Button (Neutral Monochrome)
+                Button(action: { viewModel.unlockVaultWithBiometrics() }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "touchid")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(MacAegisTheme.primaryText(for: colorScheme))
+                        Text(l10n("使用 Touch ID 解锁", "Unlock with Touch ID"))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(MacAegisTheme.primaryText(for: colorScheme))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 38)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.10), lineWidth: 0.5)
+                            )
+                    )
+                }
+                .buttonStyle(PureButtonStyle())
+                .focusable(false)
+                .help(l10n("使用 Touch ID 触控 ID 解锁", "Unlock with Touch ID"))
+
+                // Subtle Divider
+                HStack(spacing: 10) {
+                    Rectangle().fill(Color.secondary.opacity(0.15)).frame(height: 0.5)
+                    Text(l10n("或输入主密码", "or enter master password"))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.7))
+                    Rectangle().fill(Color.secondary.opacity(0.15)).frame(height: 0.5)
+                }
+                .padding(.vertical, 2)
+
+                // Password Input Bar
+                HStack(spacing: 8) {
+                    Image(systemName: viewModel.lockoutCountdown > 0 ? "lock.slash.fill" : "key.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(viewModel.lockoutCountdown > 0 ? Color(hex: "F59E0B") : (viewModel.isPasswordError ? Color(hex: "EF4444") : Color(hex: "38BDF8")))
+                        .padding(.leading, 12)
+
                     ZStack(alignment: .leading) {
                         if viewModel.lockoutCountdown > 0 {
                             Text(l10n("尝试过多，请 \(viewModel.lockoutCountdown) 秒后重试", "Too many attempts. Try again in \(viewModel.lockoutCountdown)s"))
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(Color(hex: "F59E0B"))
-                                .padding(.horizontal, 10)
-                                .transition(.opacity)
                         } else if let errorMsg = viewModel.passwordErrorMessage {
                             Text(errorMsg)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(Color(hex: "EF4444"))
-                                .padding(.horizontal, 10)
-                                .transition(.opacity)
                         } else {
-                            SecureField(l10n("输入密码", "Enter password"), text: $viewModel.passwordInput)
+                            SecureField(l10n("输入主密码", "Enter Master Password"), text: $viewModel.passwordInput)
                                 .textFieldStyle(.plain)
-                                .font(.system(size: 14))
-                                .padding(.horizontal, 10)
+                                .font(.system(size: 13))
                                 .onSubmit {
                                     viewModel.unlockWithPassword()
                                 }
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    
-                    // Right Actions
-                    HStack(spacing: 6) {
-                        Button(action: { viewModel.unlockVaultWithBiometrics() }) {
-                            Image(systemName: "touchid")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(
-                                    LinearGradient(colors: [Color(hex: "FF3B30"), Color(hex: "FA2D48")], startPoint: .top, endPoint: .bottom)
-                                )
-                                .padding(6)
-                        }
-                        .buttonStyle(PureButtonStyle())
-                        .focusable(false)
-                        .focusEffectDisabled()
-                        
-                        Button(action: { viewModel.unlockWithPassword() }) {
-                            Image(systemName: "arrow.right.circle.fill")
-                                .font(.system(size: 22))
-                                .foregroundStyle(
-                                    LinearGradient(colors: [Color(hex: "38BDF8"), Color(hex: "3B82F6")], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                                .shadow(color: Color.blue.opacity(0.3), radius: 3, x: 0, y: 1)
-                                .padding(.trailing, 6)
-                        }
-                        .buttonStyle(PureButtonStyle())
-                        .focusable(false)
-                        .focusEffectDisabled()
-                        .disabled(viewModel.lockoutCountdown > 0 || viewModel.passwordInput.isEmpty)
-                        .opacity(viewModel.lockoutCountdown > 0 ? 0.3 : (viewModel.passwordInput.isEmpty ? 0.5 : 1.0))
+
+                    Button(action: { viewModel.unlockWithPassword() }) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(
+                                LinearGradient(colors: [Color(hex: "38BDF8"), Color(hex: "3B82F6")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                            .padding(.trailing, 8)
                     }
+                    .buttonStyle(PureButtonStyle())
+                    .focusable(false)
+                    .disabled(viewModel.lockoutCountdown > 0 || viewModel.passwordInput.isEmpty)
+                    .opacity(viewModel.lockoutCountdown > 0 || viewModel.passwordInput.isEmpty ? 0.3 : 1.0)
                 }
-                .frame(width: 290, height: 40)
+                .frame(height: 38)
                 .background(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(viewModel.lockoutCountdown > 0 ? Color(hex: "F59E0B").opacity(0.12) : (viewModel.isPasswordError ? Color(hex: "EF4444").opacity(0.12) : Color.secondary.opacity(0.06)))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(viewModel.lockoutCountdown > 0 ? Color(hex: "F59E0B").opacity(0.5) : (viewModel.isPasswordError ? Color(hex: "EF4444").opacity(0.5) : Color.white.opacity(0.05)), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(viewModel.lockoutCountdown > 0 ? Color(hex: "F59E0B").opacity(0.5) : (viewModel.isPasswordError ? Color(hex: "EF4444").opacity(0.5) : Color.white.opacity(0.08)), lineWidth: 0.8)
                 )
                 .modifier(VaultShakeEffect(animatableData: CGFloat(viewModel.shakeAttempts)))
                 .animation(.default, value: viewModel.shakeAttempts)
 
-                // Hint and Recovery Options
-                HStack {
-                    if let hint = viewModel.passwordHint, !hint.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "lightbulb")
-                            Text(hint)
-                        }
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary.opacity(0.8))
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        viewModel.recoveryErrorMessage = nil
-                        viewModel.recoveryCodeInput = ""
-                        viewModel.recoveryNewPasswordInput = ""
-                        viewModel.recoveryConfirmPasswordInput = ""
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            viewModel.isRecoveringWithCode = true
-                        }
-                    }) {
-                        Text(l10n("忘记密码？使用 64 位恢复密钥找回", "Forgot password? Recover with recovery key"))
+                // Password Hint (Cleanly separated)
+                if let hint = viewModel.passwordHint, !hint.isEmpty {
+                    HStack(spacing: 5) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(hex: "F59E0B"))
+                        Text(l10n("密码提示: \(hint)", "Password hint: \(hint)"))
                             .font(.system(size: 11))
-                            .underline()
-                            .foregroundColor(Color(hex: "38BDF8").opacity(0.9))
+                            .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
                 }
-                .frame(width: 280)
+
+                // Forgot Password / Recovery Key Link (Cleanly separated)
+                Button(action: {
+                    viewModel.recoveryErrorMessage = nil
+                    viewModel.recoveryCodeInput = ""
+                    viewModel.recoveryNewPasswordInput = ""
+                    viewModel.recoveryConfirmPasswordInput = ""
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.isRecoveringWithCode = true
+                    }
+                }) {
+                    Text(l10n("忘记密码？使用 64 位恢复密钥重置", "Forgot password? Reset with 64-character recovery key"))
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "38BDF8").opacity(0.85))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 2)
             }
-            .padding(18)
+            .frame(width: 320)
+            .padding(20)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .stroke(Color.secondary.opacity(0.12), lineWidth: 0.8)
                     )
             )

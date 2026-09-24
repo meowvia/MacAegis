@@ -1,4 +1,4 @@
-
+# 更新日志 (Changelog)
 
 所有关键版本的更新与修复记录将在此文档中严格对齐官方发布说明。
 
@@ -10,34 +10,32 @@
 
 ⚠️ **重要提示**：作为大版本升级，受 macOS 签名机制限制，覆盖更新可能会导致系统的完全磁盘访问权限 (FDA) 失效。建议使用安装包内的更新助手进行更新；更新后请在系统设置中将旧的 MacAegis 授权移除并重新添加开启。首次打开若遇未验证提示，按住 Control 键点击“打开”即可。
 
-本次更新为 MacAegis 1.0.0 正式大版本，全面换代为现代流动玻璃（Liquid Glass）视觉体系，并对多项核心功能进行了体验升级与规范对齐。
-
 **修改**
-* 全面换代为 macOS 原生流动玻璃（Liquid Glass）视觉架构，实现全局视觉高度统一化。
-* 将“隐私保险箱”更名为“独立空间”，界面标签统一对齐为四字规范。
-* 安装包内新增更新助手程序与双语权限配置指引。
+* 全面换代为原生现代流动玻璃（Liquid Glass）视觉架构，实现全局界面视觉的高度统一与质感跃迁。
+* “隐私保险箱”全新升级为“独立空间”，重塑解锁交互与状态呈现，工具栏与功能入口全面对齐四字规范。
+* 安装包内新增更新助手程序与配置指引，简化大版本升级与权限配置流程。
 
 **优化**
-* 进一步压缩安装包体积，精炼程序资源，保持极致轻量。
-* 全局操作流畅度提升，重构动效与渲染管线，交互体验更为丝滑跟手。
-* 内存占用与待机功耗进一步降低，后台闲置时资源消耗趋近于零。
-* 优化了应用残留文件的扫描识别精度，进一步提升清理安全性。
+* 进一步压缩安装包与分发镜像体积，精炼程序资源，保持极致轻量。
+* 优化渲染管线与动态交互响应，操作流畅度与跟手感显著提升。
+* 进一步降低内存常驻开销与待机功耗，后台闲置时资源占用趋近于零。
+* 重构交互提示与安全说明文案，全面对齐客观严谨的行业标准。
+* 优化了应用残留文件的扫描识别精度与清理安全性。
 
 **MacAegis v1.0.0 Release Notes**
 
 ⚠️ **Important Notice**: As a major version upgrade, due to macOS signature constraints, overwriting with a new version may invalidate your existing Full Disk Access (FDA) permissions. It is recommended to use the included Update Assistant; after updating, please remove the old MacAegis entry in System Settings and re-add it. For first-time launches encountering an unverified developer warning, hold the Control key and click "Open".
 
-Version 1.0.0 is a major milestone for MacAegis, fully embracing the modern Liquid Glass visual design with refined interactions, naming standardizations, and performance optimizations.
-
 **Modifications**
-* Fully transitioned to macOS native Liquid Glass visual architecture, achieving complete visual unity across the entire interface.
-* Renamed "Privacy Vault" to "Private Space" with balanced four-character tab labeling.
-* Added the Update Assistant utility and bilingual permission guidance inside the installer package.
+* Fully transitioned to macOS native Liquid Glass visual architecture, achieving complete visual unity and refined aesthetics across the entire interface.
+* Re-architected "Privacy Vault" into "Private Space", redesigned the unlock and browsing interactions, and standardized all toolbar actions to a four-character layout.
+* Added the Update Assistant utility and permission guidance inside the installer package to streamline major version upgrades.
 
 **Optimizations**
-* Further compressed the installer package footprint to maintain an ultra-lightweight distribution.
-* Improved overall app smoothness and responsiveness, delivering fluid and stutter-free interactions.
+* Further compressed the installer package and disk image footprint to maintain an ultra-lightweight distribution.
+* Optimized rendering pipeline and animation responsiveness for noticeably smoother, stutter-free interactions.
 * Further reduced memory footprint and standby power consumption to near-zero background idle usage.
+* Standardized interaction prompts and safety notices to adhere strictly to industry standards.
 * Optimized residual leftover detection accuracy during application uninstallation for safer removal.
 
 ---

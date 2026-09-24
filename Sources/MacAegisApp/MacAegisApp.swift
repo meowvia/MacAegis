@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ObjectiveC
 @preconcurrency import UserNotifications
 import MacAegisCore
 
@@ -40,9 +41,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self = self else { return }
             if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
-                window.delegate = self
-                window.isMovableByWindowBackground = true
+                self.configureWindow(window)
                 window.makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+
+    private func configureWindow(_ window: NSWindow) {
+        window.delegate = self
+        window.isMovableByWindowBackground = true
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.styleMask.insert(.fullSizeContentView)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = true
+
+        // Enable native window dragging across any non-interactive background space
+        if let contentView = window.contentView {
+            let hostingClass: AnyClass = type(of: contentView)
+            let selector = #selector(getter: NSView.mouseDownCanMoveWindow)
+            if let method = class_getInstanceMethod(hostingClass, selector) {
+                let types = method_getTypeEncoding(method)
+                let block: @convention(block) (AnyObject) -> Bool = { _ in true }
+                let imp = imp_implementationWithBlock(block)
+                class_replaceMethod(hostingClass, selector, imp, types)
             }
         }
     }
@@ -101,6 +124,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
                 window.alphaValue = 1.0
                 window.setIsVisible(true)
+                window.titlebarAppearsTransparent = true
+                window.titleVisibility = .hidden
+                window.styleMask.insert(.fullSizeContentView)
+                window.isOpaque = false
+                window.backgroundColor = .clear
+                window.hasShadow = true
                 window.makeKeyAndOrderFront(nil)
                 foundWindow = true
                 break
@@ -127,7 +156,7 @@ struct MacAegisApp: App {
     var body: some Scene {
         Window("MacAegis", id: "main_window") {
             MainView()
-                .frame(minWidth: 980, minHeight: 660)
+                .frame(minWidth: 860, minHeight: 560)
                 .onAppear {
                     NSApp.activate(ignoringOtherApps: true)
                     StatusBarController.shared.setup(dashboardVM: DashboardViewModel.shared)
@@ -135,6 +164,6 @@ struct MacAegisApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact)
-        .defaultSize(width: 1000, height: 680)
+        .defaultSize(width: 880, height: 580)
     }
 }

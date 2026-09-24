@@ -13,9 +13,7 @@ public struct DeveloperRules: CleanRuleProtocol {
         let whitelist = WhitelistManager.shared
 
         let devTargets: [(name: String, path: String, desc: String, appName: String, safety: SafetyLevel)] = [
-            // 1. Xcode 巨兽级模拟器系统镜像与缓存 (30GB+)
-            ("Xcode 模拟器系统镜像 (Simulator Volumes)", "/Library/Developer/CoreSimulator/Volumes", "Xcode 历史下载的 visionOS/watchOS/tvOS 虚拟机系统盘镜像，可释放数十 GB", "Xcode", .safe),
-            ("Xcode 模拟器运行时下载缓存 (Simulator Caches)", "/Library/Developer/CoreSimulator/Caches", "Xcode 下载模拟器时保留的解压中间缓存包", "Xcode", .safe),
+            // 1. Xcode 模拟器与设备数据 (严格限制在用户主目录下，杜绝权限弹窗)
             ("Xcode 废弃模拟器设备数据 (Simulator Devices)", "~/Library/Developer/CoreSimulator/Devices", "历史测试模拟器中安装的临时沙盒数据，可随时安全清理", "Xcode", .safe),
 
             // 2. Xcode 衍生构建与编译索引

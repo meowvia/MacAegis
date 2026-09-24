@@ -24,9 +24,21 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
         }
     }
 
+    public static func resolveInitialLanguage(savedValue: String?, preferredLanguages: [String] = Locale.preferredLanguages) -> AppLanguage {
+        if let saved = savedValue, let lang = AppLanguage(rawValue: saved) {
+            return lang
+        }
+        let preferred = preferredLanguages.first?.lowercased() ?? "zh"
+        if preferred.hasPrefix("zh") {
+            return .zh
+        } else {
+            return .en
+        }
+    }
+
     private init() {
-        let saved = UserDefaults.standard.string(forKey: "appLanguage") ?? "zh"
-        self.appLanguage = AppLanguage(rawValue: saved) ?? .zh
+        let saved = UserDefaults.standard.string(forKey: "appLanguage")
+        self.appLanguage = Self.resolveInitialLanguage(savedValue: saved)
     }
 
     public var isEnglish: Bool {

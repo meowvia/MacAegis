@@ -13,7 +13,7 @@ public enum NavigationTab: String, CaseIterable, Identifiable {
         switch self {
         case .dashboard: return l10n("智能清理", "Smart Clean")
         case .uninstaller: return l10n("应用卸载", "Uninstaller")
-        case .privacyVault: return l10n("隐私隐匿", "Privacy Conceal")
+        case .privacyVault: return l10n("独立空间", "Private Space")
         }
     }
 
@@ -37,31 +37,31 @@ public struct MainView: View {
     @State private var hasNewVersion: Bool = false
     @AppStorage("autoCheckUpdate") private var autoCheckUpdate: Bool = true
     @State private var showLanguageBubble: Bool = false
-    @State private var isBreathingGlow: Bool = false
+    @AppStorage("hasCompletedOnboarding_v1") private var hasCompletedOnboarding: Bool = false
     @State private var showOnboarding: Bool = false
 
     public init() {}
 
     public var body: some View {
         ZStack(alignment: .topTrailing) {
-            // macOS 26 Ethereal Liquid Glass Cosmic Canvas (Window-wide)
+            // macOS Ethereal Liquid Glass Cosmic Canvas (Window-wide Edge-to-Edge)
             cosmicLiquidGlassBackdrop
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top Studio Header Bar (macOS 26 Seamless Ambient Melt)
+                // Top Studio Header Bar (seamlessly integrated into single Liquid Glass canvas)
                 headerBar
-                    .padding(.horizontal, 24)
+                    .padding(.leading, 78)
+                    .padding(.trailing, 24)
                     .padding(.top, 14)
                     .padding(.bottom, 6)
-                    .background(
-                        TitleBarBackgroundView()
-                            .onTapGesture(count: 2) {
-                                MainView.toggleWindowZoom()
-                            }
-                            .ignoresSafeArea(.all, edges: .top)
-                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 2) {
+                        MainView.toggleWindowZoom()
+                    }
+                    .background(WindowDragArea()) // Native draggable top bar
 
-                // Main Stage (Zero-latency instant rendering, zero offscreen alpha compositing)
+                // Main Stage
                 Group {
                     switch selectedTab {
                     case .dashboard:
@@ -84,7 +84,7 @@ public struct MainView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            // First-Launch Ethereal Language Switcher Floating Bubble (顺滑精致提示)
+            // First-Launch Ethereal Language Switcher Floating Bubble
             if showLanguageBubble {
                 languageHintTooltipBubble
                     .padding(.top, 46)
@@ -92,7 +92,7 @@ public struct MainView: View {
                     .zIndex(999)
             }
 
-            // Settings Inline Overlay Drawer (Zero AppKit Sheet Deadlocks, 100% Smooth)
+            // Settings Inline Overlay Drawer
             // 首次启动前置权限引导 (Onboarding)
             if showOnboarding {
                 OnboardingView(isPresented: $showOnboarding)
@@ -120,13 +120,19 @@ public struct MainView: View {
                 .zIndex(1000)
             }
         }
-        .frame(minWidth: 980, minHeight: 660)
-        
-        .background(MacAegisTheme.canvasBackground)
+        .frame(minWidth: 860, minHeight: 560)
+        .background(Color.clear)
         .preferredColorScheme(appearanceMode.colorScheme)
         .id("main_view_\(loc.appLanguage.rawValue)")
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notif in
             if let window = notif.object as? NSWindow, window.className.contains("Window"), !(window is NSPanel) {
+                window.titlebarAppearsTransparent = true
+                window.titleVisibility = .hidden
+                window.isMovableByWindowBackground = true
+                window.styleMask.insert(.fullSizeContentView)
+                window.isOpaque = false
+                window.backgroundColor = .clear
+                window.hasShadow = true
                 if let appDelegate = NSApp.delegate as? AppDelegate {
                     if window.delegate !== appDelegate {
                         window.delegate = appDelegate
@@ -135,12 +141,8 @@ public struct MainView: View {
             }
         }
         .onAppear {
-            withAnimation(Animation.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) {
-                isBreathingGlow = true
-            }
-            
-            // Onboarding FDA Check
-            if !FullDiskAccessHelper.shared.hasFullDiskAccess() {
+            // Onboarding FDA Check (Only if not previously dismissed or granted)
+            if !FullDiskAccessHelper.shared.hasFullDiskAccess() && !hasCompletedOnboarding {
                 showOnboarding = true
             }
             if !hasShownLanguageHint {
@@ -156,7 +158,6 @@ public struct MainView: View {
                 Task {
                     let lastCheck = UserDefaults.standard.double(forKey: "lastUpdateCheckTime")
                     let now = Date().timeIntervalSince1970
-                    // 3 days = 3 * 24 * 3600 = 259200
                     if now - lastCheck > 259200 {
                         if let update = await UpdateChecker.shared.checkForUpdates(), update.hasUpdate {
                             DispatchQueue.main.async {
@@ -185,7 +186,7 @@ public struct MainView: View {
         }) {
             HStack(spacing: 8) {
                 Image(systemName: "globe.asia.australia.fill")
-                    .font(.system(size: 14))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Color(hex: "38BDF8"), Color(hex: "818CF8")],
@@ -195,25 +196,25 @@ public struct MainView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Switch to English")
+                    Text(loc.isEnglish ? "切换至简体中文" : "Switch to English")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
-                    Text("Click Settings ⚙️ to change language")
-                        .font(.system(size: 9))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(MacAegisTheme.primaryText(for: envColorScheme))
+                    Text(loc.isEnglish ? "点击设置 ⚙️ 可更改界面语言" : "Click Settings ⚙️ to change language")
+                        .font(.system(size: 9.5))
+                        .foregroundColor(MacAegisTheme.secondaryText(for: envColorScheme))
                 }
 
                 Spacer(minLength: 4)
 
                 Button(action: {
                     hasShownLanguageHint = true
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(.easeOut(duration: 0.2)) {
                         showLanguageBubble = false
                     }
                 }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(MacAegisTheme.tertiaryText(for: envColorScheme))
                         .padding(4)
                 }
                 .buttonStyle(PureButtonStyle())
@@ -223,26 +224,21 @@ public struct MainView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "0F172A").opacity(0.95), Color(hex: "1E293B").opacity(0.92)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(envColorScheme == .dark ? Color(hex: "131A29").opacity(0.85) : Color.white.opacity(0.88))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(
-                                LinearGradient(
-                                    colors: [Color(hex: "38BDF8").opacity(0.8), Color(hex: "C084FC").opacity(0.5)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.2
+                                envColorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.08),
+                                lineWidth: 0.6
                             )
                     )
-                    .shadow(color: Color(hex: "38BDF8").opacity(0.4), radius: 12, x: 0, y: 4)
+                    .shadow(
+                        color: Color.black.opacity(envColorScheme == .dark ? 0.25 : 0.06),
+                        radius: 8,
+                        x: 0,
+                        y: 3
+                    )
             )
         }
         .buttonStyle(PureButtonStyle())
@@ -255,51 +251,50 @@ public struct MainView: View {
     // MARK: - Top Studio Header Bar
     private var headerBar: some View {
         ZStack {
-            // Mode Switcher centered absolutely in the window (immune to right stats jitter)
-            HStack(spacing: 8) {
+            // Mode Switcher centered absolutely in the window
+            HStack(spacing: 5) {
                 ForEach(NavigationTab.allCases) { tab in
                     let isSelected = selectedTab == tab
                     Button(action: {
                         selectedTab = tab
                     }) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 7) {
                             Image(systemName: tab.icon)
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 13.5, weight: isSelected ? .bold : .semibold))
                             Text(tab.title)
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 13.5, weight: isSelected ? .bold : .semibold))
                         }
-                        .foregroundColor(isSelected ? .primary : .secondary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8.5)
+                        .foregroundColor(
+                            isSelected
+                                ? (envColorScheme == .dark ? Color.white : Color(hex: "0F172A"))
+                                : (envColorScheme == .dark ? Color.white.opacity(0.60) : Color(hex: "475569"))
+                        )
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 7.5)
                         .background(
-                            ZStack {
+                            Group {
                                 if isSelected {
-                                    RoundedRectangle(cornerRadius: 12)
+                                    Capsule()
                                         .fill(
-                                            LinearGradient(
-                                                colors: [
-                                                    Color.white.opacity(0.18),
-                                                    Color.white.opacity(0.08)
-                                                ],
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
+                                            envColorScheme == .dark
+                                                ? Color.white.opacity(0.15)
+                                                : Color.white.opacity(0.75)
                                         )
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
+                                            Capsule()
                                                 .stroke(
-                                                    LinearGradient(
-                                                        colors: [
-                                                            Color.white.opacity(0.35),
-                                                            Color.white.opacity(0.08)
-                                                        ],
-                                                        startPoint: .top,
-                                                        endPoint: .bottom
-                                                    ),
-                                                    lineWidth: 1
+                                                    envColorScheme == .dark
+                                                        ? Color.white.opacity(0.25)
+                                                        : Color.white,
+                                                    lineWidth: 0.5
                                                 )
                                         )
-                                        .shadow(color: Color(hex: "38BDF8").opacity(0.25), radius: 8, x: 0, y: 3)
+                                        .shadow(
+                                            color: Color.black.opacity(envColorScheme == .dark ? 0.20 : 0.05),
+                                            radius: 3,
+                                            x: 0,
+                                            y: 1
+                                        )
                                 }
                             }
                         )
@@ -310,16 +305,23 @@ public struct MainView: View {
                 }
             }
             .animation(.spring(response: 0.22, dampingFraction: 0.8), value: selectedTab)
-            .padding(4)
+            .padding(3.5)
+            .background(
+                Capsule()
+                    .fill(envColorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(envColorScheme == .dark ? 0.12 : 0.35), lineWidth: 0.5)
+                    )
+            )
 
             // Outer Left Brand and Right Controls
             HStack(spacing: 20) {
                 // App Brand (Seamless implicit click to GitHub)
-                HStack(spacing: 9) {
-                    MacAegisLogoView(size: 28, isGlowing: true)
+                HStack(spacing: 10) {
+                    MacAegisLogoView(size: 32, isGlowing: true)
                     Text(AppConfig.appName)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .font(.system(size: 17.5, weight: .bold, design: .rounded))
+                        .foregroundColor(MacAegisTheme.primaryText(for: envColorScheme))
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -331,11 +333,8 @@ public struct MainView: View {
 
                 Spacer()
 
-                // Right Quick Controls (Network Speed + Settings)
+                // Right Quick Controls (Settings)
                 HStack(spacing: 10) {
-
-
-                    // Settings Button
                     Button(action: {
                         hasShownLanguageHint = true
                         withAnimation { showLanguageBubble = false }
@@ -344,9 +343,16 @@ public struct MainView: View {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "gearshape")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .padding(5)
-                                .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+                                .foregroundColor(MacAegisTheme.secondaryText(for: envColorScheme))
+                                .padding(6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                        .fill(Color.primary.opacity(0.06))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                                .stroke(Color.white.opacity(envColorScheme == .dark ? 0.12 : 0.35), lineWidth: 0.5)
+                                        )
+                                )
                             if hasNewVersion {
                                 Circle()
                                     .fill(Color.red)
@@ -370,159 +376,57 @@ public struct MainView: View {
         let action = UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") ?? "Maximize"
         if action == "Minimize" {
             window.miniaturize(nil)
-            return
-        } else if action == "None" {
-            return
+        } else {
+            window.zoom(nil)
         }
-        window.zoom(nil)
     }
 
-    // MARK: - Ethereal Cosmic Liquid Glass Backdrop
+    // MARK: - Native Unified Liquid Glass Backdrop (Full Window Draggable & Edge-to-Edge)
     @Environment(\.colorScheme) private var envColorScheme
 
     private var cosmicLiquidGlassBackdrop: some View {
         ZStack {
-            if envColorScheme == .dark {
-                LinearGradient(
-                    colors: [
-                        Color(hex: "17192B"),
-                        Color(hex: "101221"),
-                        Color(hex: "090A12")
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+            // Native Window Configurator (enforcing isOpaque = false, backgroundColor = .clear)
+            WindowConfigurator()
                 .ignoresSafeArea()
 
-                // Ambient Stardust Micro-particles with Enhanced Dynamic Breathing
-                stardustCanvas
-                    .opacity(isBreathingGlow ? 0.95 : 0.35)
+            // True Liquid Glass Foundation with Wallpaper Refraction & Native Window Dragging
+            VisualEffectBackground(material: .fullScreenUI, blendingMode: .behindWindow)
+                .ignoresSafeArea()
 
-                // Iridescent Magenta / Violet Glow (Upper Left)
+            if envColorScheme == .dark {
+                // Subtle obsidian tint (20% opacity) - allows wallpaper colors & desktop lighting to vividly refract
+                Color(hex: "090D16").opacity(0.20)
+                    .ignoresSafeArea()
+
+                // Subtle ambient caustics
                 RadialGradient(
-                    colors: [Color(hex: "C084FC").opacity(isBreathingGlow ? 0.22 : 0.14), Color.clear],
+                    colors: [Color(hex: "38BDF8").opacity(0.08), Color.clear],
                     center: .topLeading,
                     startRadius: 0,
-                    endRadius: 580
-                )
-                .ignoresSafeArea()
-
-                // Electric Cyan Caustics Bloom (Center Right)
-                RadialGradient(
-                    colors: [Color(hex: "38BDF8").opacity(isBreathingGlow ? 0.20 : 0.11), Color.clear],
-                    center: .center,
-                    startRadius: 80,
                     endRadius: 520
                 )
                 .ignoresSafeArea()
             } else {
-                LinearGradient(
-                    colors: [
-                        Color(hex: "F8FAFC"),
-                        Color(hex: "EDF2F7"),
-                        Color(hex: "E2E8F0")
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Airy porcelain paper-glass tint (20% opacity) - crisp, bright, highly transparent
+                Color.white.opacity(0.20)
+                    .ignoresSafeArea()
 
                 RadialGradient(
-                    colors: [Color(hex: "38BDF8").opacity(0.22), Color.clear],
+                    colors: [Color(hex: "38BDF8").opacity(0.05), Color.clear],
                     center: .topLeading,
                     startRadius: 0,
                     endRadius: 500
                 )
                 .ignoresSafeArea()
             }
-        }
-    }
 
-    // Ambient Stardust Micro-particles Canvas (32 Celestial Breathing Points)
-    private var stardustCanvas: some View {
-        Canvas { context, size in
-            let particles: [(x: CGFloat, y: CGFloat, r: CGFloat, alpha: Double)] = [
-                // Top area
-                (0.08, 0.08, 1.6, 0.55),
-                (0.18, 0.12, 2.2, 0.65),
-                (0.32, 0.06, 1.4, 0.40),
-                (0.48, 0.14, 2.0, 0.60),
-                (0.68, 0.09, 1.5, 0.45),
-                (0.82, 0.15, 2.4, 0.70),
-                (0.94, 0.07, 1.3, 0.50),
-
-                // Upper-mid area
-                (0.05, 0.28, 1.8, 0.50),
-                (0.22, 0.26, 1.2, 0.35),
-                (0.78, 0.25, 1.9, 0.55),
-                (0.92, 0.32, 2.3, 0.65),
-
-                // Mid area
-                (0.07, 0.48, 2.0, 0.60),
-                (0.15, 0.55, 1.3, 0.40),
-                (0.86, 0.46, 1.4, 0.45),
-                (0.95, 0.52, 2.1, 0.65),
-
-                // Center subtle accents
-                (0.28, 0.42, 1.2, 0.30),
-                (0.72, 0.38, 1.5, 0.40),
-                (0.35, 0.62, 1.1, 0.25),
-                (0.65, 0.66, 1.3, 0.35),
-
-                // Lower-mid area
-                (0.06, 0.70, 2.4, 0.65),
-                (0.19, 0.76, 1.6, 0.45),
-                (0.83, 0.68, 2.2, 0.60),
-                (0.93, 0.74, 1.5, 0.50),
-
-                // Bottom area
-                (0.10, 0.88, 1.7, 0.55),
-                (0.25, 0.92, 2.5, 0.70),
-                (0.40, 0.86, 1.4, 0.40),
-                (0.55, 0.94, 2.0, 0.60),
-                (0.70, 0.89, 1.3, 0.45),
-                (0.85, 0.93, 2.2, 0.65),
-                (0.96, 0.88, 1.6, 0.50),
-
-                // Edge accents
-                (0.02, 0.40, 1.5, 0.45),
-                (0.98, 0.42, 1.8, 0.55)
-            ]
-            for p in particles {
-                if p.r >= 2.0 {
-                    let halo = CGRect(
-                        x: size.width * p.x - p.r * 2.2,
-                        y: size.height * p.y - p.r * 2.2,
-                        width: p.r * 4.4,
-                        height: p.r * 4.4
-                    )
-                    context.fill(Path(ellipseIn: halo), with: .color(Color(hex: "38BDF8").opacity(p.alpha * 0.25)))
-                }
-
-                let rect = CGRect(
-                    x: size.width * p.x - p.r,
-                    y: size.height * p.y - p.r,
-                    width: p.r * 2,
-                    height: p.r * 2
-                )
-                context.fill(Path(ellipseIn: rect), with: .color(Color.white.opacity(p.alpha)))
-            }
+            // Window-wide hairline edge border for polished glass definition
+            Rectangle()
+                .strokeBorder(Color.white.opacity(envColorScheme == .dark ? 0.12 : 0.35), lineWidth: 0.5)
+                .ignoresSafeArea()
         }
         .ignoresSafeArea()
-    }
-}
-
-// MARK: - AppKit TitleBar Background Representable
-struct TitleBarBackgroundView: NSViewRepresentable {
-    func makeNSView(context: Context) -> TitleBarNSView {
-        return TitleBarNSView()
-    }
-    func updateNSView(_ nsView: TitleBarNSView, context: Context) {}
-}
-
-final class TitleBarNSView: NSView {
-    override var mouseDownCanMoveWindow: Bool {
-        return true
     }
 }
 

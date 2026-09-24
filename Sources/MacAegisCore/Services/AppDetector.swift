@@ -117,7 +117,7 @@ public final class AppDetector: @unchecked Sendable {
         let apps = indexInstalledApps()
         let target = nameOrBundleId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if target.hasPrefix("com.apple.") || target.hasPrefix("apple.") {
+        if target.hasPrefix("com.apple.") || target.hasPrefix("apple.") || target == "apple" {
             return true
         }
 
@@ -143,7 +143,15 @@ public final class AppDetector: @unchecked Sendable {
                 return true
             }
             if let bundleId = app.bundleId?.lowercased() {
-                if bundleId == target || target.contains(bundleId) || bundleId.contains(target) {
+                if bundleId == target || target.contains(bundleId) {
+                    return true
+                }
+                // Check component-based match to avoid false positive substring matches
+                let components = bundleId.split(separator: ".").map { String($0) }
+                if components.contains(target) || components.contains(targetClean) {
+                    return true
+                }
+                if target.count >= 4 && bundleId.contains(target) {
                     return true
                 }
             }
@@ -160,5 +168,90 @@ public final class AppDetector: @unchecked Sendable {
         }
 
         return false
+    }
+
+    /// Check whether a Group Container (e.g. FN2V63AD2J.com.tencent) belongs to any currently installed app
+    public func isGroupContainerInUse(groupName: String) -> Bool {
+        let gLower = groupName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if gLower.contains("apple") || gLower.hasPrefix("group.com.apple.") {
+            return true
+        }
+
+        let apps = indexInstalledApps()
+
+        // 1. Check known multi-app vendor groups
+        if gLower.contains("tencent") {
+            if apps.contains(where: { $0.bundleId?.lowercased().contains("tencent") == true }) {
+                return true
+            }
+        }
+        if gLower.contains("microsoft") || gLower.contains("office") {
+            if apps.contains(where: { $0.bundleId?.lowercased().contains("microsoft") == true }) {
+                return true
+            }
+        }
+        if gLower.contains("google") {
+            if apps.contains(where: { $0.bundleId?.lowercased().contains("google") == true || $0.name.lowercased().contains("chrome") }) {
+                return true
+            }
+        }
+        if gLower.contains("adobe") {
+            if apps.contains(where: { $0.bundleId?.lowercased().contains("adobe") == true }) {
+                return true
+            }
+        }
+
+        // 2. Extract potential bundle or domain tokens from groupName (e.g. "FN2V63AD2J.com.tencent" -> "com.tencent")
+        let parts = gLower.split(separator: ".").map { String($0) }
+        for app in apps {
+            guard let bId = app.bundleId?.lowercased(), bId.count >= 5, bId.contains(".") else { continue }
+            
+            // If group name contains the exact app's bundle ID as a qualified token
+            if gLower == bId || gLower.hasSuffix("." + bId) || gLower.contains("." + bId + ".") {
+                return true
+            }
+            
+            // Check domain token (e.g. "com.tencent")
+            if parts.count >= 2 {
+                // Ignore the leading team ID if alphanumeric 10 chars
+                let candidateParts = (parts.first?.count == 10 && parts.first?.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil) ? Array(parts.dropFirst()) : parts
+                let candidateDomain = candidateParts.joined(separator: ".")
+                if candidateDomain.count >= 6 && (bId.hasPrefix(candidateDomain) || candidateDomain.hasPrefix(bId)) {
+                    return true
+                }
+            }
+        }
+
+        // 3. Check App Signature Entitlements
+        for app in apps {
+            let appGroups = AppUninstaller.shared.extractEntitlementsAppGroups(from: app.bundleURL)
+            if appGroups.contains(where: { $0.lowercased() == gLower }) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    /// Check if a directory is a known multi-app vendor directory that still hosts active apps
+    public func isVendorDirectoryActive(vendorName: String) -> Bool {
+        let vLower = vendorName.lowercased()
+        let apps = indexInstalledApps()
+        switch vLower {
+        case "google":
+            return apps.contains { $0.bundleId?.lowercased().contains("google") == true || $0.name.lowercased().contains("chrome") }
+        case "microsoft":
+            return apps.contains { $0.bundleId?.lowercased().contains("microsoft") == true || $0.name.lowercased().contains("edge") }
+        case "adobe":
+            return apps.contains { $0.bundleId?.lowercased().contains("adobe") == true || $0.name.lowercased().contains("photoshop") }
+        case "jetbrains":
+            return apps.contains { $0.bundleId?.lowercased().contains("jetbrains") == true }
+        case "logi", "logitech", "logitech.localized":
+            return apps.contains { $0.bundleId?.lowercased().contains("logi") == true || $0.name.lowercased().contains("logi") }
+        case "tencent":
+            return apps.contains { $0.bundleId?.lowercased().contains("tencent") == true }
+        default:
+            return false
+        }
     }
 }

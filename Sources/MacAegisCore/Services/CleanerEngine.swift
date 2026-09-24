@@ -29,7 +29,6 @@ public final class CleanerEngine: Sendable {
         let whitelist = WhitelistManager.shared
 
         var actuallyCleanedPaths: [String] = []
-        var privilegeQueue: [CleanItem] = []
 
         for item in items where item.isSelected {
             let isCacheCategory: Bool = {
@@ -54,7 +53,7 @@ public final class CleanerEngine: Sendable {
             // Privacy Conceal Absolute Protection Check: Block deletion of any locked/managed vault items
             if PrivacyVaultManager.shared.isLockedForScanSkip(path: item.path) {
                 failCount += 1
-                let errStr = l10n("【隐私保护拦截】\(item.name) 正处于隐私保险箱保护中，已拒绝清理", "[Privacy Locked] \(item.name) is currently protected in Privacy Vault.")
+                let errStr = l10n("【独立空间保护】\(item.name) 正处于独立空间保护中，已拒绝清理", "[Protected] \(item.name) is currently protected in Private Space.")
                 errors.append(errStr)
                 onProgress?(item, false, errStr)
                 continue
@@ -68,36 +67,31 @@ public final class CleanerEngine: Sendable {
                 continue
             }
 
-            if item.path.hasSuffix("com.apple.TimeMachine.Snapshots") || item.path == "/private/var/db/TimeMachineSnapshots" {
-                let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: "/usr/bin/tmutil")
-                proc.arguments = ["thinlocalsnapshots", "/", "10000000000", "4"]
-                try? proc.run()
-                proc.waitUntilExit()
-                successCount += 1
-                reclaimedBytes += item.sizeBytes
-                actuallyCleanedPaths.append(item.path)
-                onProgress?(item, true, nil)
-                continue
+            // Privilege Escalation Prevention: Never invoke dialog-prompting operations on system/root items
+            if useTrash && !FileUtils.canTrashWithoutPrivilegeEscalation(path: item.path) {
+                if isCacheCategory {
+                    let internalReclaimed = FileUtils.emptyDirectoryContents(atPath: item.path)
+                    if internalReclaimed > 0 {
+                        successCount += 1
+                        reclaimedBytes += internalReclaimed
+                        actuallyCleanedPaths.append(item.path)
+                        onProgress?(item, true, nil)
+                        continue
+                    }
+                }
+
+                if !FileManager.default.isDeletableFile(atPath: item.path) {
+                    failCount += 1
+                    let errStr = l10n("【系统保护跳过】\(item.name) 受系统权限保护，已自动安全跳过", "[Protected Skipped] \(item.name) requires system privileges, safely skipped.")
+                    errors.append(errStr)
+                    onProgress?(item, false, errStr)
+                    continue
+                }
             }
 
             do {
                 if useTrash {
-                    do {
-                        try await FileUtils.moveToTrash(path: item.path)
-                    } catch {
-                        // Intelligent Fallback: Request admin privileges instead of giving up.
-                        do {
-                            try FileUtils.privilegedMoveToTrash(path: item.path)
-                        } catch let privilegedError as NSError {
-                            failCount += 1
-                            let detail = privilegedError.userInfo[NSLocalizedDescriptionKey] as? String ?? privilegedError.localizedDescription
-                            let errStr = l10n("【权限受阻】\(item.name) 提权删除失败: \(detail)", "[Permission Blocked] \(item.name) failed to delete with privileges: \(detail)")
-                            errors.append(errStr)
-                            onProgress?(item, false, errStr)
-                            continue
-                        }
-                    }
+                    try await FileUtils.moveToTrash(path: item.path)
                 } else {
                     try FileManager.default.removeItem(atPath: item.path)
                 }
@@ -129,23 +123,18 @@ public final class CleanerEngine: Sendable {
 
                 let errDesc = error.localizedDescription.lowercased()
                 if errDesc.contains("permission") || errDesc.contains("not permitted") || errDesc.contains("denied") || (error as? CocoaError)?.code == .fileWriteNoPermission || (error as? CocoaError)?.code == .fileReadNoPermission {
-                    
-                    // Robust FDA Check: reading TCC directory.
-                    let tccPath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC"
-                    let hasFDA = (try? FileManager.default.contentsOfDirectory(atPath: tccPath)) != nil
-                    
-                    if item.path.contains("Library/Containers") && !hasFDA {
-                        failCount += 1
-                        let userFriendlyReason = l10n("【缺失 FDA 权限】清理 \(item.name) 被系统拦截。请前往“系统设置 > 隐私与安全性 > 完全磁盘访问权限”授权。\n⚠️ 开源版更新提示：若开关已开启但仍报错，是因为应用更新导致签名重置。请选中 MacAegis 点击“-”移除，再点击“+”重新添加。", 
-                        "[FDA Missing] TCC blocked \(item.name). Grant Full Disk Access in System Settings.\n⚠️ Open-Source Update Note: If the switch is already on, macOS reset the signature due to an app update. Please click '-' to remove MacAegis, then '+' to re-add it.")
-                        errors.append(userFriendlyReason)
-                        onProgress?(item, false, userFriendlyReason)
-                        continue
+                    let hasFDA = FullDiskAccessHelper.shared.hasFullDiskAccess()
+                    failCount += 1
+                    let userFriendlyReason: String
+                    if !hasFDA {
+                        userFriendlyReason = l10n("【需完全磁盘访问权限】清理「\(item.name)」受 macOS 沙盒保护拦截。请前往“系统设置 > 隐私与安全性 > 完全磁盘访问权限”授予 MacAegis 权限后重试。", 
+                        "[Full Disk Access Required] Cleaning '\(item.name)' was blocked by macOS sandbox. Please grant Full Disk Access to MacAegis in System Settings > Privacy & Security.")
+                    } else {
+                        userFriendlyReason = l10n("【受系统文件保护】「\(item.name)」受 macOS 系统底层保护或已被系统锁定，已自动安全跳过。",
+                        "[System Protected] '\(item.name)' is protected or locked by macOS, safely skipped.")
                     }
-                    
-                    // If we reach here, either we have FDA but it still failed (maybe root-owned system file),
-                    // or it's not a container file. Safe to throw to root AppleScript.
-                    privilegeQueue.append(item)
+                    errors.append(userFriendlyReason)
+                    onProgress?(item, false, userFriendlyReason)
                     continue
                 }
 
@@ -153,51 +142,6 @@ public final class CleanerEngine: Sendable {
                 let userFriendlyReason = CleanerEngine.localizedErrorMessage(for: error, itemName: item.name, path: item.path)
                 errors.append(userFriendlyReason)
                 onProgress?(item, false, userFriendlyReason)
-            }
-        }
-
-        // --- 集中式批量提权清除 (Batch Root Escalation, based on PureMac standard) ---
-        if !privilegeQueue.isEmpty && !dryRun {
-            // Write paths NUL-separated to a temp file, then use xargs -0 rm -rf
-            let paths = privilegeQueue.map { $0.path }
-            let payload = paths.joined(separator: "\u{0}")
-            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_root_clean_\(UUID().uuidString).txt")
-            
-            if let data = payload.data(using: .utf8) {
-                try? data.write(to: tempURL, options: .atomic)
-                let safeTempPath = tempURL.path.replacingOccurrences(of: "'", with: "'\\''")
-                // using xargs -0 to handle all spaces, quotes, and newlines safely, exactly like PureMac.
-                let appleScript = "do shell script \"/usr/bin/xargs -0 /bin/rm -rf -- < '\(safeTempPath)'\" with administrator privileges"
-                
-                var errorInfo: NSDictionary?
-                if let script = NSAppleScript(source: appleScript) {
-                    _ = script.executeAndReturnError(&errorInfo)
-                    try? FileManager.default.removeItem(at: tempURL)
-                    
-                    for pItem in privilegeQueue {
-                        if !FileManager.default.fileExists(atPath: pItem.path) {
-                            successCount += 1
-                            reclaimedBytes += pItem.sizeBytes
-                            actuallyCleanedPaths.append(pItem.path)
-                            onProgress?(pItem, true, nil)
-                        } else {
-                            failCount += 1
-                            let errDesc = (errorInfo?[NSAppleScript.errorMessage] as? String) ?? ""
-                            let userFriendlyReason: String
-                            
-                            if errDesc.contains("Operation not permitted") {
-                                userFriendlyReason = l10n("【需完全磁盘访问权限】macOS 底层沙盒 (TCC) 拦截了删除请求。即使输入密码提权，也必须在“系统设置 > 隐私与安全性 > 完全磁盘访问权限”中勾选 MacAegis 才能清理此容器。", 
-                                "[FDA Required] macOS TCC blocked deletion. Even with root password, you must grant Full Disk Access in System Settings to clean this container.")
-                            } else if errDesc.contains("User canceled") || errDesc.contains("canceled") {
-                                userFriendlyReason = l10n("【已取消】您取消了密码授权，跳过提权清理。", "[Cancelled] You cancelled the password prompt.")
-                            } else {
-                                userFriendlyReason = l10n("【系统级锁定】\(pItem.name) 提权失败，受 macOS SIP 严格保护。\(errDesc)", "[SIP/Root Failed] \(pItem.name) could not be removed. \(errDesc)")
-                            }
-                            errors.append(userFriendlyReason)
-                            onProgress?(pItem, false, userFriendlyReason)
-                        }
-                    }
-                }
             }
         }
 

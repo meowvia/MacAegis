@@ -265,7 +265,7 @@ public struct PrivacyVaultView: View {
                     Image(systemName: "key.fill")
                         .foregroundColor(Color(hex: "38BDF8"))
                         .font(.system(size: 13))
-                    Text(l10n("修改保险箱主密码", "Change Master Password"))
+                    Text(l10n("修改空间主密码", "Change Master Password"))
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                 }
                 Spacer()
@@ -511,7 +511,7 @@ public struct PrivacyVaultView: View {
 
             Divider().opacity(0.2)
 
-            Text(l10n("这是你保险箱的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥找回所有已锁文件。", "This is your vault recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
+            Text(l10n("这是你独立空间的专属恢复密钥。请将其抄写并存放在安全的离线地点。一旦遗忘主密码，可用此密钥找回所有已锁文件。", "This is your Private Space recovery key. Please keep it in a safe offline location. If you forget your master password, use this key to restore all files."))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
@@ -583,7 +583,7 @@ public struct PrivacyVaultView: View {
                     Image(systemName: "shield.checkered")
                         .font(.system(size: 16))
                         .foregroundColor(Color(hex: "38BDF8"))
-                    Text(l10n("隐私保险箱 · 用户须知", "Privacy Vault · User Notice"))
+                    Text(l10n("独立空间 · 用户须知", "Private Space · User Notice"))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                 }
@@ -609,7 +609,7 @@ public struct PrivacyVaultView: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(l10n("欢迎使用 MacAegis 隐私保险箱功能。为保障你的数据安全与顺畅体验，请在使用前知悉以下事项：", "Welcome to MacAegis Privacy Vault. Please take note of the following before use:"))
+                    Text(l10n("欢迎使用 MacAegis 独立空间功能。为保障你的数据安全与顺畅体验，请在使用前知悉以下事项：", "Welcome to MacAegis Private Space. Please take note of the following before use:"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .padding(.bottom, 2)
@@ -1020,7 +1020,7 @@ public struct PrivacyVaultView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "lock.shield.fill")
                                 .font(.system(size: 14))
-                            Text(l10n("立即锁定隐匿", "Lock Privacy Vault Now"))
+                            Text(l10n("立即锁定空间", "Lock Private Space Now"))
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                         }
                         .foregroundColor(.white)
@@ -1197,7 +1197,7 @@ public struct PrivacyVaultView: View {
             }
 
             VStack(spacing: 4) {
-                Text(l10n("隐匿库当前为空", "Privacy Vault is Empty"))
+                Text(l10n("空间当前为空", "Private Space is Empty"))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.primary)
                 Text(l10n("拖拽私人文件夹或敏感文件至上方区域，即可原位瞬时锁定并隐匿", "Drag private folders or sensitive files above to auto-lock and conceal"))

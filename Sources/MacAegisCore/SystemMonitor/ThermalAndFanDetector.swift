@@ -55,6 +55,59 @@ public struct ThermalAndFanStatus: Sendable {
     }
 }
 
+// MARK: - IOHID Symbol Bridge (Persistent Caching to eliminate per-tick dlopen/dlclose overhead)
+private final class IOHIDBridge: @unchecked Sendable {
+    typealias IOHIDEventSystemClientCreateFunc = @convention(c) (CFAllocator?) -> Unmanaged<AnyObject>?
+    typealias IOHIDEventSystemClientSetMatchingFunc = @convention(c) (AnyObject, CFDictionary) -> Void
+    typealias IOHIDEventSystemClientCopyServicesFunc = @convention(c) (AnyObject) -> Unmanaged<CFArray>?
+    typealias IOHIDServiceClientCopyPropertyFunc = @convention(c) (AnyObject, CFString) -> Unmanaged<CFTypeRef>?
+    typealias IOHIDServiceClientCopyEventFunc = @convention(c) (AnyObject, Int64, Int32, Int64) -> Unmanaged<AnyObject>?
+    typealias IOHIDEventGetFloatValueFunc = @convention(c) (AnyObject, Int32) -> Double
+
+    let clientCreate: IOHIDEventSystemClientCreateFunc
+    let setMatching: IOHIDEventSystemClientSetMatchingFunc
+    let copyServices: IOHIDEventSystemClientCopyServicesFunc
+    let copyProperty: IOHIDServiceClientCopyPropertyFunc
+    let copyEvent: IOHIDServiceClientCopyEventFunc
+    let getFloat: IOHIDEventGetFloatValueFunc
+
+    static let shared: IOHIDBridge? = {
+        guard let handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW) else { return nil }
+        guard let clientCreateSym = dlsym(handle, "IOHIDEventSystemClientCreate"),
+              let copyEventSym = dlsym(handle, "IOHIDServiceClientCopyEvent"),
+              let getFloatSym = dlsym(handle, "IOHIDEventGetFloatValue"),
+              let copyPropertySym = dlsym(handle, "IOHIDServiceClientCopyProperty"),
+              let copyServicesSym = dlsym(handle, "IOHIDEventSystemClientCopyServices"),
+              let setMatchingSym = dlsym(handle, "IOHIDEventSystemClientSetMatching") else {
+            return nil
+        }
+        return IOHIDBridge(
+            clientCreate: unsafeBitCast(clientCreateSym, to: IOHIDEventSystemClientCreateFunc.self),
+            setMatching: unsafeBitCast(setMatchingSym, to: IOHIDEventSystemClientSetMatchingFunc.self),
+            copyServices: unsafeBitCast(copyServicesSym, to: IOHIDEventSystemClientCopyServicesFunc.self),
+            copyProperty: unsafeBitCast(copyPropertySym, to: IOHIDServiceClientCopyPropertyFunc.self),
+            copyEvent: unsafeBitCast(copyEventSym, to: IOHIDServiceClientCopyEventFunc.self),
+            getFloat: unsafeBitCast(getFloatSym, to: IOHIDEventGetFloatValueFunc.self)
+        )
+    }()
+
+    private init(
+        clientCreate: @escaping IOHIDEventSystemClientCreateFunc,
+        setMatching: @escaping IOHIDEventSystemClientSetMatchingFunc,
+        copyServices: @escaping IOHIDEventSystemClientCopyServicesFunc,
+        copyProperty: @escaping IOHIDServiceClientCopyPropertyFunc,
+        copyEvent: @escaping IOHIDServiceClientCopyEventFunc,
+        getFloat: @escaping IOHIDEventGetFloatValueFunc
+    ) {
+        self.clientCreate = clientCreate
+        self.setMatching = setMatching
+        self.copyServices = copyServices
+        self.copyProperty = copyProperty
+        self.copyEvent = copyEvent
+        self.getFloat = getFloat
+    }
+}
+
 public final class ThermalAndFanDetector: @unchecked Sendable {
     public static let shared = ThermalAndFanDetector()
 
@@ -118,51 +171,26 @@ public final class ThermalAndFanDetector: @unchecked Sendable {
 
     /// Read genuine Apple Silicon / Intel physical CPU Core temperature sensors via macOS IOHIDEventSystem
     private func readRealHardwareCPUTemperature() -> Double? {
-        typealias IOHIDEventSystemClientCreateFunc = @convention(c) (CFAllocator?) -> Unmanaged<AnyObject>?
-        typealias IOHIDEventSystemClientSetMatchingFunc = @convention(c) (AnyObject, CFDictionary) -> Void
-        typealias IOHIDEventSystemClientCopyServicesFunc = @convention(c) (AnyObject) -> Unmanaged<CFArray>?
-        typealias IOHIDServiceClientCopyPropertyFunc = @convention(c) (AnyObject, CFString) -> Unmanaged<CFTypeRef>?
-        typealias IOHIDServiceClientCopyEventFunc = @convention(c) (AnyObject, Int64, Int32, Int64) -> Unmanaged<AnyObject>?
-        typealias IOHIDEventGetFloatValueFunc = @convention(c) (AnyObject, Int32) -> Double
-
-        guard let handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW) else { return nil }
-        defer { dlclose(handle) }
-
-        guard let clientCreateSym = dlsym(handle, "IOHIDEventSystemClientCreate"),
-              let copyEventSym = dlsym(handle, "IOHIDServiceClientCopyEvent"),
-              let getFloatSym = dlsym(handle, "IOHIDEventGetFloatValue"),
-              let copyPropertySym = dlsym(handle, "IOHIDServiceClientCopyProperty"),
-              let copyServicesSym = dlsym(handle, "IOHIDEventSystemClientCopyServices"),
-              let setMatchingSym = dlsym(handle, "IOHIDEventSystemClientSetMatching") else {
-            return nil
-        }
-
-        let clientCreate = unsafeBitCast(clientCreateSym, to: IOHIDEventSystemClientCreateFunc.self)
-        let setMatching = unsafeBitCast(setMatchingSym, to: IOHIDEventSystemClientSetMatchingFunc.self)
-        let copyServices = unsafeBitCast(copyServicesSym, to: IOHIDEventSystemClientCopyServicesFunc.self)
-        let copyProperty = unsafeBitCast(copyPropertySym, to: IOHIDServiceClientCopyPropertyFunc.self)
-        let copyEvent = unsafeBitCast(copyEventSym, to: IOHIDServiceClientCopyEventFunc.self)
-        let getFloat = unsafeBitCast(getFloatSym, to: IOHIDEventGetFloatValueFunc.self)
-
-        guard let client = clientCreate(kCFAllocatorDefault)?.takeRetainedValue() else { return nil }
+        guard let bridge = IOHIDBridge.shared else { return nil }
+        guard let client = bridge.clientCreate(kCFAllocatorDefault)?.takeRetainedValue() else { return nil }
         let matchingDict: [String: Any] = ["PrimaryUsagePage": 0xff00, "PrimaryUsage": 5]
-        setMatching(client, matchingDict as CFDictionary)
-        guard let services = copyServices(client)?.takeRetainedValue() as? [AnyObject], !services.isEmpty else { return nil }
+        bridge.setMatching(client, matchingDict as CFDictionary)
+        guard let services = bridge.copyServices(client)?.takeRetainedValue() as? [AnyObject], !services.isEmpty else { return nil }
 
         var cpuCoreTemps: [Double] = []
         var allTemps: [Double] = []
 
         for service in services {
             var isCpuSensor = false
-            if let productProp = copyProperty(service, "Product" as CFString)?.takeRetainedValue() as? String {
+            if let productProp = bridge.copyProperty(service, "Product" as CFString)?.takeRetainedValue() as? String {
                 let lower = productProp.lowercased()
                 if lower.contains("pacc") || lower.contains("eacc") || lower.contains("cpu") || lower.contains("soc") || lower.contains("die") {
                     isCpuSensor = true
                 }
             }
 
-            if let event = copyEvent(service, 15, 0, 0)?.takeRetainedValue() {
-                let t = getFloat(event, 15 << 16)
+            if let event = bridge.copyEvent(service, 15, 0, 0)?.takeRetainedValue() {
+                let t = bridge.getFloat(event, 15 << 16)
                 if t > 20 && t < 115 {
                     if isCpuSensor {
                         cpuCoreTemps.append(t)
@@ -342,37 +370,15 @@ public final class ThermalAndFanDetector: @unchecked Sendable {
 
     /// Read fan speed using IOHID
     private func readIOHIDFanSpeed() -> Int? {
-        typealias IOHIDEventSystemClientCreateFunc = @convention(c) (CFAllocator?) -> Unmanaged<AnyObject>?
-        typealias IOHIDEventSystemClientSetMatchingFunc = @convention(c) (AnyObject, CFDictionary) -> Void
-        typealias IOHIDEventSystemClientCopyServicesFunc = @convention(c) (AnyObject) -> Unmanaged<CFArray>?
-        typealias IOHIDServiceClientCopyEventFunc = @convention(c) (AnyObject, Int64, Int32, Int64) -> Unmanaged<AnyObject>?
-        typealias IOHIDEventGetFloatValueFunc = @convention(c) (AnyObject, Int32) -> Double
-
-        guard let handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW) else { return nil }
-        defer { dlclose(handle) }
-
-        guard let clientCreateSym = dlsym(handle, "IOHIDEventSystemClientCreate"),
-              let copyEventSym = dlsym(handle, "IOHIDServiceClientCopyEvent"),
-              let getFloatSym = dlsym(handle, "IOHIDEventGetFloatValue"),
-              let copyServicesSym = dlsym(handle, "IOHIDEventSystemClientCopyServices"),
-              let setMatchingSym = dlsym(handle, "IOHIDEventSystemClientSetMatching") else {
-            return nil
-        }
-
-        let clientCreate = unsafeBitCast(clientCreateSym, to: IOHIDEventSystemClientCreateFunc.self)
-        let setMatching = unsafeBitCast(setMatchingSym, to: IOHIDEventSystemClientSetMatchingFunc.self)
-        let copyServices = unsafeBitCast(copyServicesSym, to: IOHIDEventSystemClientCopyServicesFunc.self)
-        let copyEvent = unsafeBitCast(copyEventSym, to: IOHIDServiceClientCopyEventFunc.self)
-        let getFloat = unsafeBitCast(getFloatSym, to: IOHIDEventGetFloatValueFunc.self)
-
-        guard let client = clientCreate(kCFAllocatorDefault)?.takeRetainedValue() else { return nil }
+        guard let bridge = IOHIDBridge.shared else { return nil }
+        guard let client = bridge.clientCreate(kCFAllocatorDefault)?.takeRetainedValue() else { return nil }
         let matchingDict: [String: Any] = ["PrimaryUsagePage": 0xff00, "PrimaryUsage": 6]
-        setMatching(client, matchingDict as CFDictionary)
-        guard let services = copyServices(client)?.takeRetainedValue() as? [AnyObject], !services.isEmpty else { return nil }
+        bridge.setMatching(client, matchingDict as CFDictionary)
+        guard let services = bridge.copyServices(client)?.takeRetainedValue() as? [AnyObject], !services.isEmpty else { return nil }
 
         for service in services {
-            if let event = copyEvent(service, 17, 0, 0)?.takeRetainedValue() {
-                let rpm = getFloat(event, 17 << 16)
+            if let event = bridge.copyEvent(service, 17, 0, 0)?.takeRetainedValue() {
+                let rpm = bridge.getFloat(event, 17 << 16)
                 if rpm >= 0 && rpm < 10000 {
                     return Int(rpm)
                 }

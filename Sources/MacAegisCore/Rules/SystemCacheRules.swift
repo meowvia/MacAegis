@@ -12,13 +12,10 @@ public struct SystemCacheRules: CleanRuleProtocol {
         let fileManager = FileManager.default
         let whitelist = WhitelistManager.shared
 
-        // 1. User Logs (~/Library/Logs) & System Logs (/private/var/log)
+        // 1. User-writable Logs & Diagnostic Reports (strictly user-owned to prevent permission prompts)
         let logTargets: [(name: String, path: String, desc: String, category: CleanCategory, safety: SafetyLevel)] = [
             ("用户与应用运行日志", "~/Library/Logs", "应用程序和系统运行中输出的文本日志及历史记录，可随时安全清理", .systemLogs, .safe),
-            ("系统底层运行日志与转储", "/private/var/log", "系统底层守护进程生成的轮替日志", .systemLogs, .safe),
             ("系统崩溃与故障诊断报告", "~/Library/DiagnosticReports", "历史程序崩溃转储报告文件，清理后不影响任何软件正常运行", .systemLogs, .safe),
-            ("系统诊断流水线与排错数据", "/private/var/db/DiagnosticPipeline", "macOS 自动收集的系统诊断与性能度量中间包", .systemLogs, .safe),
-            ("系统全局组件运行缓存", "/Library/Caches", "macOS 系统底层服务与共享组件的临时运行缓存", .systemCaches, .safe),
 
             // 2. iOS 同步与升级包
             ("iOS 固件恢复与升级包 (IPSW)", "~/Library/iTunes/iPhone Software Updates", "Mac 连接 iPhone/iPad 刷机或系统更新时下载的固件安装包", .systemCaches, .safe),
@@ -75,15 +72,15 @@ public struct SystemCacheRules: CleanRuleProtocol {
         }
 
         // 5. Scan Broken LaunchAgents / LaunchDaemons
-        let launchAgentDirs = [
-            FileUtils.expandPath("~/Library/LaunchAgents"),
-            "/Library/LaunchAgents"
+        let launchAgentDirs: [(dir: String, isSystem: Bool)] = [
+            (FileUtils.expandPath("~/Library/LaunchAgents"), false),
+            ("/Library/LaunchAgents", true)
         ]
 
-        for dir in launchAgentDirs {
-            if let files = try? fileManager.contentsOfDirectory(atPath: dir) {
+        for entry in launchAgentDirs {
+            if let files = try? fileManager.contentsOfDirectory(atPath: entry.dir) {
                 for file in files where file.hasSuffix(".plist") {
-                    let plistPath = (dir as NSString).appendingPathComponent(file)
+                    let plistPath = (entry.dir as NSString).appendingPathComponent(file)
                     // Check if plist target binary exists; if not, it's a broken orphan launcher
                     if isBrokenLaunchAgent(plistPath: plistPath) {
                         let item = CleanItem(
@@ -91,8 +88,9 @@ public struct SystemCacheRules: CleanRuleProtocol {
                             path: plistPath,
                             sizeBytes: 4096,
                             category: .systemCaches,
-                            safetyLevel: .safe,
-                            itemDescription: "已卸载软件残留的失效启动配置文件，清理可提升开机与后台响应速度。"
+                            safetyLevel: entry.isSystem ? .caution : .safe,
+                            itemDescription: "已卸载软件残留的失效启动配置文件，清理可提升开机与后台响应速度。",
+                            isSelected: !entry.isSystem
                         )
                         items.append(item)
                         onFoundItem?(item)
@@ -100,61 +98,6 @@ public struct SystemCacheRules: CleanRuleProtocol {
                 }
             }
         }
-
-        // 6. APFS Local Snapshots Detection (tmutil listlocalsnapshots /)
-        let tmProcess = Process()
-        tmProcess.executableURL = URL(fileURLWithPath: "/usr/bin/tmutil")
-        tmProcess.arguments = ["listlocalsnapshots", "/"]
-        let pipe = Pipe()
-        tmProcess.standardOutput = pipe
-        if (try? tmProcess.run()) != nil {
-            tmProcess.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8), !output.isEmpty {
-                let lines = output.components(separatedBy: .newlines)
-                let snapshots = lines.filter { $0.contains("com.apple.TimeMachine") }
-                if !snapshots.isEmpty {
-                    let estimatedSize: Int64 = Int64(snapshots.count) * 2_500_000_000
-                    let snapshotPath = FileUtils.expandPath("~/Library/Caches/com.apple.TimeMachine.Snapshots")
-                    let item = CleanItem(
-                        name: "APFS 本地快照 (\(snapshots.count) 个)",
-                        path: snapshotPath,
-                        sizeBytes: estimatedSize,
-                        category: .systemCaches,
-                        safetyLevel: .caution,
-                        itemDescription: "macOS 自动创建的 APFS 本地恢复快照，通过系统 tmutil 平滑释放，不影响外置磁盘备份。",
-                        isSelected: false
-                    )
-                    items.append(item)
-                    onFoundItem?(item)
-                }
-            }
-        }
-        // Parse system log archives
-        let sysLogDir = "/private/var/log"
-        if fileManager.fileExists(atPath: sysLogDir) {
-            if let files = try? fileManager.contentsOfDirectory(atPath: sysLogDir) {
-                for f in files {
-                    let p = (sysLogDir as NSString).appendingPathComponent(f)
-                    if whitelist.isProtected(path: p) { continue }
-                    var isDir: ObjCBool = false
-                    if fileManager.fileExists(atPath: p, isDirectory: &isDir), !isDir.boolValue {
-                        let size = FileUtils.calculateSize(atPath: p)
-                        if size > 1_000_000 {
-                            let item = CleanItem(
-                                name: "系统日志归档: \(f)",
-                                path: p, sizeBytes: size,
-                                category: .systemLogs, safetyLevel: .safe,
-                                itemDescription: "newsyslog 轮替归档的系统日志",
-                                isSelected: true)
-                            items.append(item)
-                            onFoundItem?(item)
-                        }
-                    }
-                }
-            }
-        }
-
 
         return items
     }

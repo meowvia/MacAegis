@@ -53,6 +53,11 @@ public final class KeychainHelper: Sendable {
 
         if let authContext = context {
             query[kSecUseAuthenticationContext as String] = authContext
+        } else {
+            // Strictly suppress interactive Touch ID / password prompts during background or silent lookups (macOS 11+)
+            let silentContext = LAContext()
+            silentContext.interactionNotAllowed = true
+            query[kSecUseAuthenticationContext as String] = silentContext
         }
 
         var result: AnyObject?

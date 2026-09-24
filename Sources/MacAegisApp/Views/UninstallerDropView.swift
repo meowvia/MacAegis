@@ -7,6 +7,7 @@ public struct UninstallerDropView: View {
     @ObservedObject var viewModel: UninstallerViewModel
     var onBack: (() -> Void)? = nil
     @State private var isTargeted: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
 
     public init(viewModel: UninstallerViewModel, onBack: (() -> Void)? = nil) {
         self.viewModel = viewModel
@@ -60,7 +61,7 @@ public struct UninstallerDropView: View {
                 }
             }
         }
-        .background(MacAegisTheme.canvasBackground.ignoresSafeArea())
+        .background(Color.clear)
         .alert(l10n("卸载提示", "Uninstall Notice"), isPresented: Binding(
             get: { viewModel.alertMessage != nil },
             set: { if !$0 { viewModel.alertMessage = nil } }
@@ -74,24 +75,64 @@ public struct UninstallerDropView: View {
                 Text(msg)
             }
         }
+        .onAppear {
+            if viewModel.installedApps.isEmpty {
+                viewModel.loadInstalledApps()
+            }
+        }
     }
 
     // MARK: - Full Width Apps Browser + Drop Zone
     private var fullWidthBrowserView: some View {
         VStack(spacing: 0) {
-            // Header Bar: Segmented Picker & Search Bar
+            // Header Bar: Liquid Glass Mode Switcher & Search Bar
             HStack(spacing: 14) {
-                Picker("", selection: $viewModel.displayMode) {
-                    Text(l10n("已安装应用 (\(viewModel.filteredApps.count))", "Installed Apps (\(viewModel.filteredApps.count))")).tag(UninstallerViewModel.DisplayMode.installedApps)
-                    Text(l10n("孤立残留文件 (\(viewModel.orphanLeftovers.count))", "Orphan Leftovers (\(viewModel.orphanLeftovers.count))")).tag(UninstallerViewModel.DisplayMode.orphans)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 320)
-                .onChange(of: viewModel.displayMode) { _, mode in
-                    if mode == .orphans {
-                        viewModel.scanOrphans()
+                HStack(spacing: 4) {
+                    ForEach([UninstallerViewModel.DisplayMode.installedApps, UninstallerViewModel.DisplayMode.orphans], id: \.self) { mode in
+                        let isSelected = viewModel.displayMode == mode
+                        let title = mode == .installedApps
+                            ? l10n("已安装应用 (\(viewModel.filteredApps.count))", "Installed Apps (\(viewModel.filteredApps.count))")
+                            : l10n("应用卸载残留 (\(viewModel.orphanLeftovers.count))", "Application Leftovers (\(viewModel.orphanLeftovers.count))")
+                        Button(action: {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                viewModel.displayMode = mode
+                                if mode == .orphans {
+                                    viewModel.scanOrphans()
+                                }
+                            }
+                        }) {
+                            Text(title)
+                                .font(.system(size: 11.5, weight: isSelected ? .bold : .medium))
+                                .foregroundColor(isSelected ? .primary : .secondary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Group {
+                                        if isSelected {
+                                            Capsule()
+                                                .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.white.opacity(0.95))
+                                                .overlay(
+                                                    Capsule()
+                                                        .stroke(colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.08), lineWidth: 0.8)
+                                                )
+                                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.06), radius: 4, y: 1.5)
+                                        } else {
+                                            Color.clear
+                                        }
+                                    }
+                                )
+                        }
+                        .buttonStyle(PureButtonStyle())
                     }
                 }
+                .padding(3)
+                .background(
+                    Capsule()
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                        .overlay(
+                            Capsule().stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.4), lineWidth: 0.5)
+                        )
+                )
 
                 Spacer()
 
@@ -117,7 +158,14 @@ public struct UninstallerDropView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(width: 200)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(colorScheme == .dark ? Color.secondary.opacity(0.08) : Color.white.opacity(0.72))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08), lineWidth: 0.5)
+                        )
+                )
             }
             .padding(.horizontal, 24)
             .padding(.top, 14)
@@ -508,7 +556,7 @@ public struct UninstallerDropView: View {
                 .disabled(viewModel.selectedItemIds.isEmpty || viewModel.isUninstalling)
             }
             .padding(14)
-            .background(Color(NSColor.controlBackgroundColor))
+            .background(colorScheme == .dark ? Color.white.opacity(0.04) : Color.white.opacity(0.70))
 
             Divider().opacity(0.3)
 

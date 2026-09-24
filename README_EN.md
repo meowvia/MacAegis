@@ -100,7 +100,7 @@ Automatically adapts to system-level light/dark modes. Offers seamless hot-reloa
 </p>
 
 ### 10. Menubar Telemetry
-Utilizes low-latency kernel polling technology to display real-time network throughput, SoC core temperature, fan speed, and polymorphic memory usage.
+Utilizes low-latency kernel polling technology to display SoC core temperature, fan speed, and polymorphic memory usage.
 <p align="center">
   <img src="assets/screenshots_v2/12_menubar.png" width="360" alt="Menubar Telemetry" />
 </p>

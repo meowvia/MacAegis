@@ -44,10 +44,25 @@ public final class WhitelistManager: @unchecked Sendable {
 
         // Absolute protection of chat history databases
         "~/Library/Containers/com.tencent.xinWeChat/Data/Documents",
-        "~/Library/Containers/com.tencent.qq/Data/Documents"
+        "~/Library/Containers/com.tencent.qq/Data/Documents",
+
+        // macOS System Service App Support Databases
+        "~/Library/Application Support/CloudDocs",
+        "~/Library/Application Support/FileProvider",
+        "~/Library/Application Support/CallHistoryDB",
+        "~/Library/Application Support/DifferentialPrivacy",
+        "~/Library/Application Support/SyncServices",
+        "~/Library/Application Support/AddressBook",
+        "/Library/Application Support/BTServer",
+        "/Library/Application Support/iLifeMediaBrowser",
+
+        // Root System Diagnostic Logs (SIP / Root-Protected)
+        "/Library/Logs/AutoBugCapture",
+        "/Library/Logs/MCXTools.log",
+        "/Library/Logs/DiagnosticReports"
     ]
 
-    /// Essential app data directories that must not be deleted as an entire bundle,
+    /// Essential app data directories that must not be deleted as an entire bundle when installed,
     /// but whose specific cache/temp subpaths can be cleaned under .cacheOnly mode.
     private let protectedContainers: Set<String> = [
         "~/Library/Application Support/Code",
@@ -59,8 +74,6 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Application Support/Steam",
         "~/Library/Application Support/Obsidian",
         "~/Library/Application Support/Notion",
-        "~/Library/Application Support/Docker Desktop",
-        "~/Library/Application Support/v2rayN",
         "~/Library/Application Support/Telegram Desktop",
         "~/Library/Containers/com.tencent.xinWeChat"
     ]
@@ -78,7 +91,13 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Group Containers",
         "~/Library/Preferences",
         "~/Library/Containers",
-        "~/Library/Application Support"
+        "~/Library/Application Support",
+        "/Library/Application Support",
+        "/Library/Caches",
+        "/Library/Preferences",
+        "/Library/PrivilegedHelperTools",
+        "/Library/LaunchDaemons",
+        "/Library/LaunchAgents"
     ]
 
     /// Recognized safe cache subpath indicators that are permitted to be cleaned inside protected containers
@@ -165,18 +184,22 @@ public final class WhitelistManager: @unchecked Sendable {
         // 6. Check protected containers according to mode
         for container in protectedContainers {
             let expContainer = FileUtils.expandPath(container)
-            if expanded == expContainer {
-                return true
-            }
-            if expanded.hasPrefix(expContainer + "/") {
+            if expanded == expContainer || expanded.hasPrefix(expContainer + "/") {
                 if mode == .cacheOnly {
                     // Under .cacheOnly mode, verify if this specific target path is a safe cache subpath
                     let containsCacheKeyword = allowedCacheSubpathKeywords.contains { expanded.contains($0) }
                     if containsCacheKeyword || expanded.hasSuffix("/Cache") || expanded.hasSuffix("/Caches") || expanded.hasSuffix("/GPUCache") || expanded.hasSuffix("/Code Cache") || expanded.hasSuffix("/CacheStorage") || expanded.hasSuffix("/ScriptCache") || expanded.hasSuffix("/CachedData") {
                         return false // Allow cleaning safe cache subpaths!
                     }
+                    return true // Protect user configs and non-cache data
+                } else {
+                    // Under .strict mode (e.g. orphan cleaner or full uninstallation):
+                    // Protect if the container's corresponding app is still installed or has active vendor apps
+                    let containerName = (expContainer as NSString).lastPathComponent
+                    if AppDetector.shared.isAppInstalled(nameOrBundleId: containerName) || AppDetector.shared.isVendorDirectoryActive(vendorName: containerName) {
+                        return true
+                    }
                 }
-                return true // Protect user configs and non-cache data
             }
         }
 

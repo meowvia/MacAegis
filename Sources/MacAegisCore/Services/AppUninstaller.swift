@@ -152,6 +152,7 @@ public final class AppUninstaller: Sendable {
             ("~/Library/CrashReporter", "崩溃报告", .safe),
             ("~/Library/LaunchAgents", "自启守护脚本", .safe),
             ("/Library/Application Support", "系统级配置与数据", .caution),
+            ("/Library/PrivilegedHelperTools", "系统级特权辅助工具", .caution),
             ("/Library/Caches", "系统级运行缓存", .safe),
             ("/Library/Preferences", "系统级偏好设置", .caution),
             ("/Library/LaunchAgents", "全局启动服务", .safe),
@@ -331,6 +332,25 @@ public final class AppUninstaller: Sendable {
     /// Automatically unloads and terminates launch daemons/agents before file removal
     public func preUninstallCleanup(items: [CleanItem]) {
         for item in items where item.path.hasSuffix(".plist") && (item.path.contains("LaunchAgents") || item.path.contains("LaunchDaemons")) {
+            let label: String = {
+                if let data = try? Data(contentsOf: URL(fileURLWithPath: item.path)),
+                   let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+                   let l = dict["Label"] as? String {
+                    return l
+                }
+                return (item.path as NSString).deletingPathExtension
+            }()
+
+            // 1. Try modern launchctl bootout
+            let uid = getuid()
+            let domain = item.path.contains("/Library/LaunchDaemons") ? "system/\(label)" : "gui/\(uid)/\(label)"
+            let bootoutTask = Process()
+            bootoutTask.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            bootoutTask.arguments = ["bootout", domain]
+            try? bootoutTask.run()
+            bootoutTask.waitUntilExit()
+
+            // 2. Fallback legacy unload -w
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
             task.arguments = ["unload", "-w", item.path]

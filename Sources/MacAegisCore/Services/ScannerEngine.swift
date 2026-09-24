@@ -31,10 +31,13 @@ public final class ScannerEngine: Sendable {
         // Force fresh indexing of installed applications to accurately identify live apps and orphans
         _ = AppDetector.shared.indexInstalledApps(forceRefresh: true)
 
+        let hasFDA = FullDiskAccessHelper.shared.hasFullDiskAccess()
         let threadSafeCallback: (@Sendable (CleanItem) -> Void)?
         if let originalCallback = onFoundItem {
             let callbackLock = NSLock()
             threadSafeCallback = { item in
+                // Without FDA, macOS blocks reading/modifying containers; filter out early
+                if !hasFDA && item.path.contains("Library/Containers") { return }
                 // Anti-Leak Hard Constraint: Drop any items locked or managed by Privacy Conceal
                 if !privacyVault.isLockedForScanSkip(path: item.path) {
                     callbackLock.lock()
@@ -60,8 +63,12 @@ public final class ScannerEngine: Sendable {
             return combined
         }
 
-        // Apply strict Privacy Conceal anti-leak hard filter and eliminate 0-byte items
-        var safeItems = allItems.filter { !privacyVault.isLockedForScanSkip(path: $0.path) && $0.sizeBytes > 0 }
+        // Apply strict Privacy Conceal anti-leak hard filter, FDA guard, and eliminate 0-byte items
+        var safeItems = allItems.filter { item in
+            guard !privacyVault.isLockedForScanSkip(path: item.path) && item.sizeBytes > 0 else { return false }
+            if !hasFDA && item.path.contains("Library/Containers") { return false }
+            return true
+        }
 
         // Strict 0-9, A-Z natural deterministic sorting (cannot be manually overridden)
         safeItems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

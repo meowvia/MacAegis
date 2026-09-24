@@ -20,7 +20,7 @@ public enum VaultError: LocalizedError, Sendable {
         case .authenticationRequired:
             return "尚未验证主密码或凭据已过期。"
         case .vaultLocked:
-            return "隐私保险箱处于锁定状态，需验证主密码后方可操作。"
+            return "独立空间处于锁定状态，需验证主密码后方可操作。"
         }
     }
 }
@@ -484,7 +484,7 @@ public final class PrivacyVaultManager: @unchecked Sendable {
     }
 
     // MARK: - Biometric / Touch ID Authentication
-    public func authenticateWithBiometrics(reason: String = "请验证 Touch ID 指纹以解锁隐私保险箱") async -> Bool {
+    public func authenticateWithBiometrics(reason: String = "请验证 Touch ID 指纹以解锁独立空间") async -> Bool {
         let context = LAContext()
         context.localizedCancelTitle = "使用密码"
         var error: NSError?
@@ -536,6 +536,8 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             if lstat(path, &statBuf) == 0 {
                 // Symlink defense: Never follow or manipulate symlink targets
                 if (statBuf.st_mode & S_IFMT) == S_IFLNK { return nil }
+                // Ownership guard: Never touch chmod or flags on root or other user files
+                guard statBuf.st_uid == getuid() else { return nil }
                 let originalMode = statBuf.st_mode
                 let cPath = (path as NSString).fileSystemRepresentation
                 _ = lchflags(cPath, 0)
@@ -583,6 +585,63 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
     public func hasVaultXattr(at path: String) -> Bool {
         return getVaultXattr(at: path) != nil
+    }
+
+    // MARK: - Phantom Cross-App Firewall (Protection against colliding with standalone Phantom app)
+    public static func hasPhantomXattr(at path: String) -> Bool {
+        func checkSinglePath(_ p: String) -> Bool {
+            var length = listxattr(p, nil, 0, 0)
+            if length < 0 && (errno == EACCES || errno == EPERM) {
+                var statBuf = stat()
+                if lstat(p, &statBuf) == 0 {
+                    if (statBuf.st_mode & S_IFMT) == S_IFLNK { return false }
+                    let originalMode = statBuf.st_mode
+                    let cPath = (p as NSString).fileSystemRepresentation
+                    _ = lchflags(cPath, 0)
+                    chmod(p, 0o755)
+                    length = listxattr(p, nil, 0, 0)
+                    if length > 0 {
+                        var buffer = [CChar](repeating: 0, count: length)
+                        let bytesRead = listxattr(p, &buffer, length, 0)
+                        chmod(p, originalMode)
+                        _ = lchflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+                        if bytesRead > 0 {
+                            return scanBuffer(buffer, count: bytesRead)
+                        }
+                    }
+                    chmod(p, originalMode)
+                    _ = lchflags(cPath, UInt32(UF_HIDDEN | UF_IMMUTABLE))
+                    return false
+                }
+            }
+            guard length > 0 else { return false }
+            var buffer = [CChar](repeating: 0, count: length)
+            let bytesRead = listxattr(p, &buffer, length, 0)
+            guard bytesRead > 0 else { return false }
+            return scanBuffer(buffer, count: bytesRead)
+        }
+
+        func scanBuffer(_ buffer: [CChar], count: Int) -> Bool {
+            return buffer.withUnsafeBufferPointer { ptr in
+                guard let base = ptr.baseAddress else { return false }
+                var offset = 0
+                while offset < count {
+                    let name = String(cString: base.advanced(by: offset))
+                    if name.hasPrefix("com.meowvia.phantom.") || name.hasPrefix("com.studio.phantom.") {
+                        return true
+                    }
+                    offset += name.utf8.count + 1
+                }
+                return false
+            }
+        }
+
+        if checkSinglePath(path) { return true }
+        let parent = (path as NSString).deletingLastPathComponent
+        if !parent.isEmpty && parent != "/" && parent != "/Volumes" && parent != "/Users" {
+            if checkSinglePath(parent) { return true }
+        }
+        return false
     }
 
     @discardableResult
@@ -747,6 +806,11 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             return nil
         }
 
+        // Phantom Cross-App Firewall: Never manage or mutate items managed by standalone Phantom tool
+        if Self.hasPhantomXattr(at: path) {
+            return nil
+        }
+
         if let existing = items.first(where: { $0.path == path }) {
             return existing
         }
@@ -824,12 +888,10 @@ public final class PrivacyVaultManager: @unchecked Sendable {
             }
         }
 
-        // 2. Check disk xattr or permissions directly
-        if hasVaultXattr(at: path) {
-            return true
-        }
-
-        return false
+        // 2. Fast non-mutating check for vault extended attribute (never mutate filesystem permissions or flags)
+        let cPath = (path as NSString).fileSystemRepresentation
+        let length = getxattr(cPath, Self.xattrVaultKey, nil, 0, 0, 0)
+        return length > 0
     }
 
     public func isItemLockedOnDisk(at url: URL) -> Bool {

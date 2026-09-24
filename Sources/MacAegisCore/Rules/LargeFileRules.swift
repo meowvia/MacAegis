@@ -2,10 +2,10 @@ import Foundation
 
 public struct LargeFileRules: CleanRuleProtocol {
     public let ruleId = "large_files_rules"
-    public let displayName = "超大文件与老旧镜像 (>500MB)"
+    public let displayName = "超大文件与老旧镜像 (>100MB)"
     public let category = CleanCategory.largeFiles
 
-    private let minSizeBytes: Int64 = 500_000_000 // 500 MB
+    private let minSizeBytes: Int64 = 100_000_000 // 100 MB
 
     public init() {}
 
@@ -19,7 +19,9 @@ public struct LargeFileRules: CleanRuleProtocol {
             FileUtils.expandPath("~/Desktop"),
             FileUtils.expandPath("~/Documents"),
             FileUtils.expandPath("~/Movies"),
-            FileUtils.expandPath("~/Music")
+            FileUtils.expandPath("~/Music"),
+            FileUtils.expandPath("~/Pictures"),
+            "/Users/Shared"
         ]
 
         for dir in scanDirs {
@@ -44,7 +46,7 @@ public struct LargeFileRules: CleanRuleProtocol {
                 guard size >= minSizeBytes else { continue }
 
                 let path = fileURL.path
-                if whitelist.isProtected(path: path, mode: .strict) {
+                if whitelist.isProtected(path: path, mode: .strict) || PrivacyVaultManager.shared.isLockedForScanSkip(path: path) {
                     continue
                 }
 
@@ -55,7 +57,7 @@ public struct LargeFileRules: CleanRuleProtocol {
                     sizeBytes: size,
                     category: .largeFiles,
                     safetyLevel: .caution,
-                    itemDescription: "体积超过 500MB 的单体大文件，建议你确认是否仍需保留（默认不勾选）。",
+                    itemDescription: "体积超过 100MB 的单体大文件，建议你确认是否仍需保留（默认不勾选）。",
                     isSelected: false
                 )
                 items.append(item)

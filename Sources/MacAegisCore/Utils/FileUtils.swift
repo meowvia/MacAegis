@@ -61,148 +61,69 @@ public struct FileUtils: Sendable {
         return totalSize
     }
 
-    /// Robust multi-tiered move to Trash (supports root-owned and App Store /Applications bundles via privileged escalation)
-    @MainActor
+    /// Checks if a file/folder can be moved to Trash without triggering macOS SecurityAgent Touch ID / Admin Password prompt.
+    /// Apple's FileManager.trashItem prompts for credentials if moving root-owned or privileged files.
+    public static func canTrashWithoutPrivilegeEscalation(path: String) -> Bool {
+        let expanded = expandPath(path)
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: expanded) else { return false }
+
+        // 1. Sandbox and Group Containers trigger macOS SecurityAgent / Finder modals when trashItem is invoked.
+        // Direct removeItem must be used instead to ensure 100% silent, prompt-free deletion.
+        if expanded.contains("/Library/Containers") || expanded.contains("/Library/Group Containers") {
+            return false
+        }
+
+        // 2. Root/System system directories require privileges and will trigger Touch ID/Password dialogs
+        if expanded.hasPrefix("/System") || expanded.hasPrefix("/private/var") || expanded.hasPrefix("/Library") || expanded.hasPrefix("/usr") {
+            return false
+        }
+
+        // 3. Any file not owned by the current running user
+        var statBuf = stat()
+        if lstat(expanded, &statBuf) == 0 {
+            if statBuf.st_uid != getuid() {
+                return false
+            }
+        }
+
+        // 4. Never attempt trashing .Trashes root folders
+        if expanded.hasSuffix("/.Trashes") || expanded == "/.Trashes" {
+            return false
+        }
+
+        // 5. Parent folder must be writable by current user
+        let parent = (expanded as NSString).deletingLastPathComponent
+        guard fm.isWritableFile(atPath: parent) else { return false }
+
+        return true
+    }
+
+    /// Safe move to Trash off the main thread.
+    /// Strictly avoids calling trashItem on root-owned / system files to prevent endless Touch ID / password prompts.
     public static func moveToTrash(path: String) async throws {
         let expanded = expandPath(path)
         guard FileManager.default.fileExists(atPath: expanded) else { return }
+
+        // Check if moving to Trash requires elevation
+        if !canTrashWithoutPrivilegeEscalation(path: expanded) {
+            // Instead of invoking coreservicesd/SecurityAgent prompt via trashItem,
+            // attempt direct removeItem or throw permission error for graceful handling
+            let url = URL(fileURLWithPath: expanded)
+            try FileManager.default.removeItem(at: url)
+            return
+        }
+
         let url = URL(fileURLWithPath: expanded)
-
-        // Use FileManager for silent background trash operation. 
-        // This PREVENTS UI deadlocks from NSWorkspace native prompts on background threads.
-        do {
-            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
-        } catch {
-            // If it's a critical error (permission denied for root caches), we simply throw it.
-            // We NO LONGER fallback to AppleScript Finder prompts automatically because doing so
-            // in a loop for 50 cache files will cause a massive UI freeze/spam.
-            throw error
-        }
+        try FileManager.default.trashItem(at: url, resultingItemURL: nil)
     }
 
-    /// Privileged move to ~/.Trash using macOS administrator authorization
-    public static func privilegedMoveToTrash(path: String) throws {
-        let expanded = expandPath(path)
-        guard FileManager.default.fileExists(atPath: expanded) else { return }
-
-        let trashDir = expandPath("~/.Trash")
-        let fileName = (expanded as NSString).lastPathComponent
-        var targetTrashPath = (trashDir as NSString).appendingPathComponent(fileName)
-
-        if FileManager.default.fileExists(atPath: targetTrashPath) {
-            let baseName = (fileName as NSString).deletingPathExtension
-            let ext = (fileName as NSString).pathExtension
-            let timestamp = Int(Date().timeIntervalSince1970)
-            let newName = ext.isEmpty ? "\(baseName)_\(timestamp)" : "\(baseName)_\(timestamp).\(ext)"
-            targetTrashPath = (trashDir as NSString).appendingPathComponent(newName)
-        }
-
-        let uid = getuid()
-        let gid = getgid()
-
-        let safeSource = expanded.replacingOccurrences(of: "'", with: "'\\''")
-        let safeDest = targetTrashPath.replacingOccurrences(of: "'", with: "'\\''")
-
-        let command = "/bin/mv -f '\(safeSource)' '\(safeDest)' && /usr/sbin/chown -R \(uid):\(gid) '\(safeDest)'"
-        let safeCommand = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-
-        let appleScriptSource = "do shell script \"\(safeCommand)\" with administrator privileges"
-
-        var errorInfo: NSDictionary?
-        guard let script = NSAppleScript(source: appleScriptSource) else {
-            throw NSError(domain: "MacAegisError", code: 513, userInfo: [NSLocalizedDescriptionKey: "无法初始化系统授权脚本"])
-        }
-
-        _ = script.executeAndReturnError(&errorInfo)
-
-        // macOS's /bin/mv often throws non-zero exit codes (like 1) when moving .app bundles to Trash
-        // due to extended attributes (xattrs) or ACLs failing to copy completely, EVEN THOUGH the move succeeded.
-        // Therefore, if the source file is no longer there, we consider it an absolute success and ignore AppleScript errors!
-        if !FileManager.default.fileExists(atPath: expanded) {
-            return // Success!
-        }
-
-        // If it still exists, evaluate the error
-        if let err = errorInfo {
-            let errNumber = err[NSAppleScript.errorNumber] as? Int ?? 0
-            if errNumber == -128 {
-                throw NSError(domain: "MacAegisError", code: -128, userInfo: [
-                    NSLocalizedDescriptionKey: l10n("用户取消了管理员身份授权，卸载未能完成", "Administrator authorization was cancelled by user")
-                ])
-            }
-            let errMsg = err[NSAppleScript.errorMessage] as? String ?? "未知授权执行错误"
-            throw NSError(domain: "MacAegisError", code: errNumber, userInfo: [
-                NSLocalizedDescriptionKey: l10n("管理员授权执行失败: \(errMsg)", "Privileged execution failed: \(errMsg)")
-            ])
-        }
-
-        // Fallback check
-        if FileManager.default.fileExists(atPath: expanded) {
-            throw NSError(domain: "MacAegisError", code: 513, userInfo: [
-                NSLocalizedDescriptionKey: l10n("管理员权限执行后文件仍未被移除", "File remains unremoved after privileged execution")
-            ])
-        }
-    }
-
-    /// Permanently remove item with privileged fallback
-    @MainActor
+    /// Permanently remove item off the main thread
     public static func removePermanently(path: String) async throws {
         let expanded = expandPath(path)
         guard FileManager.default.fileExists(atPath: expanded) else { return }
         let url = URL(fileURLWithPath: expanded)
-        do {
-            try FileManager.default.removeItem(at: url)
-        } catch {
-            // If direct removal fails, fallback to recycle (which handles native auth prompts)
-            try await moveToTrash(path: path)
-        }
-    }
-
-    /// Privileged permanent removal using macOS administrator authorization
-    public static func privilegedRemovePermanently(path: String) throws {
-        let expanded = expandPath(path)
-        guard FileManager.default.fileExists(atPath: expanded) else { return }
-
-        let safeSource = expanded.replacingOccurrences(of: "'", with: "'\\''")
-        let command = "/bin/rm -rf '\(safeSource)'"
-        let safeCommand = command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-
-        let appleScriptSource = "do shell script \"\(safeCommand)\" with administrator privileges"
-
-        var errorInfo: NSDictionary?
-        guard let script = NSAppleScript(source: appleScriptSource) else {
-            throw NSError(domain: "MacAegisError", code: 513, userInfo: [NSLocalizedDescriptionKey: "无法初始化系统授权脚本"])
-        }
-
-        _ = script.executeAndReturnError(&errorInfo)
-
-        // macOS's /bin/mv often throws non-zero exit codes (like 1) when moving .app bundles to Trash
-        // due to extended attributes (xattrs) or ACLs failing to copy completely, EVEN THOUGH the move succeeded.
-        // Therefore, if the source file is no longer there, we consider it an absolute success and ignore AppleScript errors!
-        if !FileManager.default.fileExists(atPath: expanded) {
-            return // Success!
-        }
-
-        // If it still exists, evaluate the error
-        if let err = errorInfo {
-            let errNumber = err[NSAppleScript.errorNumber] as? Int ?? 0
-            if errNumber == -128 {
-                throw NSError(domain: "MacAegisError", code: -128, userInfo: [
-                    NSLocalizedDescriptionKey: l10n("用户取消了管理员身份授权，卸载未能完成", "Administrator authorization was cancelled by user")
-                ])
-            }
-            let errMsg = err[NSAppleScript.errorMessage] as? String ?? "未知授权执行错误"
-            throw NSError(domain: "MacAegisError", code: errNumber, userInfo: [
-                NSLocalizedDescriptionKey: l10n("管理员授权执行失败: \(errMsg)", "Privileged execution failed: \(errMsg)")
-            ])
-        }
-
-        // Fallback check
-        if FileManager.default.fileExists(atPath: expanded) {
-            throw NSError(domain: "MacAegisError", code: 513, userInfo: [
-                NSLocalizedDescriptionKey: l10n("管理员权限执行后文件仍未被移除", "File remains unremoved after privileged execution")
-            ])
-        }
+        try FileManager.default.removeItem(at: url)
     }
 
     /// Recursively empty contents of a directory without removing the directory itself.

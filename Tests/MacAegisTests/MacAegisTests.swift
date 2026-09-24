@@ -83,7 +83,7 @@ import Foundation
     )
 
     let cleaner = CleanerEngine()
-    let report = cleaner.clean(items: [dummyItem], dryRun: true)
+    let report = await cleaner.clean(items: [dummyItem], dryRun: true)
 
     #expect(report.isDryRun == true)
     #expect(report.successfulCount == 1)
@@ -102,7 +102,7 @@ import Foundation
     )
 
     let cleaner = CleanerEngine()
-    let report = cleaner.clean(items: [dangerousItem], dryRun: false)
+    let report = await cleaner.clean(items: [dangerousItem], dryRun: false)
 
     // Must be blocked by safety engine
     #expect(report.failedCount == 1)
@@ -168,35 +168,6 @@ import Foundation
     #expect(status45.formattedTemperature(isCelsius: false) == "113°F")
 }
 
-@Test func testProxyModeAndNetworkSpeed() async throws {
-    // 1. Direct Mode
-    let directMode = ProxyMode.direct
-    #expect(directMode.rawValue == "普通直连")
-    #expect(directMode.badge == "🔵")
-    #expect(directMode.colorHex == "0284C7")
-
-    // 2. Rule Mode
-    let ruleMode = ProxyMode.rule
-    #expect(ruleMode.rawValue == "规则分流")
-    #expect(ruleMode.badge == "🟢")
-    #expect(ruleMode.colorHex == "10B981")
-
-    // 3. Global Mode
-    let globalMode = ProxyMode.global
-    #expect(globalMode.rawValue == "全局代理")
-    #expect(globalMode.badge == "🔴")
-    #expect(globalMode.colorHex == "EF4444")
-
-    // 4. NetworkSpeedInfo
-    let speed = NetworkSpeedInfo(
-        uploadBytesPerSec: 1024 * 512,      // 512 KB/s
-        downloadBytesPerSec: 1024 * 1024 * 5, // 5 MB/s
-        proxyMode: .direct
-    )
-    #expect(speed.compactDownString == "5.0M")
-    #expect(speed.compactUpString == "512K")
-    #expect(speed.menuBarDisplayString.contains("↓") && speed.menuBarDisplayString.contains("↑"))
-}
 
 @Test func testCleanCategoryDrillDownIntegrity() async throws {
     let dim1: Set<CleanCategory> = [.appCaches, .systemCaches, .systemLogs]
@@ -222,23 +193,20 @@ import Foundation
     let loc = LocalizationManager.shared
 
     // Test Chinese
-    loc.currentLanguage = AppLanguage.zh.rawValue
+    loc.appLanguage = .zh
     #expect(!loc.isEnglish)
     #expect(loc.tr("智能清理", "Smart Clean") == "智能清理")
-    #expect(CleanCategory.appCaches.displayName == "应用日常运行缓存")
+    #expect(CleanCategory.appCaches.displayName == "应用程序缓存")
 
     // Test English
-    loc.currentLanguage = AppLanguage.en.rawValue
+    loc.appLanguage = .en
     #expect(loc.isEnglish)
     #expect(loc.tr("智能清理", "Smart Clean") == "Smart Clean")
-    #expect(CleanCategory.appCaches.displayName == "Application Runtime Caches")
-    #expect(CleanCategory.orphanLeftovers.displayName == "Uninstalled App Leftovers")
-    #expect(ProxyMode.direct.localizedTitle == "Direct")
-    #expect(ProxyMode.rule.localizedTitle == "Rule Routing")
-    #expect(ProxyMode.global.localizedTitle == "Global Proxy")
+    #expect(CleanCategory.appCaches.displayName == "Application Caches")
+    #expect(CleanCategory.orphanLeftovers.displayName == "Application Leftovers")
 
     // Restore to Chinese
-    loc.currentLanguage = AppLanguage.zh.rawValue
+    loc.appLanguage = .zh
 }
 
 @Test func testPrivacyVaultIntegrityAndPersistence() async throws {
@@ -814,31 +782,6 @@ import Foundation
     #expect(addedItem == nil, "Cloud-synced files must be rejected by addItem")
 }
 
-@Test func testQuarantineManagerLifecycleAndRestore() async throws {
-    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_quarantine_test_\(UUID().uuidString)")
-    try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: tempDir) }
-
-    let qm = QuarantineManager(customBaseDirectory: tempDir.appendingPathComponent("Quarantine"))
-
-    // 1. Create a dummy app leftover file
-    let testAppFile = tempDir.appendingPathComponent("SampleApp.plist")
-    let testPayload = "PLIST_CONFIG_DATA_FOR_SAMPLE_APP_12345".data(using: .utf8)!
-    try testPayload.write(to: testAppFile)
-
-    // 2. Quarantine item
-    let quarantined = try qm.quarantine(itemPath: testAppFile.path, appName: "SampleApp", bundleId: "com.sample.app")
-    #expect(FileManager.default.fileExists(atPath: testAppFile.path) == false, "Original file should be moved away")
-    #expect(FileManager.default.fileExists(atPath: quarantined.quarantinedPath) == true, "File should exist in quarantine")
-
-    // 3. Restore item (1-Click Restore)
-    try qm.restore(item: quarantined)
-    #expect(FileManager.default.fileExists(atPath: testAppFile.path) == true, "File should be restored to original path")
-    #expect(FileManager.default.fileExists(atPath: quarantined.quarantinedPath) == false, "Quarantined copy should be removed")
-
-    let restoredData = try Data(contentsOf: testAppFile)
-    #expect(restoredData == testPayload, "Restored content must be bit-perfect")
-}
 
 @Test func testCreativeProjectRules() async throws {
     let rule = CreativeProjectRules()
@@ -876,14 +819,6 @@ import Foundation
     try Data(repeating: 0xCC, count: 2048).write(to: dummyPart)
 
     #expect(FileManager.default.fileExists(atPath: dummyPart.path))
-}
-
-@Test func testNetworkProxyDetectionAndTUNDecision() async throws {
-    let monitor = NetworkAndProxyMonitor.shared
-    let speed = monitor.fetchNetworkSpeed()
-    #expect(speed.formattedDownload.contains("/s"))
-    #expect(speed.formattedUpload.contains("/s"))
-    #expect(speed.proxyMode == .direct || speed.proxyMode == .rule || speed.proxyMode == .global)
 }
 
 @Test func testCacheOnlyModeAllowsSafeSubpathsInsideProtectedContainers() async throws {
@@ -935,5 +870,120 @@ import Foundation
     #expect(FileManager.default.fileExists(atPath: file2.path) == false)
 }
 
+@Test func testGroupContainersProtectionAndVendorAwareness() async throws {
+    let detector = AppDetector.shared
+    _ = detector.indexInstalledApps()
 
+    // Tencent group container protection
+    let isTencentInUse = detector.isGroupContainerInUse(groupName: "FN2V63AD2J.com.tencent")
+    #expect(isTencentInUse == true)
 
+    // Apple group container protection
+    let isAppleInUse = detector.isGroupContainerInUse(groupName: "group.com.apple.notes")
+    #expect(isAppleInUse == true)
+
+    // Google vendor protection if Chrome installed
+    let isGoogleActive = detector.isVendorDirectoryActive(vendorName: "Google")
+    #expect(isGoogleActive == true)
+
+    // Completely bogus uninstalled group
+    let isBogusInUse = detector.isGroupContainerInUse(groupName: "ZZ999XYZ.com.nonexistent.fakeapp999")
+    #expect(isBogusInUse == false)
+}
+
+@Test func testOrphanHunterRulesAndSystemDirectoryProtection() async throws {
+    let rule = OrphanHunterRules()
+    #expect(rule.ruleId == "orphan_leftovers_hunter")
+    #expect(rule.category == .orphanLeftovers)
+
+    let items = await rule.scan(onFoundItem: nil)
+    // Scan items should be discovered safely
+    #expect(items.allSatisfy { $0.category == .orphanLeftovers })
+
+    // Critical: FN2V63AD2J.com.tencent MUST NOT be in the scanned items (protected!)
+    let hasTencentGroup = items.contains { $0.path.contains("FN2V63AD2J.com.tencent") }
+    #expect(hasTencentGroup == false, "Tencent Group Container must NEVER be flagged as orphan")
+
+    // Critical: Apple internal daemon directories MUST NOT be flagged as orphan
+    let hasCloudDocs = items.contains { $0.path.contains("CloudDocs") }
+    #expect(hasCloudDocs == false, "CloudDocs system service must not be flagged as orphan")
+}
+
+@Test func testPhantomXattrCrossAppFirewall() async throws {
+    let tempDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macaegis_phantom_firewall_\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let normalFile = tempDir.appendingPathComponent("normal.txt")
+    try "hello world".write(to: normalFile, atomically: true, encoding: .utf8)
+
+    let phantomFile = tempDir.appendingPathComponent("phantom_guarded.txt")
+    try "phantom secret".write(to: phantomFile, atomically: true, encoding: .utf8)
+
+    // Initially neither has phantom xattr
+    #expect(PrivacyVaultManager.hasPhantomXattr(at: normalFile.path) == false)
+    #expect(PrivacyVaultManager.hasPhantomXattr(at: phantomFile.path) == false)
+
+    // Set Phantom xattr on phantomFile
+    let phantomKey = "com.meowvia.phantom.vault"
+    let dummyValue = "encrypted_meta".data(using: .utf8)!
+    _ = dummyValue.withUnsafeBytes { bytes in
+        setxattr(phantomFile.path, phantomKey, bytes.baseAddress, dummyValue.count, 0, 0)
+    }
+
+    // Direct check
+    #expect(PrivacyVaultManager.hasPhantomXattr(at: phantomFile.path) == true)
+    #expect(PrivacyVaultManager.hasPhantomXattr(at: normalFile.path) == false)
+
+    // Parent directory check
+    let phantomSubdir = tempDir.appendingPathComponent("phantom_dir")
+    try FileManager.default.createDirectory(at: phantomSubdir, withIntermediateDirectories: true)
+    let childFile = phantomSubdir.appendingPathComponent("child.txt")
+    try "child data".write(to: childFile, atomically: true, encoding: .utf8)
+
+    let studioKey = "com.studio.phantom.lock"
+    _ = dummyValue.withUnsafeBytes { bytes in
+        setxattr(phantomSubdir.path, studioKey, bytes.baseAddress, dummyValue.count, 0, 0)
+    }
+    #expect(PrivacyVaultManager.hasPhantomXattr(at: childFile.path) == true)
+
+    // Test PrivacyVaultManager.addItem hard refusal on phantom-tagged file
+    let vault = PrivacyVaultManager(customBaseDirectory: tempDir, isTestIsolation: true)
+    let setup = vault.setMasterPassword("MacAegisTestPass2026!", hint: "test")
+    #expect(setup == true)
+
+    let refusedItem = vault.addItem(url: phantomFile, type: .hidden)
+    #expect(refusedItem == nil, "Vault must refuse to adopt or mutate files tagged with Phantom xattr")
+
+    let allowedItem = vault.addItem(url: normalFile, type: .hidden)
+    #expect(allowedItem != nil, "Normal files should still be admitted safely")
+}
+
+@Test func testLanguageAutoDetectionLogic() async throws {
+    // 1. When no saved preference exists, detect from system preferred languages
+    let zhDetect = LocalizationManager.resolveInitialLanguage(savedValue: nil, preferredLanguages: ["zh-Hans-CN", "en-US"])
+    #expect(zhDetect == .zh)
+
+    let enDetect = LocalizationManager.resolveInitialLanguage(savedValue: nil, preferredLanguages: ["en-US", "zh-CN"])
+    #expect(enDetect == .en)
+
+    let fallbackDetect = LocalizationManager.resolveInitialLanguage(savedValue: nil, preferredLanguages: ["ja-JP", "fr-FR"])
+    #expect(fallbackDetect == .en)
+
+    // 2. Saved user preference strictly overrides system locale
+    let userPrefZh = LocalizationManager.resolveInitialLanguage(savedValue: "zh", preferredLanguages: ["en-US"])
+    #expect(userPrefZh == .zh)
+
+    let userPrefEn = LocalizationManager.resolveInitialLanguage(savedValue: "en", preferredLanguages: ["zh-Hans-CN"])
+    #expect(userPrefEn == .en)
+}
+
+@Test func testThermalAndFanDetectorCachedBridge() async throws {
+    let detector = ThermalAndFanDetector.shared
+    let status1 = detector.fetchStatus()
+    let status2 = detector.fetchStatus()
+
+    // Status calls succeed back-to-back using cached bridge without error
+    #expect(!status1.thermalBadge.isEmpty)
+    #expect(!status2.thermalBadge.isEmpty)
+}

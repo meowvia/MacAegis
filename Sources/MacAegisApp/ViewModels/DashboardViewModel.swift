@@ -95,11 +95,13 @@ public final class DashboardViewModel: ObservableObject {
 
     private func startTelemetryPolling() {
         // Offload telemetry computation completely to background utility queue (0ms main thread blocking)
-        // Hard constraint: Drives polling is COMPLETELY decoupled from 1.5s timer to preserve mechanical HDD lifetime
+        // Hard constraint: Drives polling is COMPLETELY decoupled from 3.0s timer to preserve mechanical HDD lifetime
+        // Smart battery saving: Pause timer when app is inactive or all windows are minimized/hidden
         telemetryTimer = Timer.publish(every: 3.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
+                guard NSApp.isActive && NSApp.windows.contains(where: { $0.isVisible && !$0.isMiniaturized }) else { return }
                 DispatchQueue.global(qos: .utility).async {
                     let metrics = HardwareTelemetry.shared.fetchMetrics()
                     let power = self.powerMonitor.fetchInfo()
@@ -147,8 +149,9 @@ public final class DashboardViewModel: ObservableObject {
         scanResult = nil
         cleanReport = nil
 
-        Task {
-            let result = await scanner.scan { [weak self] item in
+        Task { [weak self] in
+            guard let self = self else { return }
+            let result = await self.scanner.scan { [weak self] item in
                 Task { @MainActor in
                     self?.scanProgressText = l10n("发现: \(item.name)", "Discovered: \(item.name)")
                 }
@@ -303,15 +306,25 @@ public final class DashboardViewModel: ObservableObject {
                     SoundSentinel.shared.playWaterDropletChime()
                     if report.failedCount > 0 {
                         self.showToast(l10n("已释放 \(report.formattedReclaimed)，但有 \(report.failedCount) 项因系统保护或运行中未清理", "Reclaimed \(report.formattedReclaimed), but \(report.failedCount) items were skipped due to system protection or running processes"))
+                    } else {
+                        self.showToast(l10n("已成功释放 \(report.formattedReclaimed) 空间", "Successfully reclaimed \(report.formattedReclaimed)"))
                     }
-                    self.startScan()
+                    
+                    // In-place update remaining items to celebrate clean state smoothly
+                    let cleanedIds = Set(itemsToClean.filter { $0.isSelected }.map { $0.id })
+                    let remainingItems = self.scanResult?.items.filter { !cleanedIds.contains($0.id) } ?? []
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        self.scanResult = ScanResult(items: remainingItems, durationSeconds: self.scanResult?.durationSeconds ?? 0)
+                        self.selectedItemIds.subtract(cleanedIds)
+                    }
+                    self.refreshTelemetry()
                 } else if report.failedCount > 0 {
                     let topError = report.errors.first ?? l10n("所选项目被系统保护或正被运行中软件占用", "Selected items are protected by system or in use")
                     self.showToast(l10n("未能清理选定项目：\(topError)", "Failed to clean selected items: \(topError)"))
                 }
 
-                // Give users 9 seconds to view the clean results (aligned with audit feedback)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 9.0) { [weak self] in
+                // Give users 8 seconds to view the clean results
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
                     if self?.lastCleanReport?.totalReclaimedBytes == report.totalReclaimedBytes {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             self?.lastCleanReport = nil

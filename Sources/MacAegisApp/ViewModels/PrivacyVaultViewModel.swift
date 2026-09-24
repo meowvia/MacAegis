@@ -466,7 +466,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
             self.isUnlocked = false
             self.passwordInput = ""
             self.reloadItems()
-            self.showToast(l10n("隐私保险箱已安全锁定", "Privacy Vault is safely locked"))
+            self.showToast(l10n("独立空间已安全锁定", "Private Space is safely locked"))
         }
     }
 

@@ -5,7 +5,7 @@ public struct ExternalDriveRules: CleanRuleProtocol {
     public let displayName = "外置存储大文件与安装包"
     public let category = CleanCategory.largeFiles
 
-    private let minLargeFileBytes: Int64 = 500_000_000 // 500 MB
+    private let minLargeFileBytes: Int64 = 100_000_000 // 100 MB
 
     public init() {}
 
@@ -23,19 +23,20 @@ public struct ExternalDriveRules: CleanRuleProtocol {
             let rootPath = drive.mountPath
             guard fileManager.fileExists(atPath: rootPath) else { continue }
 
-            // A. Check External Drive .Trashes (已删除但仍占外置盘空间的隐藏废纸篓)
-            let trashesPath = (rootPath as NSString).appendingPathComponent(".Trashes")
-            if fileManager.fileExists(atPath: trashesPath) && !whitelist.isProtected(path: trashesPath, mode: .strict) && !privacyVault.isLockedForScanSkip(path: trashesPath) {
-                let trashSize = FileUtils.calculateSize(atPath: trashesPath)
+            // A. Check External Drive User Trash (仅探测当前用户有权限清理的子目录)
+            let uid = getuid()
+            let userTrashPath = ((rootPath as NSString).appendingPathComponent(".Trashes") as NSString).appendingPathComponent("\(uid)")
+            if fileManager.fileExists(atPath: userTrashPath) && !whitelist.isProtected(path: userTrashPath, mode: .strict) && !privacyVault.isLockedForScanSkip(path: userTrashPath) {
+                let trashSize = FileUtils.calculateSize(atPath: userTrashPath)
                 if trashSize > 0 {
                     let item = CleanItem(
                         name: "「\(drive.name)」外置隐藏废纸篓 (\(ByteFormatter.format(trashSize)))",
-                        path: trashesPath,
+                        path: userTrashPath,
                         sizeBytes: trashSize,
                         category: .largeFiles,
-                        safetyLevel: .safe,
+                        safetyLevel: .caution,
                         itemDescription: "外置硬盘「\(drive.name)」中已被移入废纸篓但未彻底清空的隐藏空间（体积 \(ByteFormatter.format(trashSize))）。",
-                        isSelected: true
+                        isSelected: false
                     )
                     items.append(item)
                     onFoundItem?(item)
@@ -61,7 +62,7 @@ public struct ExternalDriveRules: CleanRuleProtocol {
                 }
             }
 
-            // C. Scan for External Drive Installers (DMG/PKG/ISO) & Large Files (>500MB)
+            // C. Scan for External Drive Installers (DMG/PKG/ISO) & Large Files (>100MB)
             if let enumerator = fileManager.enumerator(
                 at: URL(fileURLWithPath: rootPath),
                 includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey, .isPackageKey],
@@ -70,7 +71,7 @@ public struct ExternalDriveRules: CleanRuleProtocol {
                 var scannedCount = 0
                 while let fileURL = enumerator.nextObject() as? URL {
                     scannedCount += 1
-                    if scannedCount > 5000 { break }
+                    if scannedCount > 50_000 { break }
 
                     guard let res = try? fileURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey, .isPackageKey]),
                           let isDir = res.isDirectory,
@@ -78,7 +79,7 @@ public struct ExternalDriveRules: CleanRuleProtocol {
 
                     if isDir && !isPkg {
                         let name = fileURL.lastPathComponent
-                        if name == ".Spotlight-V100" || name == ".fseventsd" || name == ".DocumentRevisions-V100" || name == "System Volume Information" {
+                        if name == ".Spotlight-V100" || name == ".fseventsd" || name == ".DocumentRevisions-V100" || name == "System Volume Information" || name == ".Trashes" || name == ".git" || name == "node_modules" || name == ".build" {
                             enumerator.skipDescendants()
                         }
                         continue
@@ -93,8 +94,8 @@ public struct ExternalDriveRules: CleanRuleProtocol {
                     let ext = fileURL.pathExtension.lowercased()
                     let isInstaller = ext == "dmg" || ext == "pkg" || ext == "iso" || ext == "xip"
 
-                    // Case 1: Installer Package on External Drive (even if <500MB, e.g. >50MB)
-                    if isInstaller && size > 50_000_000 {
+                    // Case 1: Installer Package on External Drive (even if <100MB, e.g. >20MB)
+                    if isInstaller && size > 20_000_000 {
                         let item = CleanItem(
                             name: "「\(drive.name)」安装包 \(fileURL.lastPathComponent)",
                             path: path,
@@ -107,14 +108,14 @@ public struct ExternalDriveRules: CleanRuleProtocol {
                         items.append(item)
                         onFoundItem?(item)
                     } else if size >= minLargeFileBytes {
-                        // Case 2: Large File (>500MB) on External Drive
+                        // Case 2: Large File (>100MB) on External Drive
                         let item = CleanItem(
                             name: "「\(drive.name)」\(fileURL.lastPathComponent) (\(ByteFormatter.format(size)))",
                             path: path,
                             sizeBytes: size,
                             category: .largeFiles,
                             safetyLevel: .caution,
-                            itemDescription: "外置硬盘「\(drive.name)」中体积超过 500MB 的大文件（默认不勾选，防误删）。",
+                            itemDescription: "外置硬盘「\(drive.name)」中体积超过 100MB 的大文件（默认不勾选，防误删）。",
                             isSelected: false
                         )
                         items.append(item)

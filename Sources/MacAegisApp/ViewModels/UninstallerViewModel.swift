@@ -37,10 +37,7 @@ public final class UninstallerViewModel: ObservableObject {
     private var lastIndexTime: Date?
 
     public init() {
-        // Run initial load asynchronously to completely prevent main thread stickiness on App launch / Language switch
-        DispatchQueue.main.async {
-            self.loadInstalledApps(forceRefresh: true)
-        }
+        // Zero startup disk I/O: apps are lazy loaded when user switches to Uninstaller tab
     }
 
     public func loadInstalledApps(forceRefresh: Bool = false) {
@@ -53,24 +50,47 @@ public final class UninstallerViewModel: ObservableObject {
         isRefreshing = true
         sizeCalculationTask?.cancel()
 
-        // 1. Instantaneous lightweight plist index on main thread (< 30ms)
-        self.installedApps = appDetector.indexInstalledApps(forceRefresh: forceRefresh)
-            .filter { $0.bundleURL.path.hasPrefix("/Applications") || $0.bundleURL.path.hasPrefix(FileUtils.expandPath("~/Applications")) }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        
-        AppIconCache.shared.preloadAsync(urls: self.installedApps.map { $0.bundleURL })
+        // Asynchronous background indexing (Swift 6 Task model, zero main thread jank)
+        Task.detached(priority: .userInitiated) { [weak self, appDetector] in
+            let apps = appDetector.indexInstalledApps(forceRefresh: forceRefresh)
+                .filter { $0.bundleURL.path.hasPrefix("/Applications") || $0.bundleURL.path.hasPrefix(FileUtils.expandPath("~/Applications")) }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
-        self.lastIndexTime = Date()
-        self.isRefreshing = false
+            AppIconCache.shared.preloadAsync(urls: apps.map { $0.bundleURL })
 
-        // 2. Asynchronous background size pre-warming (Zero UI blocking!)
-        let appsToMeasure = self.installedApps
-        sizeCalculationTask = Task.detached(priority: .background) { [weak self] in
-            for app in appsToMeasure {
-                if Task.isCancelled { break }
-                let size = FileUtils.calculateSize(atPath: app.bundleURL.path)
-                await MainActor.run {
-                    self?.appSizes[app.bundleURL] = size
+            await MainActor.run {
+                guard let self = self else { return }
+                self.installedApps = apps
+                self.lastIndexTime = Date()
+                self.isRefreshing = false
+
+                // Batched asynchronous background size pre-warming (Batched updates avoid UI stutter)
+                self.sizeCalculationTask = Task.detached(priority: .background) { [weak self] in
+                    var buffer: [URL: Int64] = [:]
+                    var count = 0
+                    for app in apps {
+                        if Task.isCancelled { break }
+                        let size = FileUtils.calculateSize(atPath: app.bundleURL.path)
+                        buffer[app.bundleURL] = size
+                        count += 1
+                        if count % 10 == 0 {
+                            let snapshot = buffer
+                            buffer.removeAll()
+                            await MainActor.run {
+                                for (url, s) in snapshot {
+                                    self?.appSizes[url] = s
+                                }
+                            }
+                        }
+                    }
+                    if !buffer.isEmpty {
+                        let snapshot = buffer
+                        await MainActor.run {
+                            for (url, s) in snapshot {
+                                self?.appSizes[url] = s
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -464,22 +484,39 @@ public final class AppIconCache: @unchecked Sendable {
         if let cached = cache.object(forKey: nsUrl) {
             return cached
         }
-        
-        // Fast placeholder for immediate return if not cached, letting background task fill it? 
-        // For simplicity and immediate memory fix, just do sync downsample here.
-        let rawIcon = NSWorkspace.shared.icon(forFile: url.path)
-        let targetSize = NSSize(width: 64, height: 64)
-        let resizedImage = NSImage(size: targetSize)
-        resizedImage.lockFocus()
-        NSGraphicsContext.current?.imageInterpolation = .high
-        rawIcon.draw(in: NSRect(origin: .zero, size: targetSize),
-                     from: NSRect(origin: .zero, size: rawIcon.size),
-                     operation: .copy,
-                     fraction: 1.0)
-        resizedImage.unlockFocus()
-        
-        cache.setObject(resizedImage, forKey: nsUrl)
-        return resizedImage
+
+        // Hardware-accelerated downsample without main-thread lockFocus
+        let targetDimension: CGFloat = 64
+        var thumbnailImage: NSImage?
+
+        let resourcesURL = url.appendingPathComponent("Contents/Resources")
+        if let files = try? FileManager.default.contentsOfDirectory(at: resourcesURL, includingPropertiesForKeys: nil) {
+            if let icnsURL = files.first(where: { $0.pathExtension.lowercased() == "icns" }) {
+                if let imageSource = CGImageSourceCreateWithURL(icnsURL as CFURL, nil) {
+                    let options: [CFString: Any] = [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceShouldCacheImmediately: true,
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                        kCGImageSourceThumbnailMaxPixelSize: Int(targetDimension * 2)
+                    ]
+                    if let cgThumb = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) {
+                        thumbnailImage = NSImage(cgImage: cgThumb, size: NSSize(width: targetDimension, height: targetDimension))
+                    }
+                }
+            }
+        }
+
+        let finalImage: NSImage
+        if let thumb = thumbnailImage {
+            finalImage = thumb
+        } else {
+            let rawIcon = NSWorkspace.shared.icon(forFile: url.path)
+            rawIcon.size = NSSize(width: targetDimension, height: targetDimension)
+            finalImage = rawIcon
+        }
+
+        cache.setObject(finalImage, forKey: nsUrl)
+        return finalImage
     }
 }
 extension UninstallerViewModel {
@@ -516,12 +553,13 @@ extension UninstallerViewModel {
             await MainActor.run {
                 guard let self = self else { return }
                 self.isUninstalling = false
-                if report.failedCount == 0 {
+                if report.successfulCount > 0 {
                     SoundSentinel.shared.playWaterDropletChime()
-                    self.toastMessage = l10n("成功清理 \(itemsToDelete.count) 个残留文件，释放 \(ByteFormatter.format(report.totalReclaimedBytes)) 空间 🌊", "Successfully cleaned \(itemsToDelete.count) leftovers, reclaimed \(ByteFormatter.format(report.totalReclaimedBytes)) 🌊")
+                    self.toastMessage = l10n("成功清理 \(report.successfulCount) 项残留，释放 \(ByteFormatter.format(report.totalReclaimedBytes)) 空间 🌊", "Successfully cleaned \(report.successfulCount) items, reclaimed \(ByteFormatter.format(report.totalReclaimedBytes)) 🌊")
                     self.scanOrphans() // rescan
-                } else {
-                    self.alertMessage = l10n("部分残留文件受系统保护未能移除。", "Some protected leftovers could not be removed.")
+                }
+                if report.failedCount > 0 && report.successfulCount == 0 {
+                    self.alertMessage = l10n("部分残留文件受系统保护未能移除：\n", "Some protected leftovers could not be removed:\n") + report.errors.prefix(3).joined(separator: "\n")
                 }
             }
         }

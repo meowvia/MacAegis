@@ -4,6 +4,7 @@ import MacAegisCore
 
 struct OnboardingView: View {
     @Binding var isPresented: Bool
+    @AppStorage("hasCompletedOnboarding_v1") private var hasCompletedOnboarding: Bool = false
     @State private var isHoveringSettings = false
     @State private var isHoveringSkip = false
 
@@ -66,6 +67,7 @@ struct OnboardingView: View {
                     .onHover { isHoveringSettings = $0 }
 
                     Button(action: {
+                        hasCompletedOnboarding = true
                         withAnimation(.easeOut(duration: 0.3)) {
                             isPresented = false
                         }
@@ -85,6 +87,7 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                     
                     Button(action: {
+                        hasCompletedOnboarding = true
                         withAnimation(.easeOut(duration: 0.3)) {
                             isPresented = false
                         }
@@ -122,6 +125,7 @@ struct OnboardingView: View {
     
     private func checkFDAStatusSilent() {
         if FullDiskAccessHelper.shared.hasFullDiskAccess() {
+            hasCompletedOnboarding = true
             withAnimation(.easeOut(duration: 0.3)) {
                 isPresented = false
             }

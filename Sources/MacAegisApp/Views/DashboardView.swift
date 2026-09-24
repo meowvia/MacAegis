@@ -3,34 +3,45 @@ import SwiftUI
 import AppKit
 import MacAegisCore
 
-// MARK: - Animated Sinusoidal Water Wave Shape
-struct SineWaveShape: Shape {
-    var phase: CGFloat
-    var amplitude: CGFloat = 3.5
-    var frequency: CGFloat = 1.8
+// MARK: - Isolated High-Performance Cosmic Starfield
+struct CosmicStarfieldBackdrop: View {
+    private static let starCoordinates: [(x: CGFloat, y: CGFloat, size: CGFloat, baseAlpha: Double)] = [
+        (0.06, 0.12, 2.2, 0.40),
+        (0.16, 0.18, 1.6, 0.30),
+        (0.26, 0.10, 2.6, 0.45),
+        (0.86, 0.14, 2.0, 0.40),
+        (0.93, 0.22, 1.8, 0.32),
+        (0.74, 0.10, 2.4, 0.45),
+        (0.05, 0.48, 2.0, 0.35),
+        (0.10, 0.76, 2.6, 0.48),
+        (0.04, 0.88, 1.8, 0.35),
+        (0.20, 0.94, 2.2, 0.40),
+        (0.95, 0.52, 2.2, 0.40),
+        (0.89, 0.76, 2.8, 0.50),
+        (0.96, 0.88, 1.6, 0.32),
+        (0.78, 0.92, 2.4, 0.42),
+        (0.36, 0.06, 1.8, 0.32),
+        (0.64, 0.06, 2.2, 0.40),
+        (0.40, 0.95, 1.6, 0.30),
+        (0.60, 0.95, 2.0, 0.38)
+    ]
 
-    var animatableData: CGFloat {
-        get { phase }
-        set { phase = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let width = rect.width
-        let height = rect.height
-        let mid = height * 0.35
-
-        path.move(to: CGPoint(x: 0, y: mid))
-        for x in stride(from: 0, through: width, by: 4) {
-            let relativeX = x / width
-            let sine = sin(relativeX * frequency * 2 * .pi + phase)
-            let y = mid + sine * amplitude
-            path.addLine(to: CGPoint(x: x, y: y))
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Color.clear
+                ForEach(0..<Self.starCoordinates.count, id: \.self) { idx in
+                    let star = Self.starCoordinates[idx]
+                    Circle()
+                        .fill(idx % 3 == 0 ? Color(hex: "38BDF8") : Color.white)
+                        .frame(width: star.size, height: star.size)
+                        .position(x: geo.size.width * star.x, y: geo.size.height * star.y)
+                        .opacity(star.baseAlpha)
+                }
+            }
         }
-        path.addLine(to: CGPoint(x: width, y: height))
-        path.addLine(to: CGPoint(x: 0, y: height))
-        path.closeSubpath()
-        return path
+        .allowsHitTesting(false)
+        .drawingGroup() // Offload directly to Metal, 0 CPU overhead!
     }
 }
 
@@ -39,14 +50,13 @@ public struct DashboardView: View {
     var onNavigateToUninstaller: () -> Void
     var onNavigateToPrivacyVault: () -> Void
 
+    @Environment(\.colorScheme) var colorScheme
     @State private var showingScanDetail: Bool = false
     @State private var showingSettings: Bool = false
     @State private var activeCategoryFilter: [CleanCategory]? = nil
-    @State private var activeDetailTitle: String = "全盘智能扫描明细"
+    @State private var activeDetailTitle: String = "扫描详情"
     @State private var expandedCategories: Set<CleanCategory> = Set(CleanCategory.allCases)
     @State private var isOrbHovered: Bool = false
-    @State private var isBreathingGlow: Bool = false
-    @State private var wavePhase: CGFloat = 0
 
     public init(
         viewModel: DashboardViewModel,
@@ -60,18 +70,16 @@ public struct DashboardView: View {
 
     public var body: some View {
         ZStack {
-            // macOS 26 Ethereal Liquid Glass Cosmic Canvas
-            cosmicLiquidGlassBackdrop
+            // High-performance static ethereal starfield (0% CPU/GPU overhead)
+            CosmicStarfieldBackdrop()
 
             if showingScanDetail {
                 categoryDetailStreamView
             } else {
                 masterReferenceCockpitView
             }
-
-
         }
-                .overlay(
+        .overlay(
             Group {
                 if viewModel.showingCleanErrorsSheet, let report = viewModel.lastCleanReport {
                     ZStack {
@@ -89,30 +97,15 @@ public struct DashboardView: View {
                 }
             }
         )
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
-                isBreathingGlow = true
-            }
-            withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {
-                wavePhase = .pi * 2
-            }
-        }
-    }
-
-    // MARK: - Ethereal Cosmic Liquid Glass Backdrop (Inherited from MainView)
-    @Environment(\.colorScheme) var colorScheme
-
-    private var cosmicLiquidGlassBackdrop: some View {
-        Color.clear
     }
 
     private var dynamicSystemHealth: (title: String, icon: String, iconColor: Color, pillText: String, pillColor: Color) {
         if viewModel.isScanning || viewModel.isCleaning {
             return (
-                title: l10n("正在智能全盘深度分析...", "Scanning Full Disk..."),
+                title: l10n("正在全盘智能扫描...", "Scanning Full Disk..."),
                 icon: "waveform.path.ecg",
                 iconColor: Color(hex: "38BDF8"),
-                pillText: l10n("排查系统缓存、大文件与残留...", "Analyzing caches & leftovers..."),
+                pillText: l10n("正在排查系统垃圾、大文件与残留...", "Analyzing junk, large files & leftovers..."),
                 pillColor: Color(hex: "06B6D4")
             )
         } else if let result = viewModel.scanResult {
@@ -121,7 +114,7 @@ public struct DashboardView: View {
             if safeReclaimable >= 5 * 1024 * 1024 * 1024 {
                 // 5GB 及以上：严重冗余
                 return (
-                    title: l10n("你的 Mac 存在较多冗余占用，建议清理", "Your Mac Has Heavy Clutter, Clean Advised"),
+                    title: l10n("你的 Mac 发现较多系统垃圾，建议清理", "Your Mac Has Heavy Clutter, Clean Advised"),
                     icon: "exclamationmark.triangle.fill",
                     iconColor: Color(hex: "F59E0B"),
                     pillText: l10n("已发现 \(ByteFormatter.format(safeReclaimable)) 建议清理空间", "\(ByteFormatter.format(safeReclaimable)) Clutter Detected"),
@@ -130,7 +123,7 @@ public struct DashboardView: View {
             } else if safeReclaimable >= 500 * 1024 * 1024 {
                 // 500MB ~ 5GB：适度优化
                 return (
-                    title: l10n("你的 Mac 发现可释放空间，建议适度优化", "Reclaimable Space Found, Optimization Suggested"),
+                    title: l10n("你的 Mac 发现可清理空间，建议优化", "Reclaimable Space Found, Optimization Suggested"),
                     icon: "shield.lefthalf.filled",
                     iconColor: Color(hex: "38BDF8"),
                     pillText: l10n("已发现 \(ByteFormatter.format(safeReclaimable)) 可优化空间", "\(ByteFormatter.format(safeReclaimable)) Reclaimable Found"),
@@ -139,7 +132,7 @@ public struct DashboardView: View {
             } else if safeReclaimable > 0 {
                 // > 0MB 但 < 500MB：存在少量缓存，诚实提示
                 return (
-                    title: l10n("你的 Mac 发现少量可优化缓存", "Minor Reclaimable Cache Found"),
+                    title: l10n("你的 Mac 发现少量临时缓存", "Minor Reclaimable Cache Found"),
                     icon: "shield.lefthalf.filled",
                     iconColor: Color(hex: "38BDF8"),
                     pillText: l10n("已发现 \(ByteFormatter.format(safeReclaimable)) 临时缓存", "\(ByteFormatter.format(safeReclaimable)) Cache Found"),
@@ -148,20 +141,20 @@ public struct DashboardView: View {
             } else {
                 // 真正为 0：全盘纯净
                 return (
-                    title: l10n("你的 Mac 运行状态极佳", "Your Mac is Optimal"),
+                    title: l10n("你的 Mac 运行状态良好", "Your Mac is Optimal"),
                     icon: "checkmark.shield.fill",
                     iconColor: Color(hex: "10B981"),
-                    pillText: l10n("全盘分析完成 · 空间纯净", "Analysis Complete · System Optimal"),
+                    pillText: l10n("扫描完成 · 状态良好", "Scan Complete · System Optimal"),
                     pillColor: Color(hex: "10B981")
                 )
             }
         } else {
-            // 未扫描待机态（彻底终结未扫描就宣判健康和0KB的虚假状态）
+            // 未扫描待机态
             return (
-                title: l10n("全盘智能体检，释放存储空间", "Scan Your Mac to Reclaim Space"),
+                title: l10n("全盘智能扫描，释放存储空间", "Scan Your Mac to Reclaim Space"),
                 icon: "magnifyingglass",
                 iconColor: Color(hex: "38BDF8"),
-                pillText: l10n("就绪待扫描 · 离线安全守护", "Ready to Scan · Local & Secure"),
+                pillText: l10n("就绪待扫描 · 本地安全守护", "Ready to Scan · Local & Secure"),
                 pillColor: Color(hex: "38BDF8")
             )
         }
@@ -189,15 +182,15 @@ public struct DashboardView: View {
 
                 HStack(spacing: 8) {
                     Text(health.title)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                     Image(systemName: health.icon)
                         .foregroundColor(health.iconColor)
-                        .font(.system(size: 18))
+                        .font(.system(size: 20))
                 }
 
                 Text(l10n("原生轻量架构 · 智能深度清理 · 隐私安全守护", "Native Lightweight Architecture · Deep Smart Clean · Privacy Protection"))
-                    .font(.system(size: 12))
+                    .font(.system(size: 13))
                     .foregroundColor(.secondary.opacity(0.85))
                     .padding(.top, 4)
 
@@ -209,7 +202,7 @@ public struct DashboardView: View {
                             .font(.system(size: 13, weight: .bold))
 
                         Text(l10n("已成功释放 \(report.formattedReclaimed) 空间 (\(report.successfulCount) 项)", "Reclaimed \(report.formattedReclaimed) (\(report.successfulCount) items)"))
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 12.5, weight: .semibold))
                             .foregroundColor(.primary)
 
                         if report.failedCount > 0 {
@@ -220,29 +213,32 @@ public struct DashboardView: View {
                                     Image(systemName: "exclamationmark.circle.fill")
                                         .font(.system(size: 10))
                                     Text(l10n("\(report.failedCount) 项未清理 (查看)", "\(report.failedCount) skipped (View)"))
-                                        .font(.system(size: 10, weight: .bold))
+                                        .font(.system(size: 10.5, weight: .bold))
                                 }
                                 .foregroundColor(Color(hex: "F59E0B"))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2.5)
                                 .background(Capsule().fill(Color(hex: "F59E0B").opacity(0.15)))
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .buttonStyle(PureButtonStyle())
+                            .focusable(false)
+                            .focusEffectDisabled()
                         }
 
                         Button(action: {
                             viewModel.dismissCleanReport()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.system(size: 10.5, weight: .bold))
                                 .foregroundColor(.secondary)
                                 .padding(4)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(PureButtonStyle())
                         .focusable(false)
+                        .focusEffectDisabled()
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 15)
+                    .padding(.vertical, 5.5)
                     .background(
                         Capsule()
                             .fill(Color(hex: "10B981").opacity(0.12))
@@ -258,7 +254,7 @@ public struct DashboardView: View {
                             .foregroundColor(Color(hex: "38BDF8"))
                             .font(.system(size: 12))
                         Text(toast)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 12.5, weight: .medium))
                             .foregroundColor(.primary)
                     }
                     .padding(.horizontal, 14)
@@ -272,116 +268,125 @@ public struct DashboardView: View {
                             .fill(health.pillColor)
                             .frame(width: 6, height: 6)
                         Text(health.pillText)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.secondary)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4.5)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 5)
                     .background(Capsule().fill(Color.secondary.opacity(0.08)))
                     .padding(.top, 8)
                 }
             }
-            .padding(.top, 56)
+            .padding(.top, 24)
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
 
             // Main Stage: Left 2 Orbiting Bubbles + Center Grand Luminous Sphere + Right 2 Orbiting Bubbles
-            HStack(alignment: .center, spacing: 40) {
-                // Left Wing: 2 Floating Pods (Enlarged to 245pt)
-                VStack(spacing: 32) {
-                    // Pod 1: 系统缓存与日志 (Top-Left)
+            HStack(alignment: .center, spacing: 20) {
+                // Left Wing: 2 Floating Pods (252pt)
+                VStack(spacing: 22) {
+                    // Pod 1: 系统垃圾与缓存 (Top-Left)
                     let systemSize = (viewModel.scanResult?.totalSize(for: .appCaches) ?? 0)
                         + (viewModel.scanResult?.totalSize(for: .systemCaches) ?? 0)
                         + (viewModel.scanResult?.totalSize(for: .systemLogs) ?? 0)
                     orbitingGlassBubblePod(
                         icon: "shippingbox.fill",
                         iconBgGradient: [Color(hex: "94A3B8"), Color(hex: "64748B")],
-                        title: l10n("系统缓存与日志", "System Caches & Logs"),
+                        title: l10n("系统垃圾与缓存", "System Junk & Caches"),
+                        subtitle: l10n("系统日志 · 应用缓存 · 临时文件", "System Logs · App Caches · Temp Files"),
                         sizeString: cardSizeString(for: systemSize),
+                        xOffset: 8,
                         yOffset: 0
                     ) {
                         activeCategoryFilter = [.appCaches, .systemCaches, .systemLogs]
-                        activeDetailTitle = l10n("系统缓存与日志明细", "System Caches & Logs Details")
+                        activeDetailTitle = l10n("系统垃圾与缓存明细", "System Junk & Caches Details")
                         if viewModel.scanResult == nil && !viewModel.isScanning {
                             viewModel.startScan()
                         }
                         showingScanDetail = true
                     }
 
-                    // Pod 2: 大文件与安装包 (Bottom-Left)
+                    // Pod 2: 大型与陈旧文件 (Bottom-Left)
                     let downloadsSize = (viewModel.scanResult?.totalSize(for: .downloadsAndPackages) ?? 0)
                         + (viewModel.scanResult?.totalSize(for: .developerCaches) ?? 0)
                         + (viewModel.scanResult?.totalSize(for: .largeFiles) ?? 0)
                     orbitingGlassBubblePod(
                         icon: "folder.fill",
                         iconBgGradient: [Color(hex: "A78BFA"), Color(hex: "7C3AED")],
-                        title: l10n("大文件与安装包", "Large Files & Packages"),
+                        title: l10n("大型与陈旧文件", "Large & Old Files"),
+                        subtitle: l10n("安装映像 · 超大文件 · 开发者归档", "Disk Images · Large Files · Dev Caches"),
                         sizeString: cardSizeString(for: downloadsSize),
+                        xOffset: 8,
                         yOffset: 0
                     ) {
                         activeCategoryFilter = [.downloadsAndPackages, .developerCaches, .largeFiles]
-                        activeDetailTitle = l10n("大文件与安装包明细", "Large Files & Packages Details")
+                        activeDetailTitle = l10n("大型与陈旧文件明细", "Large & Old Files Details")
                         if viewModel.scanResult == nil && !viewModel.isScanning {
                             viewModel.startScan()
                         }
                         showingScanDetail = true
                     }
                 }
-                .frame(width: 245)
+                .frame(width: 252)
 
-                // Center Stage: Grand 3D Luminous Aqua Glass Sphere Bubble (265pt Core + 320pt Outer Aura)
+                // Center Stage: Grand 3D Luminous Aqua Glass Sphere Bubble (Centered, No Deformation)
                 luminousAquaGlassSphereHero
-                    .frame(width: 320, height: 320)
+                    .frame(width: 280, height: 280)
+                    .aspectRatio(1.0, contentMode: .fit)
 
-                // Right Wing: 2 Floating Pods (Enlarged to 245pt)
-                VStack(spacing: 32) {
-                    // Pod 3: 隐私痕迹与通讯 (Top-Right)
+                // Right Wing: 2 Floating Pods (252pt)
+                VStack(spacing: 22) {
+                    // Pod 3: 隐私与浏览痕迹 (Top-Right)
                     let privacySize = (viewModel.scanResult?.totalSize(for: .messagingMedia) ?? 0)
                         + (viewModel.scanResult?.totalSize(for: .browserCaches) ?? 0)
                     orbitingGlassBubblePod(
                         icon: "lock.shield.fill",
                         iconBgGradient: [Color(hex: "FBBF24"), Color(hex: "D97706")],
-                        title: l10n("隐私痕迹与通讯", "Privacy & Messaging"),
+                        title: l10n("隐私与浏览痕迹", "Privacy & Browsing Traces"),
+                        subtitle: l10n("浏览器数据 · 通讯媒体 · 历史记录", "Browser Data · Chat Media · History"),
                         sizeString: cardSizeString(for: privacySize),
+                        xOffset: -8,
                         yOffset: 0
                     ) {
                         activeCategoryFilter = [.messagingMedia, .browserCaches]
-                        activeDetailTitle = l10n("隐私痕迹与通讯数据明细", "Privacy & Messaging Traces Details")
+                        activeDetailTitle = l10n("隐私与浏览痕迹明细", "Privacy & Browsing Traces Details")
                         if viewModel.scanResult == nil && !viewModel.isScanning {
                             viewModel.startScan()
                         }
                         showingScanDetail = true
                     }
 
-                    // Pod 4: 废纸篓与残留 (Bottom-Right)
+                    // Pod 4: 应用卸载残留 (Bottom-Right)
                     let leftoversSize = (viewModel.scanResult?.totalSize(for: .orphanLeftovers) ?? 0)
                     orbitingGlassBubblePod(
                         icon: "trash.fill",
                         iconBgGradient: [Color(hex: "34D399"), Color(hex: "059669")],
-                        title: l10n("已卸载残留文件", "Uninstalled App Leftovers"),
+                        title: l10n("应用卸载残留", "Application Leftovers"),
+                        subtitle: l10n("残留配置 · 孤立数据 · 废弃容器", "Leftover Configs · Orphan Files · Containers"),
                         sizeString: cardSizeString(for: leftoversSize),
+                        xOffset: -8,
                         yOffset: 0
                     ) {
                         activeCategoryFilter = [.orphanLeftovers]
-                        activeDetailTitle = l10n("已卸载应用残留明细", "Uninstalled App Leftovers Details")
+                        activeDetailTitle = l10n("应用卸载残留明细", "Application Leftovers Details")
                         if viewModel.scanResult == nil && !viewModel.isScanning {
                             viewModel.startScan()
                         }
                         showingScanDetail = true
                     }
                 }
-                .frame(width: 245)
+                .frame(width: 252)
             }
-            .frame(maxWidth: 920)
+            .frame(maxWidth: 860)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
 
             // Bottom Clickable Full Scan / List Entrance
             Button(action: {
                 activeCategoryFilter = nil
-                activeDetailTitle = l10n("全盘智能扫描明细", "All Scan Results")
+                activeDetailTitle = l10n("扫描详情", "Scan Details")
                 if viewModel.scanResult == nil && !viewModel.isScanning {
                     viewModel.startScan()
                 }
@@ -390,11 +395,10 @@ public struct DashboardView: View {
                 HStack(spacing: 8) {
                     Circle()
                         .fill(Color(hex: "38BDF8"))
-                        .frame(width: 8, height: 8)
+                        .frame(width: 6.5, height: 6.5)
                         .shadow(color: Color(hex: "38BDF8"), radius: 2)
-                        .scaleEffect(0.9)
 
-                    Text(l10n("查看全盘深度扫描列表 ↗", "View Full Disk Deep Scan List ↗"))
+                    Text(l10n("查看扫描详情 ↗", "View Scan Details ↗"))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                 }
@@ -417,36 +421,13 @@ public struct DashboardView: View {
                                     lineWidth: 0.8
                                 )
                         )
-                        .shadow(color: Color(hex: "38BDF8").opacity(0.1), radius: 3, x: 0, y: 2)
+                        .shadow(color: Color(hex: "38BDF8").opacity(0.08), radius: 3, x: 0, y: 1)
                 )
             }
             .buttonStyle(PureButtonStyle())
             .focusable(false)
             .focusEffectDisabled()
-            .padding(.bottom, 16)
-                    .overlay(
-            Group {
-                if viewModel.showingCleanErrorsSheet, let report = viewModel.lastCleanReport {
-                    ZStack {
-                        Color.black.opacity(0.5).ignoresSafeArea()
-                            .onTapGesture { viewModel.showingCleanErrorsSheet = false }
-                        
-                        CleanErrorsSheetView(report: report) {
-                            viewModel.showingCleanErrorsSheet = false
-                        }
-                        .background(Color(NSColor.windowBackgroundColor))
-                        .cornerRadius(12)
-                        .shadow(radius: 20)
-                        .padding(40)
-                    }
-                }
-            }
-        )
-        .onAppear {
-                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                    isBreathingGlow = true
-                }
-            }
+            .padding(.bottom, 14)
         }
     }
 
@@ -463,40 +444,27 @@ public struct DashboardView: View {
             }
         }) {
             ZStack {
-                // Layer 1: Ambient Multi-Spectral Outer Bloom (Outer Glow Aura)
+                // Layer 1: Ambient Multi-Spectral Outer Bloom (Outer Glow Aura, 280pt)
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                Color(hex: "C084FC").opacity(isOrbHovered ? 0.58 : 0.42),
-                                Color(hex: "38BDF8").opacity(isOrbHovered ? 0.40 : 0.28),
-                                Color(hex: "6366F1").opacity(0.18),
+                                Color(hex: "C084FC").opacity(isOrbHovered ? 0.45 : 0.30),
+                                Color(hex: "38BDF8").opacity(isOrbHovered ? 0.35 : 0.22),
+                                Color(hex: "6366F1").opacity(0.12),
                                 Color.clear
                             ],
                             center: .topLeading,
-                            startRadius: 40,
-                            endRadius: 160
+                            startRadius: 20,
+                            endRadius: 140
                         )
                     )
-                    .frame(width: 320, height: 320)
-                    .blur(radius: isOrbHovered ? 26 : 22)
+                    .frame(width: 280, height: 280)
+                    .blur(radius: isOrbHovered ? 20 : 15)
 
-                // Layer 2: Ambient Glowing Sparkle Accents (Starlight around sphere)
-                ForEach(0..<8) { i in
-                    let angle = Double(i) * (Double.pi * 2 / 8)
-                    let radius: CGFloat = 150
-                    Circle()
-                        .fill(i % 2 == 0 ? Color.white.opacity(0.85) : Color(hex: "38BDF8").opacity(0.75))
-                        .frame(width: i % 3 == 0 ? 3.5 : 2.5, height: i % 3 == 0 ? 3.5 : 2.5)
-                        .position(
-                            x: 160 + radius * CGFloat(cos(angle)),
-                            y: 160 + radius * CGFloat(sin(angle))
-                        )
-                        .blur(radius: 0.3)
-                }
-                .frame(width: 320, height: 320)
+                // (Note: Symmetric 8 dots & dashed orbit removed per design requirement)
 
-                // Layer 3: Glass Sphere Core Body with Liquid Wave at the very bottom
+                // Layer 2: Glass Sphere Core Body with Liquid Wave at bottom
                 ZStack {
                     Circle()
                         .fill(.ultraThinMaterial)
@@ -513,21 +481,21 @@ public struct DashboardView: View {
                                 ],
                                 center: .topLeading,
                                 startRadius: 0,
-                                endRadius: 160
+                                endRadius: 140
                             )
                         )
 
-                    // Internal Dynamic Liquid Wave (strictly bottom 38pt, zero text occlusion)
+                    // Internal Dynamic Liquid Wave (strictly bottom 36pt, zero text occlusion)
                     VStack {
                         Spacer()
                         liquidWaveMembrane
-                            .frame(height: 38)
+                            .frame(height: 36)
                     }
                 }
-                .frame(width: 265, height: 265)
+                .frame(width: 240, height: 240)
                 .clipShape(Circle())
 
-                // Layer 4: 3D Iridescent Optical Glass Rim Border
+                // Layer 3: 3D Iridescent Optical Glass Rim Border
                 Circle()
                     .stroke(
                         LinearGradient(
@@ -542,12 +510,12 @@ public struct DashboardView: View {
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: isOrbHovered ? 3.0 : 2.4
+                        lineWidth: isOrbHovered ? 2.8 : 2.2
                     )
-                    .frame(width: 265, height: 265)
-                    .shadow(color: Color(hex: "38BDF8").opacity(isOrbHovered ? 0.85 : 0.60), radius: isOrbHovered ? 18 : 14, x: 0, y: 0)
+                    .frame(width: 240, height: 240)
+                    .shadow(color: Color(hex: "38BDF8").opacity(isOrbHovered ? 0.70 : 0.45), radius: isOrbHovered ? 15 : 11, x: 0, y: 0)
 
-                // Layer 5: Top-Left Crescent Specular Shine (光斑高光)
+                // Layer 4: Top-Left Crescent Specular Shine (光斑高光)
                 Ellipse()
                     .fill(
                         LinearGradient(
@@ -556,40 +524,40 @@ public struct DashboardView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 76, height: 30)
+                    .frame(width: 68, height: 26)
                     .rotationEffect(.degrees(-35))
-                    .offset(x: -70, y: -70)
+                    .offset(x: -62, y: -62)
 
-                // Layer 6: Center Big Numbers & Typography Inside the Sphere (自洽三态一体化)
+                // Layer 5: Center Big Numbers & Typography Inside the Sphere (自洽三态一体化)
                 VStack(spacing: 5) {
                     if viewModel.isScanning || viewModel.isCleaning {
                         ProgressView()
-                            .scaleEffect(1.25)
-                            .padding(.bottom, 6)
+                            .scaleEffect(1.15)
+                            .padding(.bottom, 4)
 
-                        Text(l10n("正在极速全盘分析...", "Scanning Full Disk..."))
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                        Text(l10n("正在全盘智能扫描...", "Scanning Full Disk..."))
+                            .font(.system(size: 14.5, weight: .bold, design: .rounded))
                             .foregroundColor(Color(hex: "38BDF8"))
 
-                        Text(l10n("深度排查系统缓存与冗余垃圾", "Analyzing System & App Junk"))
+                        Text(l10n("排查系统垃圾、大文件与残留", "Analyzing junk & leftovers"))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     } else if viewModel.scanResult != nil && !viewModel.selectedItemIds.isEmpty {
-                        // 扫描完成待清理态: 大字容量 + 发光纯净字效 (彻底去除外部胶囊与sparkles)
+                        // 扫描完成待清理态: 大字容量 + 发光纯净字效
                         Text(viewModel.selectedFormattedSize)
-                            .font(.system(size: 44, weight: .bold, design: .rounded))
+                            .font(.system(size: 42, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
-                            .shadow(color: Color(hex: "38BDF8").opacity(0.45), radius: 8, x: 0, y: 2)
+                            .shadow(color: Color(hex: "38BDF8").opacity(0.45), radius: 6, x: 0, y: 2)
 
-                        Text(l10n("可安全释放", "Space Reclaimable"))
+                        Text(l10n("可安全清理", "Safe to Clean"))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.secondary)
 
-                        HStack(spacing: 5) {
+                        HStack(spacing: 4) {
                             Image(systemName: "bolt.fill")
-                                .font(.system(size: 13, weight: .bold))
-                            Text(l10n("点击立即极速清理", "Click to Clean Now"))
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .font(.system(size: 11.5, weight: .bold))
+                            Text(l10n("立即清理", "Clean Now"))
+                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
                         }
                         .foregroundStyle(
                             LinearGradient(
@@ -598,13 +566,13 @@ public struct DashboardView: View {
                                 endPoint: .trailing
                             )
                         )
-                        .shadow(color: Color(hex: "38BDF8").opacity(0.55), radius: 8)
-                        .padding(.top, 4)
+                        .shadow(color: Color(hex: "38BDF8").opacity(0.45), radius: 6)
+                        .padding(.top, 2)
                         .scaleEffect(isOrbHovered ? 1.05 : 1.0)
                     } else if viewModel.scanResult != nil {
-                        // 清理完成 / 系统极佳态
+                        // 清理完成 / 系统良好态
                         Image(systemName: "checkmark.shield.fill")
-                            .font(.system(size: 40))
+                            .font(.system(size: 38))
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [Color(hex: "34D399"), Color(hex: "059669")],
@@ -612,23 +580,23 @@ public struct DashboardView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .shadow(color: Color(hex: "10B981").opacity(0.45), radius: 8)
+                            .shadow(color: Color(hex: "10B981").opacity(0.40), radius: 6)
                             .padding(.bottom, 2)
 
-                        Text(l10n("系统状态极佳", "System Optimal"))
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                        Text(l10n("系统状态良好", "System Optimal"))
+                            .font(.system(size: 17.5, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
 
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.clockwise")
-                            Text(l10n("点击重新体检", "Click to Rescan"))
+                            Text(l10n("重新扫描", "Rescan"))
                         }
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 11.5, weight: .semibold))
                         .foregroundColor(Color(hex: "38BDF8"))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(Color(hex: "38BDF8").opacity(0.15)))
-                        .padding(.top, 4)
+                        .padding(.top, 2)
                     } else {
                         // 未扫描初始态 (使用放大镜图标，大方专业)
                         Image(systemName: "magnifyingglass")
@@ -640,20 +608,20 @@ public struct DashboardView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .shadow(color: Color(hex: "38BDF8").opacity(0.45), radius: 8)
+                            .shadow(color: Color(hex: "38BDF8").opacity(0.40), radius: 6)
                             .padding(.bottom, 2)
 
-                        Text(l10n("点击开始分析", "Click to Scan"))
-                            .font(.system(size: 19, weight: .bold, design: .rounded))
+                        Text(l10n("开始扫描", "Start Scan"))
+                            .font(.system(size: 18.5, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
 
-                        Text(l10n("智能全盘体检", "Smart Full Disk Scan"))
+                        Text(l10n("全盘智能扫描", "Full System Scan"))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                     }
                 }
             }
-            .frame(width: 320, height: 320)
+            .frame(width: 280, height: 280)
             .aspectRatio(1.0, contentMode: .fit)
             .scaleEffect(isOrbHovered ? 1.025 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isOrbHovered)
@@ -664,10 +632,10 @@ public struct DashboardView: View {
         .onHover { isOrbHovered = $0 }
     }
 
-    // Dynamic Liquid Wave Membrane Inside the Bubble
+    // High-Performance Liquid Horizon Glass Caustics (Zero frame invalidation)
     private var liquidWaveMembrane: some View {
         ZStack {
-            SineWaveShape(phase: wavePhase, amplitude: 3.5, frequency: 1.8)
+            Ellipse()
                 .fill(
                     LinearGradient(
                         colors: [
@@ -678,8 +646,10 @@ public struct DashboardView: View {
                         endPoint: .bottom
                     )
                 )
+                .frame(width: 260, height: 50)
+                .offset(y: 12)
 
-            SineWaveShape(phase: wavePhase + 2.0, amplitude: 2.8, frequency: 1.4)
+            Ellipse()
                 .fill(
                     LinearGradient(
                         colors: [
@@ -690,6 +660,8 @@ public struct DashboardView: View {
                         endPoint: .bottom
                     )
                 )
+                .frame(width: 230, height: 44)
+                .offset(y: 16)
         }
     }
 
@@ -698,13 +670,15 @@ public struct DashboardView: View {
         icon: String,
         iconBgGradient: [Color],
         title: String,
+        subtitle: String,
         sizeString: String,
-        yOffset: CGFloat,
+        xOffset: CGFloat = 0,
+        yOffset: CGFloat = 0,
         onAction: @escaping () -> Void
     ) -> some View {
         Button(action: onAction) {
             HStack(spacing: 12) {
-                // Frosted Orb Icon Badge
+                // Frosted Orb Icon Badge (Scaled to 40x40)
                 ZStack {
                     Circle()
                         .fill(
@@ -714,52 +688,60 @@ public struct DashboardView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 36, height: 36)
+                        .frame(width: 40, height: 40)
                         .shadow(color: iconBgGradient.first?.opacity(0.35) ?? Color.clear, radius: 5, x: 0, y: 2)
 
                     Image(systemName: icon)
                         .foregroundColor(.white)
-                        .font(.system(size: 15))
+                        .font(.system(size: 16))
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(title)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 13.5, weight: .bold))
                         .foregroundColor(.primary)
-                    Text(sizeString)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundColor(.secondary)
+
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.85))
+                        .lineLimit(1)
                 }
 
-                Spacer()
+                Spacer(minLength: 4)
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.secondary.opacity(0.6))
+                VStack(alignment: .trailing, spacing: 2.5) {
+                    Text(sizeString)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.5))
+                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
                             .stroke(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(0.50),
+                                        Color.white.opacity(colorScheme == .dark ? 0.35 : 0.65),
                                         Color(hex: "38BDF8").opacity(0.20),
                                         Color.white.opacity(0.08)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 0.9
+                                lineWidth: 0.8
                             )
                     )
-                    .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 3)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.20 : 0.05), radius: 6, x: 0, y: 2)
             )
-            .offset(y: yOffset)
+            .offset(x: xOffset, y: yOffset)
         }
         .buttonStyle(PureButtonStyle())
         .focusable(false)
@@ -799,7 +781,7 @@ public struct DashboardView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 13, weight: .bold))
-                        Text(l10n("返回首页", "Back to Home"))
+                        Text(l10n("返回", "Back"))
                             .font(.system(size: 13, weight: .medium))
                     }
                     .foregroundColor(Color.blue)
@@ -851,7 +833,7 @@ public struct DashboardView: View {
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "trash.fill")
-                        Text(l10n("清理已选 (\(displayedSelectedSizeString))", "Clean Selected (\(displayedSelectedSizeString))"))
+                        Text(l10n("清理所选 (\(displayedSelectedSizeString))", "Clean Selected (\(displayedSelectedSizeString))"))
                     }
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(.white)
@@ -905,9 +887,9 @@ public struct DashboardView: View {
                                     .font(.system(size: 36))
                                     .foregroundColor(Color(hex: "10B981"))
                                     .padding(.top, 40)
-                                Text(l10n("当前分类无垃圾残留", "No Junk Files Found"))
+                                Text(l10n("未发现垃圾残留", "No Junk Files Found"))
                                     .font(.system(size: 14, weight: .bold))
-                                Text(l10n("保持得非常干净，无需额外清理！✨", "Clean & optimal! No action required. ✨"))
+                                Text(l10n("系统保持良好，无需额外清理", "System is clean & optimal."))
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
                             }

@@ -13,15 +13,15 @@ public enum CleanCategory: String, CaseIterable, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .messagingMedia: return l10n("通讯软件缓存", "Messaging & Social Media")
-        case .developerCaches: return l10n("开发者与模拟器数据", "Developer & Simulator Caches")
+        case .messagingMedia: return l10n("通讯与社交媒体缓存", "Messaging & Social Media Caches")
+        case .developerCaches: return l10n("开发与构建缓存", "Developer & Build Caches")
         case .browserCaches: return l10n("浏览器缓存", "Browser Caches")
-        case .downloadsAndPackages: return l10n("已下载安装包 (DMG/PKG)", "Downloaded Installers (DMG/PKG)")
-        case .appCaches: return l10n("应用日常运行缓存", "Application Runtime Caches")
+        case .downloadsAndPackages: return l10n("安装包与磁盘映像 (DMG/PKG)", "Installers & Disk Images (DMG/PKG)")
+        case .appCaches: return l10n("应用程序缓存", "Application Caches")
         case .systemCaches: return l10n("系统缓存与快照", "System Caches & Snapshots")
-        case .systemLogs: return l10n("系统日志与诊断报告", "System Logs & Crash Reports")
-        case .orphanLeftovers: return l10n("已卸载应用残留", "Uninstalled App Leftovers")
-        case .largeFiles: return l10n("超大文件与老旧镜像 (>500MB)", "Large Files & Old Images (>500MB)")
+        case .systemLogs: return l10n("系统日志与诊断报告", "System Logs & Reports")
+        case .orphanLeftovers: return l10n("应用卸载残留", "Application Leftovers")
+        case .largeFiles: return l10n("大型与陈旧文件 (>100MB)", "Large & Old Files (>100MB)")
         }
     }
 
@@ -83,8 +83,8 @@ public enum CleanCategory: String, CaseIterable, Codable, Sendable {
             )
         case .largeFiles:
             return l10n(
-                "桌面、下载、文档与视频目录中超过 500MB 的大体积文件、虚拟机与镜像包（默认不勾选，需手动确认）。",
-                "Files over 500MB in Desktop, Downloads, and Documents (unselected by default for safety)."
+                "桌面、下载、文档、图片与影音目录中超过 100MB 的大体积文件、虚拟机与镜像包（默认不勾选，需手动确认）。",
+                "Files over 100MB in Desktop, Downloads, Documents, Pictures and Movies (unselected by default for safety)."
             )
         }
     }

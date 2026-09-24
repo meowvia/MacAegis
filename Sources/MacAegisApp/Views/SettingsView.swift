@@ -318,7 +318,7 @@ public struct SettingsView: View {
                                 Text(l10n("钥匙串与硬件安全集成", "macOS Keychain & Hardware Isolation"))
                                     .font(.system(size: 11, weight: .bold))
                             }
-                            Text(l10n("隐私保险箱主密码与数据密钥通过 macOS 原生钥匙串与 PBKDF2 10万次哈希存储，受 Apple 系统安全机制严格保护。", "Master passwords and encryption keys are stored via macOS native Keychain with 100,000 iterations PBKDF2."))
+                            Text(l10n("独立空间主密码与数据密钥通过 macOS 原生钥匙串与 PBKDF2 10万次哈希存储，受 Apple 系统安全机制严格保护。", "Private Space master password and keys are stored via macOS native Keychain with 100,000 iterations PBKDF2, safeguarded by Apple system security."))
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                         }
@@ -392,8 +392,30 @@ public struct SettingsView: View {
             .padding(.vertical, 12)
         }
         .frame(width: 560, height: 500)
-        .background(Color(NSColor.windowBackgroundColor))
-        .cornerRadius(12)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(colorScheme == .dark ? Color(hex: "0F172A").opacity(0.65) : Color.white.opacity(0.85))
+            }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            colorScheme == .dark ? Color.white.opacity(0.35) : Color.white,
+                            Color(hex: "38BDF8").opacity(0.20),
+                            colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 12)
 
         .onChange(of: launchAtLogin) { _, newValue in

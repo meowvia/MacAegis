@@ -4,6 +4,50 @@
 
 ---
 
+## [v1.0.0]
+
+**MacAegis v1.0.0 终极里程碑大版本更新说明**
+
+🎉 **重大里程碑**：MacAegis 迎来 1.0.0 正式大版本！本版本全面升级核心清理算法、重构视觉体验为 macOS 现代超薄流动玻璃质感，并构建了全并发无阻塞架构与跨应用隐私安全防火墙。
+
+**修改**
+* 全面换代为 macOS 原生流动玻璃（Liquid Glass）视觉体系，顶栏无缝一体化贯穿，沉浸感大幅跃升。
+* 彻底重构应用卸载模块索引架构，索引扫描与图标解码全异步后台化，主线程零阻塞、零掉帧。
+* 将静态卸载名单升级为动态应用拓扑感知引擎，精准保护正在使用的厂商生态与多应用共享容器目录。
+
+**修复**
+* 修复了部分多架构/长名称应用在卸载分析时图标解码卡顿的问题，采用底层硬件加速下采样提取。
+* 修复了卸载残留深度扫描时可能偶发遍历到系统原生守护进程与活跃应用依赖库的问题。
+* 修复了在双语切换或初次安装时，界面语言未能根据 macOS 系统首选语言智能识别的体验细节。
+
+**优化**
+* **极致性能降耗**：温控与风扇硬件传感器读取引入符号静态持久化，消除周期性重复加载开销，日常待机 CPU 占用趋近 0.0%。
+* **深度残留猎手升级**：扩展残留扫描深度至 `/Library/Application Support`、`/Library/PrivilegedHelperTools` 及 `Containers`，彻底消灭孤立残留。
+* **隐私隐匿防火墙**：引入跨应用 Xattr 防火墙探测机制，自动互斥并保护同类隐匿工具（Phantom）纳管的文件，杜绝交叉修改风险。
+* **现代服务卸载**：清理关联守护进程全面升级为 `launchctl bootout` 现代协议，清理更彻底。
+
+**MacAegis v1.0.0 Release Notes**
+
+🎉 **Major Milestone**: MacAegis officially reaches v1.0.0! This release delivers a major leap in deep cleaning algorithms, a modern Liquid Glass visual design with native ultra-thin materials, fully non-blocking asynchronous concurrency, and a robust cross-app privacy firewall.
+
+**Modifications**
+* Adopted modern Liquid Glass visual architecture with a seamless unified titlebar and ambient refraction.
+* Completely decoupled application uninstaller indexing and icon rendering from the main thread for buttery-smooth interaction.
+* Upgraded app orphan detection to a dynamic topology-aware engine, protecting shared vendor directories and active group containers.
+
+**Fixes**
+* Fixed icon decoding stutters during deep scanning of large applications via hardware-accelerated downsampling (`CGImageSource`).
+* Fixed edge cases where active app dependencies or system daemons could be misidentified during deep leftover analysis.
+* Fixed language detection on first launch by automatically respecting macOS system preferred language settings.
+
+**Optimizations**
+* **Ultra-Low Overhead**: Cached IOKit symbols for hardware thermal/fan telemetry to eliminate per-tick dynamic linking overhead, bringing standby CPU usage near 0.0%.
+* **Deep Orphan Hunter**: Expanded leftover sweep scope to `/Library/Application Support`, `/Library/PrivilegedHelperTools`, and App Containers.
+* **Privacy Vault Firewall**: Introduced Xattr cross-app firewall protection to prevent accidental collision with files managed by Phantom.
+* **Modern Daemon Teardown**: Updated launch daemon cleanup to modern `launchctl bootout` protocols.
+
+---
+
 ## [v0.2.3]
 
 **MacAegis v0.2.3 更新说明**

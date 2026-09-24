@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>一款纯原生 Swift 编写的 Mac 隐私文件隐匿与轻量系统维护工具</strong>
+  <strong>一款基于纯原生 Swift 构建的 Mac 独立空间与轻量系统维护工具</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="#-功能概览与界面预览">功能预览</a> •
-  <a href="#-安装使用与常见问题">安装指南</a> •
+  <a href="#-安装与使用指南">安装指南</a> •
   <a href="#-下载体验">下载地址</a> •
   <a href="README_EN.md">English Version</a>
 </p>
@@ -27,131 +27,124 @@
 
 ## 📖 软件介绍
 
-平时使用 Mac 时，总有些私人工作文件或重要文件夹不想被别人随手翻看。**MacAegis** 为此而生，提供**独立空间文件保护、智能系统清理与应用深度卸载**：
+**MacAegis** 是一款专为 macOS 设计的现代化桌面实用工具，专注于**文件夹与文件的极速隐匿保护、应用深度卸载残留扫描与轻量系统维护**。
 
-* **独立空间**：将敏感文件夹或私人文件拖入，即可原位隐形并阻止快速预览，支持 Touch ID 指纹秒级解锁；
-* **视觉体系**：全面拥抱 macOS 原生流动玻璃（Liquid Glass）视觉架构，顶栏一体化贯通，通透轻盈；
-* **应用卸载**：深度扫描应用关联残留与孤立配置，支持权限提升彻底卸载；
-* **系统维护**：精准扫描各类系统与开发缓存，识别闲置大文件与外接存储；
-* **干净克制**：纯本地离线运行，零数据上传，退出即完全释放系统资源。
+在日常使用 Mac 时，个人私密文件、工作敏感资料常有防窥与归档需求，同时系统也经常积累开发与应用残留。MacAegis 为此提供了高效、纯粹且优雅的原生解决方案：
+
+* **全面拥抱现代流动玻璃（Liquid Glass）设计**：深度适配 macOS 原生视觉哲学，采用一体化贯通式顶栏、半透明磨砂质感与平滑交互动效，与最新 macOS 桌面环境自然契合。
+* **纯 Swift 原生架构**：全栈使用 Swift 6 编写，针对 Apple Silicon 芯片与 Intel 架构全面调优。安装镜像仅约 **1.7 MB**，告别庞大的跨平台运行库，启动迅速，后台闲置时资源开销趋近于零。
+* **不限大小的极速隐匿与解锁**：独创“独立空间”管理模式，无论是日常小型文档，还是数十甚至上百 GB 的庞大工程目录、音视频媒体库，拖入即可原位快速隐匿，锁定后在访达与全局搜索中不可见。操作不产生冗余磁盘拷贝，不占用额外物理存储空间。
+* **Touch ID 生物认证与灾备保障**：支持通过 Mac 自带的触控 ID 指纹快速校验开启，亦可使用主密码解锁；同时配备独立的 64 位应急恢复密钥，防止意外遗忘。
+* **深度应用卸载与孤立残留分析**：穿透系统目录，精准罗列已安装软件及其体积占用，并支持自动追踪已卸载程序残留的孤立偏好配置与缓存。
+* **常驻菜单栏硬件遥测**：以微弱功耗常驻系统菜单栏，实时呈现芯片核心温度、风扇转速、统一内存压力与各存储卷占用状态。
+* **纯本地化与零文件内容读写**：100% 纯本地离线运行，应用本身不包含任何联网通信代码，绝不连接任何远程服务器，绝不上传任何用户数据；隐匿操作完全在原地生效，**绝不对用户的任何私人文件内容进行读取、转存或修改**，文件内容始终保持原样不变。软件退出即彻底释放所有系统资源。
 
 ---
 
 ## 📸 功能概览与界面预览 (Feature Showcase)
 
-### 1. 核心主控台 (Dashboard)
-直观展示系统整体健康度，提供一键智能清理入口与深度扫描反馈，支持外接磁盘容量识别。
+### 1. 智能清理主控台 (Smart Clean Dashboard)
+直观呈现当前系统存储与健康概况，支持一键智能扫描系统缓存、日志与可清理垃圾，并提供大文件检索与分类明细。
 <p align="center">
-  <img src="assets/screenshots_v2/01_dashboard.png" width="800" alt="核心主控台" />
+  <img src="assets/screenshots_zh/01_dashboard.png" width="800" alt="智能清理主控台" />
 </p>
 
-### 2. 空间解锁机制 (Vault Unlock)
-接入 macOS 原生 Touch ID 与系统密码验证，安全阻断未经授权的访问请求。
+### 2. 已安装应用管理 (Installed Applications)
+清晰枚举本机全部已安装应用程序，直观展示安装包物理体积与版本信息，支持快速搜索与深度定位。
 <p align="center">
-  <img src="assets/screenshots_v2/02_vault_unlock.png" width="800" alt="空间解锁机制" />
+  <img src="assets/screenshots_zh/02_uninstaller_apps.png" width="800" alt="已安装应用管理" />
 </p>
 
-### 3. 独立空间 (Private Space)
-提供私密文件与文件夹的原位安全隐匿保护，支持拖拽快速纳管，操作过程不产生冗余拷贝，不占用额外磁盘空间。
+### 3. 应用卸载与孤立残留分析 (Application Leftovers)
+自动追踪已卸载程序在系统偏好、应用支持目录及沙盒中遗留的孤立残留文件，协助彻底释放存储空间。
 <p align="center">
-  <img src="assets/screenshots_v2/03_vault_empty.png" width="800" alt="独立空间" />
+  <img src="assets/screenshots_zh/03_uninstaller_leftovers.png" width="800" alt="应用卸载与孤立残留分析" />
 </p>
 
-### 4. 隐匿资产管理 (Concealed Assets)
-对已保护的文件及文件夹进行结构化排布，实时反馈目标路径的锁定状态。
+### 4. 独立空间验证与解锁 (Private Space Lock Screen)
+极简现代的独立空间安全入口，支持原生 Touch ID 触控 ID 快速生物认证及主密码解锁，兼具恢复密钥重置能力。
 <p align="center">
-  <img src="assets/screenshots_v2/04_vault_list.png" width="800" alt="隐匿资产管理" />
+  <img src="assets/screenshots_zh/04_vault_lock.png" width="800" alt="独立空间验证与解锁" />
 </p>
 
-### 5. 批量状态控制 (Batch Operations)
-支持多选与全局全选，一键完成海量文件的解除保护或重新锁定，操作耗时均在毫秒级。
+### 5. 独立空间就绪与拖拽纳管 (Private Space Ingestion)
+清爽的就绪交互界面，支持直接拖入敏感文件夹或单体文件进行原位瞬时隐匿，并提供本地隐藏项目快速扫描入口。
 <p align="center">
-  <img src="assets/screenshots_v2/05_vault_batch.png" width="800" alt="批量状态控制" />
+  <img src="assets/screenshots_zh/05_vault_empty.png" width="800" alt="独立空间就绪与拖拽纳管" />
 </p>
 
-### 6. 灾备与安全须知 (User Notice & Recovery)
-内置防呆设计与恢复码机制，确保用户在意外丢失权限或忘记密码时依然能够安全取回数据。
+### 6. 偏好设置与系统权限管理 (Preferences & Permissions)
+提供开机自动启动、窗口关闭行为等系统级偏好调节，并直观指引完全磁盘访问权限（FDA）与应用管理权限状态。
 <p align="center">
-  <img src="assets/screenshots_v2/06_vault_notice_1.png" width="800" alt="安全须知1" />
-</p>
-<p align="center">
-  <img src="assets/screenshots_v2/07_vault_notice_2.png" width="800" alt="安全须知2" />
+  <img src="assets/screenshots_zh/06_preferences.png" width="800" alt="偏好设置与系统权限管理" />
 </p>
 
-### 7. 深度应用卸载 (Deep Uninstaller)
-穿透系统沙盒，精准定位并枚举系统中已安装的应用及其物理占用体积。
+### 7. 隐匿资产管理清单 (Concealed Assets Management)
+结构化展示已隐匿的文件夹与文件资产，清晰标注各项目占用体积（支持十至数百 GB 超大文件夹）与锁定状态，支持一键在访达中定位。
 <p align="center">
-  <img src="assets/screenshots_v2/08_uninstaller_list.png" width="800" alt="深度应用卸载" />
+  <img src="assets/screenshots_zh/07_vault_concealed.png" width="800" alt="隐匿资产管理清单" />
 </p>
 
-### 8. 孤立残留粉碎 (Leftover Crushing)
-自动追踪已卸载程序的底层残留文件（含群组容器与偏好设置），支持通过特权提升执行无死角清理。
+### 8. 批量状态控制与快捷操作 (Batch Operations & Multi-Select)
+便捷的多选与全选交互条，支持对海量隐匿资产执行批量解锁、锁定或解除保护，满足高效文件管理需求。
 <p align="center">
-  <img src="assets/screenshots_v2/09_uninstaller_leftovers.png" width="800" alt="孤立残留粉碎" />
+  <img src="assets/screenshots_zh/08_vault_batch.png" width="800" alt="批量状态控制与快捷操作" />
 </p>
 
-### 9. 偏好设置 (Preferences)
-支持跟随系统级别的深浅色模式自动切换，提供中英双语无缝热重载及自定义硬件监测偏好。
+### 9. 状态栏硬件监控卡片 (Menubar Telemetry)
+极低系统开销的菜单栏监控浮窗，实时反馈芯片核心温度、风扇转速、统一内存压力及各磁盘存储容量。
 <p align="center">
-  <img src="assets/screenshots_v2/10_settings_light.png" width="800" alt="深浅色模式支持" />
-</p>
-<p align="center">
-  <img src="assets/screenshots_v2/11_settings_en.png" width="800" alt="中英双语支持" />
-</p>
-
-### 10. 状态栏硬件监控 (Menubar Telemetry)
-采用低耗内核级轮询技术，实时呈现芯片核心温度、风扇转速及多态内存占用。
-<p align="center">
-  <img src="assets/screenshots_v2/12_menubar.png" width="360" alt="状态栏硬件监控" />
+  <img src="assets/screenshots_zh/09_menubar.png" width="360" alt="状态栏硬件监控卡片" />
 </p>
 
 ---
 
-## 🚀 安装使用与常见问题
+## 🚀 安装与使用指南
 
-### 1. 标准安装步骤
-#### 选项 A：通过 Homebrew 一键安装（推荐 · 极客首选）
+### 1. 标准安装方式
+
+#### 选项 A：通过 Homebrew 一键安装（推荐）
 ```bash
 brew install meowvia/tap/macaegis
 ```
 
-#### 选项 B：手动下载安装（含一键覆盖更新与权限重置机制）
+#### 选项 B：手动下载 DMG 镜像安装
 1. 在 [Releases 发布页面](https://github.com/meowvia/MacAegis/releases) 下载最新的 `MacAegis-vX.Y.Z.dmg` 安装包；
-2. **首次安装**：双击挂载 DMG 镜像后，将 **MacAegis** 拖入「➡️ 拖拽至此安装」快捷方式即可；
-3. **覆盖更新（强烈推荐）**：打开 DMG 镜像后，直接双击运行内置的 `Update Assistant (更新助手).command`，程序将自动终止旧版后台进程、清理系统注册缓存并完成无缝替换；
-4. 在启动台或访达「应用程序」中直接打开 MacAegis 即可开始使用。
+2. **首次安装**：双击挂载 DMG 镜像后，将 **MacAegis** 拖拽至「➡️ 拖拽至此安装」快捷方式即可；
+3. **覆盖升级（推荐）**：打开 DMG 镜像后，双击运行内置的 `Update Assistant (更新助手).command`，程序将自动终止旧版进程、完成无缝更新替换并在完成后平滑退出；
+4. 在启动台或「应用程序」中直接打开 MacAegis 即可开始使用。
 
 ---
 
-### 2. 遇到“应用已损坏 / 无法验证开发者”如何解决？
+### 2. 首次运行与安全提示说明
 
-由于本软件属于个人独立开源项目，采用本地自签名机制（未加入苹果付费企业开发者计划），首次打开时 macOS Gatekeeper 安全机制可能会弹出拦截提示：
-> *“「MacAegis」已损坏，无法打开。你应该将它移到废纸篓。”* 或 *“无法打开，因为无法验证开发者”*
+MacAegis 属于独立免费开源工具，采用本地代码签名。首次打开时，若 macOS 弹出“无法验证开发者”或安全提示：
 
-**解决办法（只需执行一次）：**
-1. 打开系统自带的 **终端（Terminal）** 应用程序（可在聚焦搜索 Spotlight 中输入 Terminal 打开）；
-2. 复制并粘贴以下命令后按回车执行（如提示输入密码，直接输入开机密码即可）：
+**快捷开启方法：**
+* 在访达的「应用程序」目录中，找到 **MacAegis**，按住键盘 **Control 键** 并点击图标，在弹出菜单中选择 **“打开”**，即可在系统弹窗中确认信任；
+* 或者在系统自带的 **终端（Terminal）** 中执行以下命令一次性解除隔离限制：
 ```bash
 sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
 ```
-3. 重新打开 MacAegis 即可正常运行。
 
 ---
 
-### 3. 完全磁盘访问权限（FDA）与覆盖更新重置须知
-为了能够正常扫描系统缓存残留并在访达中定位深层文件，首次使用清理或卸载功能时，需要开启系统的 **完全磁盘访问权限 (Full Disk Access)**：
-* 打开 **系统设置** → **隐私与安全性** → **完全磁盘访问权限**，找到 **MacAegis** 并勾选开启。
-* **⚠️ 覆盖更新重要须知**：受 macOS 底层安全机制（TCC）对自签名程序代码哈希（CDHash）的校验规则影响，每次覆盖更新二进制后，系统设置中旧的授权会在底层静默失效（即便显示勾选状态）。**重装或更新用户请务必在【完全磁盘访问权限】列表中，先选中旧的 MacAegis 点击减号【-】移除，再点击加号【+】重新添加 `/Applications/MacAegis.app` 开启授权**，否则可能无法扫描深度系统缓存。使用安装包内的更新助手可一键直达该设置页面。
+### 3. 完全磁盘访问权限（FDA）配置须知
+
+为了能够深度检索系统缓存与定位深层应用配置，首次使用清理或卸载功能时，建议根据系统指引开启 **完全磁盘访问权限 (Full Disk Access)**：
+1. 打开 macOS **系统设置** → **隐私与安全性** → **完全磁盘访问权限**；
+2. 在列表中找到 **MacAegis** 并勾选开启。
+3. **⚠️ 覆盖升级须知**：由于 macOS 安全机制会将授权绑定至每次编译的唯一代码签名特征，覆盖升级后若遇到列表扫描无反馈，请在【完全磁盘访问权限】列表中先选中旧的 MacAegis 点击减号【-】移除，再点击加号【+】重新添加 `/Applications/MacAegis.app` 开启授权即可。运行安装镜像内置的更新助手亦可一键直达该配置界面。
 
 ---
 
 ## 📦 下载体验
 
-* **GitHub 最新版本**：[MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
-* **系统要求**：macOS 14.0 (Sonoma) 或更高版本，兼容 Apple Silicon (M1/M2/M3/M4) 及 Intel 机型。
+* **GitHub 官方发布页**：[MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
+* **系统环境要求**：macOS 14.0 (Sonoma) 或更高版本，原生支持 Apple Silicon (M1/M2/M3/M4 系列) 及 Intel 架构机型。
 
 ---
 
-## 📄 许可说明
+## 📄 软件与隐私声明
 
-MacAegis 是一款免费独立软件。所有功能均在本地运行，欢迎下载体验并提交反馈与建议！
+MacAegis 是一款完全免费的独立原生桌面工具。所有功能均在您的 Mac 本地离线执行，承诺**绝不联网上传任何数据**，**绝不对您的私人文件内容做任何数据读写或篡改**，纯净透明。欢迎下载体验并提出宝贵的建议与反馈！

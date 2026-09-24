@@ -6,45 +6,53 @@
 
 ## [v1.0.0]
 
-**MacAegis v1.0.0 终极里程碑大版本更新说明**
+**MacAegis v1.0.0 更新说明**
 
-🎉 **重大里程碑**：MacAegis 迎来 1.0.0 正式大版本！本版本全面升级核心清理算法、重构视觉体验为 macOS 现代超薄流动玻璃质感，并构建了全并发无阻塞架构与跨应用隐私安全防火墙。
+⚠️ **重要提示**：作为重大版本升级，受 macOS 系统的代码签名与隐私保护机制（TCC）约束，覆盖升级或重新安装后，原有的“完全磁盘访问权限 (FDA)”凭据会在系统底层失效（即便界面仍显示已勾选）。**强烈建议使用安装镜像内的「Update Assistant (更新助手)」完成一键更新；更新完成后，请前往【系统设置】→【隐私与安全性】→【完全磁盘访问权限】，先选中旧的 MacAegis 点击减号【-】移除，再点击加号【+】重新添加开启**，以确保深度扫描与清理功能正常运作。
+
+本次 v1.0.0 是 MacAegis 的重大版本更新，核心视觉体验全面拥抱 macOS 原生流动玻璃（Liquid Glass）设计质感，重构了交互动效与窗口适配逻辑，同时完成了“独立空间”品牌规范升级、深层扫描与清理引擎强化，以及多项稳定性修复。
 
 **修改**
-* 全面换代为 macOS 原生流动玻璃（Liquid Glass）视觉体系，顶栏无缝一体化贯穿，沉浸感大幅跃升。
-* 彻底重构应用卸载模块索引架构，索引扫描与图标解码全异步后台化，主线程零阻塞、零掉帧。
-* 将静态卸载名单升级为动态应用拓扑感知引擎，精准保护正在使用的厂商生态与多应用共享容器目录。
+* **全面拥抱 Liquid Glass 视觉体系**：主界面与导航栏采用一体化通透流动玻璃质感，优化主控台视觉比例与氛围光效，提升整体层次感与一致性。
+* **“隐私保险箱”更名为“独立空间”**：功能命名更为自然克制与友好，导航栏统一对齐为标准四字宽度（智能清理 / 应用卸载 / 独立空间）。
+* **窗口交互与响应重构**：恢复并优化双击顶部栏及空白区域自由切换窗口最大化与标准尺寸的系统级交互，彻底解决不同窗口尺寸下内容拉伸形变的问题。
+* **全新升级安装与更新助手**：DMG 镜像内置更新助手脚本与双语安装指引，支持一键清理旧版本进程并直达权限重置设置。
 
 **修复**
-* 修复了部分多架构/长名称应用在卸载分析时图标解码卡顿的问题，采用底层硬件加速下采样提取。
-* 修复了卸载残留深度扫描时可能偶发遍历到系统原生守护进程与活跃应用依赖库的问题。
-* 修复了在双语切换或初次安装时，界面语言未能根据 macOS 系统首选语言智能识别的体验细节。
+* 修复了部分情况下列表图标加载与长文本渲染可能引发的界面轻微掉帧与卡顿问题。
+* 修复了应用卸载分析完成后，部分操作反馈提示可能出现重叠的视觉瑕疵。
+* 修复了处于独立空间保护中的项目可能偶发被外部清理模块误扫描的问题，严格实施互斥拦截。
+* 修复了初次安装或多语言切换时，部分界面标签未能准确跟随系统首选语言自动切换的细节问题。
 
 **优化**
-* **极致性能降耗**：温控与风扇硬件传感器读取引入符号静态持久化，消除周期性重复加载开销，日常待机 CPU 占用趋近 0.0%。
-* **深度残留猎手升级**：扩展残留扫描深度至 `/Library/Application Support`、`/Library/PrivilegedHelperTools` 及 `Containers`，彻底消灭孤立残留。
-* **隐私隐匿防火墙**：引入跨应用 Xattr 防火墙探测机制，自动互斥并保护同类隐匿工具（Phantom）纳管的文件，杜绝交叉修改风险。
-* **现代服务卸载**：清理关联守护进程全面升级为 `launchctl bootout` 现代协议，清理更彻底。
+* **大文件与扩展存储检索增强**：重构大文件识别逻辑，提供更全面客观的文件体积与路径呈现，完整覆盖外接存储设备。
+* **深度残留识别精度提升**：优化应用卸载与残留分析引擎，更精准地避开活跃共享配置与关联服务，保障清理安全性。
+* **硬件遥测能耗优化**：优化芯片温度与风扇状态的数据读取频率与生命周期，进一步降低后台待机时的系统资源占用。
+* **全生命周期内存释放**：规范退出与窗口关闭流程，退出应用后彻底释放系统内存与线程占用，保持克制纯净。
 
 **MacAegis v1.0.0 Release Notes**
 
-🎉 **Major Milestone**: MacAegis officially reaches v1.0.0! This release delivers a major leap in deep cleaning algorithms, a modern Liquid Glass visual design with native ultra-thin materials, fully non-blocking asynchronous concurrency, and a robust cross-app privacy firewall.
+⚠️ **Important Notice**: As a major release upgrade, due to macOS code signature and TCC permission constraints, existing Full Disk Access (FDA) permissions will silently become invalid after overwriting or reinstalling, even if the toggle still appears enabled in System Settings. **It is strongly recommended to run the included "Update Assistant (更新助手)" inside the DMG. After updating, please go to System Settings → Privacy & Security → Full Disk Access, select the old MacAegis entry, click [-] to remove it, and click [+] to re-add `/Applications/MacAegis.app`** to ensure full scanning and cleaning capabilities.
+
+Version 1.0.0 is a major milestone for MacAegis. The visual interface fully embraces macOS native Liquid Glass materials, complete with refined interactions, the introduction of "Private Space", enhanced scan and cleaning capabilities, and comprehensive stability improvements.
 
 **Modifications**
-* Adopted modern Liquid Glass visual architecture with a seamless unified titlebar and ambient refraction.
-* Completely decoupled application uninstaller indexing and icon rendering from the main thread for buttery-smooth interaction.
-* Upgraded app orphan detection to a dynamic topology-aware engine, protecting shared vendor directories and active group containers.
+* **Embraced Liquid Glass Visual Architecture**: Completely redesigned the window and titlebar with native fluid glass materials, unified translucent navigation, and ambient lighting.
+* **Renamed Privacy Vault to "Private Space"**: Adopted a subtle, friendly, and balanced naming style (Smart Clean / App Uninstaller / Private Space).
+* **Refined Window Interactions**: Restored and smoothed the native double-click titlebar zoom/maximize behavior, eliminating window stretching and distortion across various display sizes.
+* **Upgraded Installation & Update Assistant**: Provided a refined one-click update script and bilingual permission guide inside the DMG, with direct navigation to System Settings.
 
 **Fixes**
-* Fixed icon decoding stutters during deep scanning of large applications via hardware-accelerated downsampling (`CGImageSource`).
-* Fixed edge cases where active app dependencies or system daemons could be misidentified during deep leftover analysis.
-* Fixed language detection on first launch by automatically respecting macOS system preferred language settings.
+* Fixed potential frame drops and micro-stutters during app uninstaller list loading and icon rendering.
+* Fixed a visual overlap bug where uninstaller completion toast notices could overlap on certain resolutions.
+* Fixed edge cases where items protected within Private Space could be picked up during broad system scans, strictly reinforcing protection interception.
+* Fixed language auto-detection on first launch to seamlessly match the user's primary macOS locale.
 
 **Optimizations**
-* **Ultra-Low Overhead**: Cached IOKit symbols for hardware thermal/fan telemetry to eliminate per-tick dynamic linking overhead, bringing standby CPU usage near 0.0%.
-* **Deep Orphan Hunter**: Expanded leftover sweep scope to `/Library/Application Support`, `/Library/PrivilegedHelperTools`, and App Containers.
-* **Privacy Vault Firewall**: Introduced Xattr cross-app firewall protection to prevent accidental collision with files managed by Phantom.
-* **Modern Daemon Teardown**: Updated launch daemon cleanup to modern `launchctl bootout` protocols.
+* **Enhanced Large File & External Drive Scanning**: Improved large file discovery across both local startup volumes and attached external storage devices.
+* **Safer Leftover Detection**: Refined uninstaller analysis rules to accurately recognize shared active vendor ecosystems and avoid false positives.
+* **Reduced Telemetry Overhead**: Streamlined hardware sensor reading cycles to minimize background CPU and energy consumption.
+* **Clean Resource Teardown**: Ensured thorough process and memory cleanup on app exit, maintaining a zero-footprint philosophy.
 
 ---
 

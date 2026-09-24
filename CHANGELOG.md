@@ -8,51 +8,49 @@
 
 **MacAegis v1.0.0 更新说明**
 
-⚠️ **重要提示**：作为重大版本升级，受 macOS 系统的代码签名与隐私保护机制（TCC）约束，覆盖升级或重新安装后，原有的“完全磁盘访问权限 (FDA)”凭据会在系统底层失效（即便界面仍显示已勾选）。**强烈建议使用安装镜像内的「Update Assistant (更新助手)」完成一键更新；更新完成后，请前往【系统设置】→【隐私与安全性】→【完全磁盘访问权限】，先选中旧的 MacAegis 点击减号【-】移除，再点击加号【+】重新添加开启**，以确保深度扫描与清理功能正常运作。
+⚠️ **重要提示**：作为大版本升级，受 macOS 签名机制限制，覆盖更新可能会导致系统的完全磁盘访问权限 (FDA) 失效。建议使用安装包内的更新助手进行更新；更新后请在系统设置中将旧的 MacAegis 授权移除并重新添加开启。首次打开若遇未验证提示，按住 Control 键点击“打开”即可。
 
-本次 v1.0.0 是 MacAegis 的重大版本更新，核心视觉体验全面拥抱 macOS 原生流动玻璃（Liquid Glass）设计质感，重构了交互动效与窗口适配逻辑，同时完成了“独立空间”品牌规范升级、深层扫描与清理引擎强化，以及多项稳定性修复。
+本次更新为 MacAegis 1.0.0 正式大版本，全面换代为现代流动玻璃（Liquid Glass）视觉体系，并对多项核心功能交互与稳定性进行了集中重构与修复。
 
 **修改**
-* **全面拥抱 Liquid Glass 视觉体系**：主界面与导航栏采用一体化通透流动玻璃质感，优化主控台视觉比例与氛围光效，提升整体层次感与一致性。
-* **“隐私保险箱”更名为“独立空间”**：功能命名更为自然克制与友好，导航栏统一对齐为标准四字宽度（智能清理 / 应用卸载 / 独立空间）。
-* **窗口交互与响应重构**：恢复并优化双击顶部栏及空白区域自由切换窗口最大化与标准尺寸的系统级交互，彻底解决不同窗口尺寸下内容拉伸形变的问题。
-* **全新升级安装与更新助手**：DMG 镜像内置更新助手脚本与双语安装指引，支持一键清理旧版本进程并直达权限重置设置。
+* 全面换代为 macOS 原生流动玻璃（Liquid Glass）视觉架构与一体化贯通顶栏。
+* 将“隐私保险箱”更名为“独立空间”，界面标签统一对齐为四字规范。
+* 安装包内新增更新助手程序与双语权限配置指引。
 
 **修复**
-* 修复了部分情况下列表图标加载与长文本渲染可能引发的界面轻微掉帧与卡顿问题。
-* 修复了应用卸载分析完成后，部分操作反馈提示可能出现重叠的视觉瑕疵。
-* 修复了处于独立空间保护中的项目可能偶发被外部清理模块误扫描的问题，严格实施互斥拦截。
-* 修复了初次安装或多语言切换时，部分界面标签未能准确跟随系统首选语言自动切换的细节问题。
+* 修复了顶部栏双击缩放窗口的系统交互失效问题，并解决了窗口拉伸时的形变瑕疵。
+* 修复了部分情况下列表图标解码与渲染可能引起的界面轻度掉帧与卡顿。
+* 修复了应用卸载提示信息在特定场景下的视觉重叠问题。
+* 修复了清理模块偶发误扫描受保护私密文件的问题。
 
 **优化**
-* **大文件与扩展存储检索增强**：重构大文件识别逻辑，提供更全面客观的文件体积与路径呈现，完整覆盖外接存储设备。
-* **深度残留识别精度提升**：优化应用卸载与残留分析引擎，更精准地避开活跃共享配置与关联服务，保障清理安全性。
-* **硬件遥测能耗优化**：优化芯片温度与风扇状态的数据读取频率与生命周期，进一步降低后台待机时的系统资源占用。
-* **全生命周期内存释放**：规范退出与窗口关闭流程，退出应用后彻底释放系统内存与线程占用，保持克制纯净。
+* 优化了大文件扫描逻辑与外接存储设备的文件检索支持。
+* 优化了应用卸载与残留文件的扫描识别精度，进一步提升清理安全性。
+* 优化了硬件温控与风扇转速的读取开销，降低后台待机能耗。
+* 优化了初次启动时界面的语言智能匹配与切换引导逻辑。
 
 **MacAegis v1.0.0 Release Notes**
 
-⚠️ **Important Notice**: As a major release upgrade, due to macOS code signature and TCC permission constraints, existing Full Disk Access (FDA) permissions will silently become invalid after overwriting or reinstalling, even if the toggle still appears enabled in System Settings. **It is strongly recommended to run the included "Update Assistant (更新助手)" inside the DMG. After updating, please go to System Settings → Privacy & Security → Full Disk Access, select the old MacAegis entry, click [-] to remove it, and click [+] to re-add `/Applications/MacAegis.app`** to ensure full scanning and cleaning capabilities.
+⚠️ **Important Notice**: As a major version upgrade, due to macOS signature constraints, overwriting with a new version may invalidate your existing Full Disk Access (FDA) permissions. It is recommended to use the included Update Assistant; after updating, please remove the old MacAegis entry in System Settings and re-add it. For first-time launches encountering an unverified developer warning, hold the Control key and click "Open".
 
-Version 1.0.0 is a major milestone for MacAegis. The visual interface fully embraces macOS native Liquid Glass materials, complete with refined interactions, the introduction of "Private Space", enhanced scan and cleaning capabilities, and comprehensive stability improvements.
+Version 1.0.0 is a major milestone for MacAegis, fully embracing the modern Liquid Glass visual design while delivering focused refinements and stability fixes across core modules.
 
 **Modifications**
-* **Embraced Liquid Glass Visual Architecture**: Completely redesigned the window and titlebar with native fluid glass materials, unified translucent navigation, and ambient lighting.
-* **Renamed Privacy Vault to "Private Space"**: Adopted a subtle, friendly, and balanced naming style (Smart Clean / App Uninstaller / Private Space).
-* **Refined Window Interactions**: Restored and smoothed the native double-click titlebar zoom/maximize behavior, eliminating window stretching and distortion across various display sizes.
-* **Upgraded Installation & Update Assistant**: Provided a refined one-click update script and bilingual permission guide inside the DMG, with direct navigation to System Settings.
+* Fully transitioned to macOS native Liquid Glass visual architecture with a unified titlebar.
+* Renamed "Privacy Vault" to "Private Space" with balanced four-character tab labeling.
+* Added the Update Assistant utility and bilingual permission guidance inside the installer package.
 
 **Fixes**
-* Fixed potential frame drops and micro-stutters during app uninstaller list loading and icon rendering.
-* Fixed a visual overlap bug where uninstaller completion toast notices could overlap on certain resolutions.
-* Fixed edge cases where items protected within Private Space could be picked up during broad system scans, strictly reinforcing protection interception.
-* Fixed language auto-detection on first launch to seamlessly match the user's primary macOS locale.
+* Fixed an issue where double-clicking the titlebar failed to zoom the window, and resolved window resizing distortion.
+* Fixed occasional frame drops and micro-stutters during list loading and icon rendering.
+* Fixed a visual overlap bug with uninstaller completion toast messages under certain conditions.
+* Fixed an edge case where protected private files could be inadvertently scanned during routine cleaning.
 
 **Optimizations**
-* **Enhanced Large File & External Drive Scanning**: Improved large file discovery across both local startup volumes and attached external storage devices.
-* **Safer Leftover Detection**: Refined uninstaller analysis rules to accurately recognize shared active vendor ecosystems and avoid false positives.
-* **Reduced Telemetry Overhead**: Streamlined hardware sensor reading cycles to minimize background CPU and energy consumption.
-* **Clean Resource Teardown**: Ensured thorough process and memory cleanup on app exit, maintaining a zero-footprint philosophy.
+* Optimized large file discovery and expanded scanning support for external storage devices.
+* Optimized residual leftover detection accuracy during application uninstallation for safer removal.
+* Optimized thermal and fan telemetry polling to further reduce background standby power consumption.
+* Optimized initial launch language auto-detection and locale switcher guidance.
 
 ---
 

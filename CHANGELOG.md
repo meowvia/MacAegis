@@ -10,47 +10,35 @@
 
 ⚠️ **重要提示**：作为大版本升级，受 macOS 签名机制限制，覆盖更新可能会导致系统的完全磁盘访问权限 (FDA) 失效。建议使用安装包内的更新助手进行更新；更新后请在系统设置中将旧的 MacAegis 授权移除并重新添加开启。首次打开若遇未验证提示，按住 Control 键点击“打开”即可。
 
-本次更新为 MacAegis 1.0.0 正式大版本，全面换代为现代流动玻璃（Liquid Glass）视觉体系，并对多项核心功能交互与稳定性进行了集中重构与修复。
+本次更新为 MacAegis 1.0.0 正式大版本，全面换代为现代流动玻璃（Liquid Glass）视觉体系，并对多项核心功能进行了体验升级与规范对齐。
 
 **修改**
 * 全面换代为 macOS 原生流动玻璃（Liquid Glass）视觉架构与一体化贯通顶栏。
 * 将“隐私保险箱”更名为“独立空间”，界面标签统一对齐为四字规范。
 * 安装包内新增更新助手程序与双语权限配置指引。
 
-**修复**
-* 修复了顶部栏双击缩放窗口的系统交互失效问题，并解决了窗口拉伸时的形变瑕疵。
-* 修复了部分情况下列表图标解码与渲染可能引起的界面轻度掉帧与卡顿。
-* 修复了应用卸载提示信息在特定场景下的视觉重叠问题。
-* 修复了清理模块偶发误扫描受保护私密文件的问题。
-
 **优化**
-* 优化了大文件扫描逻辑与外接存储设备的文件检索支持。
-* 优化了应用卸载与残留文件的扫描识别精度，进一步提升清理安全性。
-* 优化了硬件温控与风扇转速的读取开销，降低后台待机能耗。
-* 优化了初次启动时界面的语言智能匹配与切换引导逻辑。
+* 优化了主界面健康度仪表盘与功能卡片的排版布局，视觉更为开阔通透。
+* 优化了应用卸载与深层残留文件的扫描识别精度，进一步提升清理安全性。
+* 优化了状态栏硬件传感器的数据读取机制，进一步降低后台待机能耗。
+* 完善了多语言本地化支持，提供更为自然统一的中英双语界面。
 
 **MacAegis v1.0.0 Release Notes**
 
 ⚠️ **Important Notice**: As a major version upgrade, due to macOS signature constraints, overwriting with a new version may invalidate your existing Full Disk Access (FDA) permissions. It is recommended to use the included Update Assistant; after updating, please remove the old MacAegis entry in System Settings and re-add it. For first-time launches encountering an unverified developer warning, hold the Control key and click "Open".
 
-Version 1.0.0 is a major milestone for MacAegis, fully embracing the modern Liquid Glass visual design while delivering focused refinements and stability fixes across core modules.
+Version 1.0.0 is a major milestone for MacAegis, fully embracing the modern Liquid Glass visual design with refined interactions, naming standardizations, and performance optimizations.
 
 **Modifications**
 * Fully transitioned to macOS native Liquid Glass visual architecture with a unified titlebar.
 * Renamed "Privacy Vault" to "Private Space" with balanced four-character tab labeling.
 * Added the Update Assistant utility and bilingual permission guidance inside the installer package.
 
-**Fixes**
-* Fixed an issue where double-clicking the titlebar failed to zoom the window, and resolved window resizing distortion.
-* Fixed occasional frame drops and micro-stutters during list loading and icon rendering.
-* Fixed a visual overlap bug with uninstaller completion toast messages under certain conditions.
-* Fixed an edge case where protected private files could be inadvertently scanned during routine cleaning.
-
 **Optimizations**
-* Optimized large file discovery and expanded scanning support for external storage devices.
+* Refined the dashboard health gauge and card layout for a cleaner, more spacious visual hierarchy.
 * Optimized residual leftover detection accuracy during application uninstallation for safer removal.
-* Optimized thermal and fan telemetry polling to further reduce background standby power consumption.
-* Optimized initial launch language auto-detection and locale switcher guidance.
+* Optimized hardware sensor telemetry to further reduce background standby power consumption.
+* Improved bilingual localization for a more consistent and natural English experience.
 
 ---
 

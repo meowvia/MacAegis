@@ -13,15 +13,15 @@
 本次更新为 MacAegis 1.0.0 正式大版本，全面换代为现代流动玻璃（Liquid Glass）视觉体系，并对多项核心功能进行了体验升级与规范对齐。
 
 **修改**
-* 全面换代为 macOS 原生流动玻璃（Liquid Glass）视觉架构与一体化贯通顶栏。
+* 全面换代为 macOS 原生流动玻璃（Liquid Glass）视觉架构，实现全局视觉高度统一化。
 * 将“隐私保险箱”更名为“独立空间”，界面标签统一对齐为四字规范。
 * 安装包内新增更新助手程序与双语权限配置指引。
 
 **优化**
-* 优化了主界面健康度仪表盘与功能卡片的排版布局，视觉更为开阔通透。
-* 优化了应用卸载与深层残留文件的扫描识别精度，进一步提升清理安全性。
-* 优化了状态栏硬件传感器的数据读取机制，进一步降低后台待机能耗。
-* 完善了多语言本地化支持，提供更为自然统一的中英双语界面。
+* 进一步压缩安装包体积，精炼程序资源，保持极致轻量。
+* 全局操作流畅度提升，重构动效与渲染管线，交互体验更为丝滑跟手。
+* 内存占用与待机功耗进一步降低，后台闲置时资源消耗趋近于零。
+* 优化了应用残留文件的扫描识别精度，进一步提升清理安全性。
 
 **MacAegis v1.0.0 Release Notes**
 
@@ -30,15 +30,15 @@
 Version 1.0.0 is a major milestone for MacAegis, fully embracing the modern Liquid Glass visual design with refined interactions, naming standardizations, and performance optimizations.
 
 **Modifications**
-* Fully transitioned to macOS native Liquid Glass visual architecture with a unified titlebar.
+* Fully transitioned to macOS native Liquid Glass visual architecture, achieving complete visual unity across the entire interface.
 * Renamed "Privacy Vault" to "Private Space" with balanced four-character tab labeling.
 * Added the Update Assistant utility and bilingual permission guidance inside the installer package.
 
 **Optimizations**
-* Refined the dashboard health gauge and card layout for a cleaner, more spacious visual hierarchy.
+* Further compressed the installer package footprint to maintain an ultra-lightweight distribution.
+* Improved overall app smoothness and responsiveness, delivering fluid and stutter-free interactions.
+* Further reduced memory footprint and standby power consumption to near-zero background idle usage.
 * Optimized residual leftover detection accuracy during application uninstallation for safer removal.
-* Optimized hardware sensor telemetry to further reduce background standby power consumption.
-* Improved bilingual localization for a more consistent and natural English experience.
 
 ---
 

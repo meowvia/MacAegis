@@ -27,17 +27,23 @@
 
 ## 📖 软件介绍
 
-**MacAegis** 是一款专为 macOS 设计的现代化桌面实用工具，专注于**文件夹与文件的极速隐匿保护、应用深度卸载残留扫描与轻量系统维护**。
+**MacAegis** 是一款专为 macOS 设计的现代化原生安全与维护工具，专注于**文件极速隐匿保护、应用深度卸载残留扫描与轻量系统维护**：
 
-在日常使用 Mac 时，个人私密文件、工作敏感资料常有防窥与归档需求，同时系统也经常积累开发与应用残留。MacAegis 为此提供了高效、纯粹且优雅的原生解决方案：
+* **流动玻璃原生设计**：纯 Swift 6 架构，深度适配 macOS 原生视觉哲学与 Apple Silicon / Intel 双架构，安装镜像仅约 **1.7 MB**，轻盈无负担。
+* **瞬时原地隐匿与解锁**：独创“独立空间”，不限文件体积毫秒级原地隐匿，支持 Touch ID 触控指纹认证与 64 位应急恢复密钥。
+* **深层卸载与残留分析**：穿透系统沙盒，精准罗列已安装应用并自动追踪已卸载程序遗留的孤立配置与深层缓存。
+* **100% 离线纯净承诺**：零网络通信、零遥测回传、零私人文件内容读写，所有操作均在本地原地安全执行。
 
-* **全面拥抱现代流动玻璃（Liquid Glass）设计**：深度适配 macOS 原生视觉哲学，采用一体化贯通式顶栏、半透明磨砂质感与平滑交互动效，与最新 macOS 桌面环境自然契合。
-* **纯 Swift 原生架构**：全栈使用 Swift 6 编写，针对 Apple Silicon 芯片与 Intel 架构全面调优。安装镜像仅约 **1.7 MB**，告别庞大的跨平台运行库，启动迅速，后台闲置时资源开销趋近于零。
-* **不限大小的极速隐匿与解锁**：独创“独立空间”管理模式，无论是日常小型文档，还是数十甚至上百 GB 的庞大工程目录、音视频媒体库，拖入即可原位快速隐匿，锁定后在访达与全局搜索中不可见。操作不产生冗余磁盘拷贝，不占用额外物理存储空间。
-* **Touch ID 生物认证与灾备保障**：支持通过 Mac 自带的触控 ID 指纹快速校验开启，亦可使用主密码解锁；同时配备独立的 64 位应急恢复密钥，防止意外遗忘。
-* **深度应用卸载与孤立残留分析**：穿透系统目录，精准罗列已安装软件及其体积占用，并支持自动追踪已卸载程序残留的孤立偏好配置与缓存。
-* **常驻菜单栏硬件遥测**：以微弱功耗常驻系统菜单栏，实时呈现芯片核心温度、风扇转速、统一内存压力与各存储卷占用状态。
-* **纯本地化与零文件内容读写**：100% 纯本地离线运行，应用本身不包含任何联网通信代码，绝不连接任何远程服务器，绝不上传任何用户数据；隐匿操作完全在原地生效，**绝不对用户的任何私人文件内容进行读取、转存或修改**，文件内容始终保持原样不变。软件退出即彻底释放所有系统资源。
+<p align="center">
+  <br />
+  <a href="https://wise.com/pay/me/nongjinshui">
+    <img src="assets/wise_qr.png" width="130" alt="Support MacAegis on Wise" />
+  </a>
+  <br />
+  <sub>☕️ <strong>请独立开发者喝杯咖啡 / Buy me a coffee</strong></sub><br />
+  <sub>作为初涉海外生态的独立开发者，目前正测试 Wise 跨境渠道；若本工具对您有所帮助，由衷感谢任何真实支持 ❤️</sub><br />
+  <sub>(Testing Wise cross-border channel workflows; any genuine support for continuous indie development is deeply appreciated)</sub>
+</p>
 
 ---
 
@@ -142,16 +148,6 @@ sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
 
 * **GitHub 官方发布页**：[MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
 * **系统环境要求**：macOS 14.0 (Sonoma) 或更高版本，原生支持 Apple Silicon (M1/M2/M3/M4 系列) 及 Intel 架构机型。
-
-<p align="center">
-  <br />
-  <a href="https://wise.com/pay/me/nongjins">
-    <img src="assets/wise_qr.png" width="130" alt="Support MacAegis on Wise" />
-  </a>
-  <br />
-  <sub>☕️ <strong>请独立开发者喝杯咖啡 (Support on Wise)</strong></sub><br />
-  <sub>作为初涉海外生态的独立开发者，目前正测试 Wise 跨境渠道；若本工具对您有所帮助，由衷感谢任何真实支持 ❤️</sub>
-</p>
 
 ---
 

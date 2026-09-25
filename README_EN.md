@@ -148,3 +148,15 @@ To allow deep inspection of system caches and app preferences, grant **Full Disk
 ## 📄 Privacy & Licensing Notice
 
 MacAegis is free software. All operations execute 100% locally on your Mac. It contains zero networking capabilities, never uploads any data, and **never reads or modifies the contents of your personal files**. Pure, transparent, and respectful of your privacy. Feedback and suggestions are warmly welcomed!
+
+---
+
+## ☕️ Support Independent Development
+
+> 💡 **Developer's Note & Channel Testing**:
+> As an indie developer relatively new to international sponsorship channels, I am currently testing this Wise payment channel to explore global support workflows.
+> If MacAegis has brought value to your daily workflow and you'd like to buy me a coffee, any genuine support is deeply appreciated and fuels the continuous evolution of this project! ❤️
+> 
+> * **Support via Wise**: [https://wise.com/pay/me/nongjins](https://wise.com/pay/me/nongjins)  
+> *(Directly supports the indie creator via Wise or international card transfers with zero platform middleman fees)*
+

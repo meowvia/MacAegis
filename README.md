@@ -143,20 +143,19 @@ sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
 * **GitHub 官方发布页**：[MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
 * **系统环境要求**：macOS 14.0 (Sonoma) 或更高版本，原生支持 Apple Silicon (M1/M2/M3/M4 系列) 及 Intel 架构机型。
 
+<p align="center">
+  <br />
+  <a href="https://wise.com/pay/me/nongjins">
+    <img src="assets/wise_qr.png" width="130" alt="Support MacAegis on Wise" />
+  </a>
+  <br />
+  <sub>☕️ <strong>请独立开发者喝杯咖啡 (Support on Wise)</strong></sub><br />
+  <sub>作为初涉海外生态的独立开发者，目前正测试 Wise 跨境渠道；若本工具对您有所帮助，由衷感谢任何真实支持 ❤️</sub>
+</p>
+
 ---
 
 ## 📄 软件与隐私声明
 
 MacAegis 是一款完全免费的独立原生桌面工具。所有功能均在您的 Mac 本地离线执行，承诺**绝不联网上传任何数据**，**绝不对您的私人文件内容做任何数据读写或篡改**，纯净透明。欢迎下载体验并提出宝贵的建议与反馈！
-
----
-
-## ☕️ 支持独立开发 (Support the Developer)
-
-> 💡 **开发者测试说明**：
-> 作为一名初涉海外生态的独立开发者，目前正在测试与探索全球赞助渠道流程（通过 Wise 跨境通道）。
-> 如果您觉得 MacAegis 对您的日常体验有所帮助并愿意真实请作者喝一杯咖啡，我将深感荣幸并由衷感谢您的信任与支持！❤️
-> 
-> * **Wise 专属支持链接**：[https://wise.com/pay/me/nongjins](https://wise.com/pay/me/nongjins)  
-> *(支持海外用户直接通过 Wise 或国际银行卡安全转账，资金 100% 直达独立开发者)*
 

@@ -143,20 +143,19 @@ To allow deep inspection of system caches and app preferences, grant **Full Disk
 * **GitHub Official Releases**: [MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
 * **System Requirements**: macOS 14.0 (Sonoma) or newer, natively compatible with Apple Silicon (M1/M2/M3/M4 series) and Intel Macs.
 
+<p align="center">
+  <br />
+  <a href="https://wise.com/pay/me/nongjins">
+    <img src="assets/wise_qr.png" width="130" alt="Support MacAegis on Wise" />
+  </a>
+  <br />
+  <sub>☕️ <strong>Buy the Indie Developer a Coffee (Support on Wise)</strong></sub><br />
+  <sub>Testing Wise cross-border channel workflows; any genuine support for continuous development is deeply appreciated ❤️</sub>
+</p>
+
 ---
 
 ## 📄 Privacy & Licensing Notice
 
 MacAegis is free software. All operations execute 100% locally on your Mac. It contains zero networking capabilities, never uploads any data, and **never reads or modifies the contents of your personal files**. Pure, transparent, and respectful of your privacy. Feedback and suggestions are warmly welcomed!
-
----
-
-## ☕️ Support Independent Development
-
-> 💡 **Developer's Note & Channel Testing**:
-> As an indie developer relatively new to international sponsorship channels, I am currently testing this Wise payment channel to explore global support workflows.
-> If MacAegis has brought value to your daily workflow and you'd like to buy me a coffee, any genuine support is deeply appreciated and fuels the continuous evolution of this project! ❤️
-> 
-> * **Support via Wise**: [https://wise.com/pay/me/nongjins](https://wise.com/pay/me/nongjins)  
-> *(Directly supports the indie creator via Wise or international card transfers with zero platform middleman fees)*
 

@@ -62,6 +62,38 @@ public final class WhitelistManager: @unchecked Sendable {
         "/Library/Logs/DiagnosticReports"
     ]
 
+    /// Pearcleaner-inspired skipDeepSearch 70+ system-level internal directories firewall
+    public let skipDeepSearchProtectedDirectories: Set<String> = [
+        "biome", "intelligenceplatform", "duetexpertcenter", "lockdownmode",
+        "differentialprivacy", "callhistorydb", "personalizationportrait",
+        "knowledge", "frontboard", "sensorkit", "coreparsec", "coretelephony",
+        "identityservices", "clouddocs", "fileprovider", "syncservices",
+        "btserver", "ilifemediabrowser", "addressbook", "accounts",
+        "devicediscoveryui", "screentime", "systempreferences", "automator",
+        "fontcollections", "input methods", "keychains", "keyboard",
+        "spelling", "fonts", "colors", "sounds", "speech", "preview",
+        "macserialnumbers", "mobilesync", "passbook", "security",
+        "bluetooth", "autobugcapture", "diagnosticreports", "system.log",
+        "coreanalytics", "diskwiper", "suggestions", "homekit",
+        "calendars", "reminders", "notes", "photos", "safari",
+        "messages", "mail", "cookies", "passes", "mobile documents",
+        "cloudstorage", "com.apple", "apple", "quick look", "dock",
+        "proapps", "audio", "coreaudio", "preferences", "crashreporter"
+    ]
+
+    public func shouldSkipDeepSearch(path: String) -> Bool {
+        let name = (path as NSString).lastPathComponent.lowercased()
+        if skipDeepSearchProtectedDirectories.contains(name) {
+            return true
+        }
+        for protectedDir in skipDeepSearchProtectedDirectories {
+            if name.hasPrefix("\(protectedDir).") || name.hasSuffix(".\(protectedDir)") {
+                return true
+            }
+        }
+        return false
+    }
+
     /// Essential app data directories that must not be deleted as an entire bundle when installed,
     /// but whose specific cache/temp subpaths can be cleaned under .cacheOnly mode.
     private let protectedContainers: Set<String> = [

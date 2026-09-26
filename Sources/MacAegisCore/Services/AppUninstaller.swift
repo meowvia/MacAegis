@@ -166,6 +166,13 @@ public final class AppUninstaller: Sendable {
             }
 
             for sub in subItems {
+                let fullPath = (expandedDir as NSString).appendingPathComponent(sub)
+
+                // Pearcleaner Firewall: Skip 70+ sensitive system-level directories early
+                if whitelist.shouldSkipDeepSearch(path: fullPath) {
+                    continue
+                }
+
                 let subLower = sub.lowercased()
                 var isMatch = false
 
@@ -189,7 +196,26 @@ public final class AppUninstaller: Sendable {
                     }
                 }
 
-                let fullPath = (expandedDir as NSString).appendingPathComponent(sub)
+                // MangoDisk-inspired Sandbox Container Metadata Deterministic Resolution
+                if !isMatch && candidate.dir.contains("Containers") {
+                    let metaPath = (fullPath as NSString).appendingPathComponent(".com.apple.containermanagerd.metadata.plist")
+                    if let data = try? Data(contentsOf: URL(fileURLWithPath: metaPath)),
+                       let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any] {
+                        var metaId = plist["MCMMetadataIdentifier"] as? String
+                        if metaId == nil || metaId?.isEmpty == true {
+                            if let valInfo = plist["MCMMetadataInfo"] as? [String: Any],
+                               let subParams = (valInfo["SandboxProfileDataValidationInfo"] as? [String: Any])?["Parameters"] as? [String: Any],
+                               let bid = subParams["application_bundle_id"] as? String {
+                                metaId = bid
+                            }
+                        }
+                        if let metaId = metaId?.lowercased(), let bId = bundleId?.lowercased() {
+                            if metaId == bId || metaId.hasPrefix(bId + ".") {
+                                isMatch = true
+                            }
+                        }
+                    }
+                }
 
                 // Extra check for LaunchAgents / LaunchDaemons plist content targeting this app
                 if !isMatch && (candidate.dir.contains("LaunchAgents") || candidate.dir.contains("LaunchDaemons")) && sub.hasSuffix(".plist") {

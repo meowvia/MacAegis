@@ -7,7 +7,7 @@ swift build -c release \
 
 echo "Building DMG..."
 APP_NAME="MacAegis"
-VERSION="v1.0.0"
+VERSION="v1.1.0"
 BUILD_DIR=".build/release"
 APP_BUNDLE="${APP_NAME}.app"
 STAGING_DIR="dmg_staging"
@@ -39,7 +39,7 @@ cat <<PLIST > "${APP_BUNDLE}/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>1.1.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>

@@ -258,11 +258,23 @@ public struct MainView: View {
                     Button(action: {
                         selectedTab = tab
                     }) {
-                        HStack(spacing: 7) {
+                        HStack(spacing: 6) {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 13.5, weight: isSelected ? .bold : .semibold))
                             Text(tab.title)
                                 .font(.system(size: 13.5, weight: isSelected ? .bold : .semibold))
+                            if tab == .privacyVault {
+                                Text("BETA")
+                                    .font(.system(size: 8.5, weight: .heavy, design: .rounded))
+                                    .foregroundColor(Color(hex: "818CF8"))
+                                    .padding(.horizontal, 4.5)
+                                    .padding(.vertical, 1.5)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(hex: "818CF8").opacity(0.18))
+                                            .overlay(Capsule().stroke(Color(hex: "818CF8").opacity(0.35), lineWidth: 0.5))
+                                    )
+                            }
                         }
                         .foregroundColor(
                             isSelected

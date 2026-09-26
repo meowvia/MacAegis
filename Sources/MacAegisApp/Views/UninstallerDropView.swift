@@ -32,29 +32,30 @@ public struct UninstallerDropView: View {
                 fullWidthBrowserView
             }
 
-            // Success Toast Banner
+            // Success Toast Capsule (Non-intrusive centered capsule, perfectly avoiding list items)
             if let toast = viewModel.toastMessage {
                 VStack {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(Color(hex: "10B981"))
                         Text(toast)
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 12.5, weight: .bold))
                             .foregroundColor(.primary)
-                        Spacer()
-                        Button(action: { viewModel.toastMessage = nil }) {
+                            .lineLimit(1)
+
+                        Button(action: { viewModel.dismissToast() }) {
                             Image(systemName: "xmark")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.secondary.opacity(0.8))
+                                .padding(4)
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
                     .studioCard(cornerRadius: 10, isSelected: true)
-                    .padding(.top, 56)
+                    .padding(.top, 10)
                     .zIndex(999)
-                    .padding(.horizontal, 24)
                     .transition(.move(edge: .top).combined(with: .opacity))
 
                     Spacer()

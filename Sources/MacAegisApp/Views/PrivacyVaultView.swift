@@ -64,25 +64,40 @@ public struct PrivacyVaultView: View {
                 lockedGateContent
             }
 
-            // Floating Toast Notification (Positioned at bottom center, exactly 76px above dock)
-            if let toast = viewModel.toastMessage {
+            // Floating Toast Notification (Positioned at top center, perfectly clear of dock and action buttons)
+            if let toastState = viewModel.toastState ?? viewModel.toastMessage.map({ VaultToastState(message: $0, type: .success) }) {
                 VStack {
-                    Spacer()
-
                     HStack(spacing: 8) {
-                        Image(systemName: "checkmark.shield.fill")
-                            .foregroundColor(Color(hex: "10B981"))
-                        Text(toast)
+                        Image(systemName: {
+                            switch toastState.type {
+                            case .success: return "checkmark.shield.fill"
+                            case .warning: return "exclamationmark.triangle.fill"
+                            case .error: return "xmark.shield.fill"
+                            case .info: return "info.circle.fill"
+                            }
+                        }())
+                        .foregroundColor({
+                            switch toastState.type {
+                            case .success: return Color(hex: "10B981")
+                            case .warning: return Color(hex: "F59E0B")
+                            case .error: return Color(hex: "EF4444")
+                            case .info: return Color(hex: "38BDF8")
+                            }
+                        }())
+                        Text(toastState.message)
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.primary)
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
-                    .studioCard(cornerRadius: 12, isSelected: true)
-                    .padding(.bottom, 76)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .studioCard(cornerRadius: 12, isSelected: toastState.type == .success)
+                    .padding(.top, 14)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+
+                    Spacer()
                 }
                 .zIndex(500)
+                .allowsHitTesting(false)
             }
 
             // Confirm Batch Remove Modal Overlay
@@ -731,6 +746,23 @@ public struct PrivacyVaultView: View {
         VStack(spacing: 0) {
             // Header Bar
             HStack(spacing: 12) {
+                HStack(spacing: 5) {
+                    Text(l10n("独立空间", "Private Space"))
+                        .font(.system(size: 13, weight: .bold))
+                    Text("BETA")
+                        .font(.system(size: 8.5, weight: .heavy, design: .rounded))
+                        .foregroundColor(Color(hex: "818CF8"))
+                        .padding(.horizontal, 4.5)
+                        .padding(.vertical, 1.5)
+                        .background(
+                            Capsule()
+                                .fill(Color(hex: "818CF8").opacity(0.18))
+                                .overlay(Capsule().stroke(Color(hex: "818CF8").opacity(0.35), lineWidth: 0.5))
+                        )
+                }
+                .help(l10n("公测实验特性：当前正进行架构与兼容性开放测试", "Public Beta Feature: Open architectural compatibility preview"))
+                .padding(.leading, 6)
+
                 // Filter Tabs Segmented Switcher
                 HStack(spacing: 2) {
                     ForEach(VaultFilterType.allCases) { filter in
@@ -1573,6 +1605,27 @@ public struct PrivacyVaultView: View {
 
             // Holographic Lock Shield Hero
             luminousVaultSphereHero
+
+            VStack(spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(l10n("独立空间", "Private Space"))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text("BETA")
+                        .font(.system(size: 8.5, weight: .heavy, design: .rounded))
+                        .foregroundColor(Color(hex: "818CF8"))
+                        .padding(.horizontal, 4.5)
+                        .padding(.vertical, 1.5)
+                        .background(
+                            Capsule()
+                                .fill(Color(hex: "818CF8").opacity(0.18))
+                                .overlay(Capsule().stroke(Color(hex: "818CF8").opacity(0.35), lineWidth: 0.5))
+                        )
+                }
+                Text(l10n("公测实验特性 · 探索更纯粹的隐私防护边界", "Public Beta Experiment · Native privacy boundaries"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 2)
 
             // Glass Unlock Card
             VStack(spacing: 14) {

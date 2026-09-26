@@ -789,30 +789,81 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         return false
     }
 
+    /// Strict Disk Volume Interception: Disallow hiding whole disk mount points or root filesystems
+    public func isDiskVolumeRoot(url: URL) -> Bool {
+        let standardized = url.standardizedFileURL.path
+        if standardized == "/" || standardized == "/Volumes" || standardized == "/Volumes/" {
+            return true
+        }
+        // Match direct /Volumes/* (e.g. /Volumes/ExtremeSSD, /Volumes/Macintosh HD)
+        if standardized.hasPrefix("/Volumes/") {
+            let relative = String(standardized.dropFirst("/Volumes/".count))
+            if !relative.isEmpty && !relative.contains("/") {
+                return true
+            }
+        }
+        // Check URL isVolumeKey resource
+        if let res = try? url.resourceValues(forKeys: [.isVolumeKey]), res.isVolume == true {
+            return true
+        }
+        return false
+    }
+
+    /// Strict Application Bundle Interception: Disallow hiding .app bundles
+    public func isApplicationBundle(url: URL) -> Bool {
+        let standardized = url.standardizedFileURL.path
+        if standardized.hasSuffix(".app") || url.pathExtension.lowercased() == "app" {
+            return true
+        }
+        let expanded = FileUtils.expandPath(standardized)
+        if expanded.hasPrefix("/Applications/") || expanded.hasPrefix("/System/Applications/") {
+            if url.pathExtension.lowercased() == "app" {
+                return true
+            }
+        }
+        return false
+    }
+
+    public enum VaultAddResult: Sendable {
+        case success(VaultItem)
+        case blockedDiskVolume
+        case blockedApplication
+        case blockedCloudStorage
+        case blockedSymlink
+        case blockedManagedByPhantom
+        case alreadyExists(VaultItem)
+        case failed(String)
+    }
+
     // MARK: - Core Operations & Disaster Re-claiming
-    public func addItem(url: URL, type: VaultItemType) -> VaultItem? {
+    public func addVaultItem(url: URL, type: VaultItemType) -> VaultAddResult {
         lock.lock()
         defer { lock.unlock() }
 
+        if isDiskVolumeRoot(url: url) {
+            return .blockedDiskVolume
+        }
+
+        if isApplicationBundle(url: url) {
+            return .blockedApplication
+        }
+
         let path = url.path
         if isCloudStoragePath(path: path) {
-            // Absolute Security Hard Interception: Never lock cloud-synced files
-            return nil
+            return .blockedCloudStorage
         }
 
-        // Symlink defense: Never lock or follow symbolic links into vault to prevent system path traversal
         var symStat = stat()
         if lstat(path, &symStat) == 0 && (symStat.st_mode & S_IFMT) == S_IFLNK {
-            return nil
+            return .blockedSymlink
         }
 
-        // Phantom Cross-App Firewall: Never manage or mutate items managed by standalone Phantom tool
         if Self.hasPhantomXattr(at: path) {
-            return nil
+            return .blockedManagedByPhantom
         }
 
         if let existing = items.first(where: { $0.path == path }) {
-            return existing
+            return .alreadyExists(existing)
         }
 
         let isExternal = path.hasPrefix("/Volumes/") && !path.hasPrefix("/Volumes/Macintosh HD")
@@ -821,7 +872,6 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
 
-        // Calculate accurate size BEFORE locking so directory traversal succeeds
         var calculatedSize: Int64 = FileUtils.calculateSize(atPath: path)
         let isAlreadyLocked = isItemLockedOnDisk(at: url)
 
@@ -830,10 +880,9 @@ public final class PrivacyVaultManager: @unchecked Sendable {
         }
 
         if !isAlreadyLocked {
-            // Fresh un-locked item: Lock/Hide immediately (Instant Darwin syscall)
             let success = setFileHidden(at: url, hidden: true)
             if !success {
-                return nil
+                return .failed("无法设置隐藏属性")
             }
         }
 
@@ -848,7 +897,17 @@ public final class PrivacyVaultManager: @unchecked Sendable {
 
         items.append(item)
         saveMetadata()
-        return item
+        return .success(item)
+    }
+
+    public func addItem(url: URL, type: VaultItemType) -> VaultItem? {
+        let result = addVaultItem(url: url, type: type)
+        switch result {
+        case .success(let item), .alreadyExists(let item):
+            return item
+        default:
+            return nil
+        }
     }
 
     private func calculateLockedItemSize(at path: String) -> Int64 {

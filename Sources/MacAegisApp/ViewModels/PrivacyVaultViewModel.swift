@@ -28,6 +28,19 @@ public enum VaultFilterType: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+public enum VaultToastType: Sendable {
+    case success
+    case warning
+    case error
+    case info
+}
+
+public struct VaultToastState: Identifiable, Sendable {
+    public let id = UUID()
+    public let message: String
+    public let type: VaultToastType
+}
+
 @MainActor
 public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var isUnlocked: Bool = false
@@ -38,6 +51,7 @@ public final class PrivacyVaultViewModel: ObservableObject {
     @Published public var passwordInput: String = ""
     @Published public var passwordHint: String?
     @Published public var toastMessage: String?
+    @Published public var toastState: VaultToastState?
     @Published public var searchText: String = ""
     @Published public var isPasswordError: Bool = false
     @Published public var passwordErrorMessage: String?
@@ -535,23 +549,94 @@ public final class PrivacyVaultViewModel: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             var addedCount = 0
+            var blockedDiskCount = 0
+            var blockedAppCount = 0
             var blockedCloudCount = 0
+            var blockedSymlinkCount = 0
+            var blockedOtherCount = 0
+
             for url in urls {
-                if self.vaultManager.isCloudStoragePath(path: url.path) {
-                    blockedCloudCount += 1
-                    continue
-                }
-                if let _ = self.vaultManager.addItem(url: url, type: type) {
+                let result = self.vaultManager.addVaultItem(url: url, type: type)
+                switch result {
+                case .success, .alreadyExists:
                     addedCount += 1
+                case .blockedDiskVolume:
+                    blockedDiskCount += 1
+                case .blockedApplication:
+                    blockedAppCount += 1
+                case .blockedCloudStorage:
+                    blockedCloudCount += 1
+                case .blockedSymlink:
+                    blockedSymlinkCount += 1
+                case .blockedManagedByPhantom, .failed:
+                    blockedOtherCount += 1
                 }
             }
+
             DispatchQueue.main.async {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                     self.reloadItems()
-                    if blockedCloudCount > 0 {
-                        self.showToast(l10n("⚠️ 已拦截 \(blockedCloudCount) 个云端同步文件（请拷贝至本地磁盘后再隐匿）", "⚠️ Blocked \(blockedCloudCount) cloud-synced files (move to local disk first)"))
+
+                    let totalBlocked = blockedDiskCount + blockedAppCount + blockedCloudCount + blockedSymlinkCount + blockedOtherCount
+
+                    // 1. Single-item specific helpful hints
+                    if urls.count == 1 && totalBlocked == 1 {
+                        if blockedDiskCount > 0 {
+                            self.showToast(
+                                l10n("不支持直接添加整个磁盘卷，请选择该磁盘内的具体文件夹或文件进行保护", "Cannot add entire disk volume. Please select specific folders or files inside."),
+                                type: .warning
+                            )
+                            return
+                        }
+                        if blockedAppCount > 0 {
+                            self.showToast(
+                                l10n("不支持直接添加应用程序 (.app)，请选择私人文件夹或具体文件进行保护", "Application bundles (.app) cannot be added. Please select private folders or files."),
+                                type: .warning
+                            )
+                            return
+                        }
+                        if blockedCloudCount > 0 {
+                            self.showToast(
+                                l10n("已拦截云端同步文件（请拷贝至本地磁盘后再隐匿）", "Blocked cloud-synced file (move to local disk first)"),
+                                type: .warning
+                            )
+                            return
+                        }
+                    }
+
+                    // 2. Batch / Multi-item compound feedback
+                    if totalBlocked > 0 {
+                        var blockedReasons: [String] = []
+                        if blockedDiskCount > 0 {
+                            blockedReasons.append(l10n("\(blockedDiskCount) 个磁盘卷", "\(blockedDiskCount) disk volumes"))
+                        }
+                        if blockedAppCount > 0 {
+                            blockedReasons.append(l10n("\(blockedAppCount) 个应用包", "\(blockedAppCount) apps"))
+                        }
+                        if blockedCloudCount > 0 {
+                            blockedReasons.append(l10n("\(blockedCloudCount) 个云端文件", "\(blockedCloudCount) cloud files"))
+                        }
+                        if (blockedSymlinkCount + blockedOtherCount) > 0 {
+                            blockedReasons.append(l10n("\(blockedSymlinkCount + blockedOtherCount) 个快捷方式/受限项", "\(blockedSymlinkCount + blockedOtherCount) symlinks/restricted"))
+                        }
+
+                        let reasonsStr = blockedReasons.joined(separator: "、")
+                        if addedCount > 0 {
+                            self.showToast(
+                                l10n("已成功入库 \(addedCount) 项，已拦截：\(reasonsStr)", "Concealed \(addedCount) items, blocked: \(reasonsStr)"),
+                                type: .warning
+                            )
+                        } else {
+                            self.showToast(
+                                l10n("未能入库，已安全拦截：\(reasonsStr)", "All items blocked: \(reasonsStr)"),
+                                type: .warning
+                            )
+                        }
                     } else if addedCount > 0 {
-                        self.showToast(l10n("已将 \(addedCount) 个项目隐藏入库", "Concealed \(addedCount) items into Vault"))
+                        self.showToast(
+                            l10n("已将 \(addedCount) 个项目隐藏入库", "Concealed \(addedCount) items into Vault"),
+                            type: .success
+                        )
                     }
                 }
             }
@@ -719,11 +804,18 @@ public final class PrivacyVaultViewModel: ObservableObject {
         }
     }
 
-    public func showToast(_ msg: String) {
+    public func showToast(_ msg: String, type: VaultToastType = .success) {
         self.toastMessage = msg
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            if self?.toastMessage == msg {
-                self?.toastMessage = nil
+        let state = VaultToastState(message: msg, type: type)
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            self.toastState = state
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) { [weak self] in
+            if self?.toastState?.id == state.id {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    self?.toastState = nil
+                    self?.toastMessage = nil
+                }
             }
         }
     }

@@ -71,6 +71,52 @@ public struct MessagingRules: CleanRuleProtocol {
             }
         }
 
+        // 10. WeChat 4.x (Chromium/Radium Architecture) Surgical Cache Pruning
+        // Dynamic discovery of 4.x runtime shaders, GPU caches, and web workers
+        let wechatContainerAppSupport = FileUtils.expandPath("~/Library/Containers/com.tencent.xinWeChat/Data/Library/Application Support/com.tencent.xinWeChat")
+        if fileManager.fileExists(atPath: wechatContainerAppSupport) {
+            let radiumSubdirs = [
+                "radium_cache", "radium_web_cache", "GPUCache", "Code Cache",
+                "DawnCache", "Service Worker/CacheStorage", "Crashpad", "GrShaderCache"
+            ]
+            if let entries = try? fileManager.contentsOfDirectory(atPath: wechatContainerAppSupport) {
+                var candidatePaths: Set<String> = []
+                for sub in radiumSubdirs {
+                    candidatePaths.insert((wechatContainerAppSupport as NSString).appendingPathComponent(sub))
+                }
+                for entry in entries {
+                    let entryPath = (wechatContainerAppSupport as NSString).appendingPathComponent(entry)
+                    var isDir: ObjCBool = false
+                    if fileManager.fileExists(atPath: entryPath, isDirectory: &isDir), isDir.boolValue {
+                        for sub in radiumSubdirs {
+                            candidatePaths.insert((entryPath as NSString).appendingPathComponent(sub))
+                        }
+                    }
+                }
+
+                for cPath in candidatePaths {
+                    if fileManager.fileExists(atPath: cPath) && !whitelist.isProtected(path: cPath, mode: .cacheOnly) {
+                        let size = FileUtils.calculateSize(atPath: cPath)
+                        if size > 1_000_000 { // > 1MB
+                            let lastComponent = (cPath as NSString).lastPathComponent
+                            let item = CleanItem(
+                                name: "微信 4.x 渲染着色器 (\(lastComponent))",
+                                path: cPath,
+                                sizeBytes: size,
+                                category: .messagingMedia,
+                                safetyLevel: .safe,
+                                itemDescription: "微信 4.x Chromium/Radium 渲染中间件缓存，清理可释放数 GB 空间 (绝对物理避让所有聊天数据库与文件)",
+                                associatedAppName: "WeChat",
+                                isSelected: true
+                            )
+                            items.append(item)
+                            onFoundItem?(item)
+                        }
+                    }
+                }
+            }
+        }
+
         return items
     }
 }

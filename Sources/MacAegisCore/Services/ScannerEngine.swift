@@ -63,10 +63,15 @@ public final class ScannerEngine: Sendable {
             return combined
         }
 
-        // Apply strict Privacy Conceal anti-leak hard filter, FDA guard, and eliminate 0-byte items
+        // Apply strict Privacy Conceal anti-leak hard filter, FDA guard, and Physical Deletability Pre-flight
+        // (Silently omit undeletable/SIP protected items at source so user never sees "cannot remove" errors)
         var safeItems = allItems.filter { item in
             guard !privacyVault.isLockedForScanSkip(path: item.path) && item.sizeBytes > 0 else { return false }
             if !hasFDA && item.path.contains("Library/Containers") { return false }
+            if WhitelistManager.shared.shouldSkipDeepSearch(path: item.path) { return false }
+            if !FileManager.default.isDeletableFile(atPath: item.path) && !FileManager.default.isWritableFile(atPath: item.path) {
+                return false
+            }
             return true
         }
 

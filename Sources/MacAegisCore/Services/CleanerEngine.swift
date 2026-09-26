@@ -81,10 +81,8 @@ public final class CleanerEngine: Sendable {
                 }
 
                 if !FileManager.default.isDeletableFile(atPath: item.path) {
+                    // Graceful Degradation: Silently skip undeletable protected items without polluting user report
                     failCount += 1
-                    let errStr = l10n("【系统保护跳过】\(item.name) 受系统权限保护，已自动安全跳过", "[Protected Skipped] \(item.name) requires system privileges, safely skipped.")
-                    errors.append(errStr)
-                    onProgress?(item, false, errStr)
                     continue
                 }
             }

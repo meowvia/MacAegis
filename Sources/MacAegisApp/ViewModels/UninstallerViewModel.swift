@@ -35,6 +35,28 @@ public final class UninstallerViewModel: ObservableObject {
     private let cleaner = CleanerEngine()
     private var sizeCalculationTask: Task<Void, Never>?
     private var lastIndexTime: Date?
+    private var toastTimer: Timer?
+
+    public func showToast(_ msg: String, duration: TimeInterval = 3.2) {
+        toastTimer?.invalidate()
+        toastMessage = msg
+        isSuccessToast = true
+        toastTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    self?.toastMessage = nil
+                }
+            }
+        }
+    }
+
+    public func dismissToast() {
+        toastTimer?.invalidate()
+        toastTimer = nil
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            toastMessage = nil
+        }
+    }
 
     public init() {
         // Zero startup disk I/O: apps are lazy loaded when user switches to Uninstaller tab
@@ -360,10 +382,10 @@ public final class UninstallerViewModel: ObservableObject {
                 self.isUninstalling = false
                 if report.failedCount == 0 {
                     SoundSentinel.shared.playWaterDropletChime()
-                    self.toastMessage = l10n(
+                    self.showToast(l10n(
                         "已成功彻底卸载「\(bundle.appName)」，释放 \(ByteFormatter.format(report.totalReclaimedBytes)) 空间 🌊",
                         "Successfully uninstalled '\(bundle.appName)', reclaimed \(ByteFormatter.format(report.totalReclaimedBytes)) space 🌊"
-                    )
+                    ))
                     self.selectedBundle = nil
                     self.expandedAppUrls.remove(bundle.appURL)
                     self.analyzedBundles.removeValue(forKey: bundle.appURL)
@@ -440,10 +462,10 @@ public final class UninstallerViewModel: ObservableObject {
                 self.isUninstalling = false
                 if report.failedCount == 0 {
                     SoundSentinel.shared.playWaterDropletChime()
-                    self.toastMessage = l10n(
+                    self.showToast(l10n(
                         "已成功彻底卸载「\(bundle.appName)」，释放 \(ByteFormatter.format(report.totalReclaimedBytes)) 空间 🌊",
                         "Successfully uninstalled '\(bundle.appName)', reclaimed \(ByteFormatter.format(report.totalReclaimedBytes)) space 🌊"
-                    )
+                    ))
                     self.expandedAppUrls.remove(url)
                     self.analyzedBundles.removeValue(forKey: url)
                     self.checkedItemIdsByApp.removeValue(forKey: url)
@@ -555,7 +577,7 @@ extension UninstallerViewModel {
                 self.isUninstalling = false
                 if report.successfulCount > 0 {
                     SoundSentinel.shared.playWaterDropletChime()
-                    self.toastMessage = l10n("成功清理 \(report.successfulCount) 项残留，释放 \(ByteFormatter.format(report.totalReclaimedBytes)) 空间 🌊", "Successfully cleaned \(report.successfulCount) items, reclaimed \(ByteFormatter.format(report.totalReclaimedBytes)) 🌊")
+                    self.showToast(l10n("成功清理 \(report.successfulCount) 项残留，释放 \(ByteFormatter.format(report.totalReclaimedBytes)) 空间 🌊", "Successfully cleaned \(report.successfulCount) items, reclaimed \(ByteFormatter.format(report.totalReclaimedBytes)) 🌊"))
                     self.scanOrphans() // rescan
                 }
                 if report.failedCount > 0 && report.successfulCount == 0 {

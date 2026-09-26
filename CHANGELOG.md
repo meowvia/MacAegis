@@ -4,6 +4,38 @@
 
 ---
 
+## [v1.1.0]
+
+**MacAegis v1.1.0 更新说明**
+
+⚠️ **重要提示**：受 macOS 签名校验规则影响，覆盖升级后若遇到完全磁盘访问权限 (FDA) 状态未同步，建议运行安装镜像内置的「更新助手」一键重置授权；首次运行若遇未验证开发者提示，按住 Control 键点击“打开”即可。
+
+**修改**
+* **「独立空间」正式标注为 Beta 公测特性**：在近期大规模复杂场景与多介质兼容性测试中，发现特定极端边界下仍存在一定偶发 Bug 概率。需要特别说明的是：**该现象绝对不会对已隐匿项目的底层数据安全与完整性造成任何影响**；为保持严谨负责的工程态度，现将该模块打上 Beta 标识并继续开展底层稳定性攻坚。
+* **独立空间反馈体验重构**：Toast 通知迁移至顶部居中，彻底消除对底部主按钮与 Dock 栏的视线遮挡；引入类型化警告标识（消除拦截报错时的绿勾语义矛盾），并完善批量拖拽时的多项目复合反馈。
+* **修复应用卸载提示横幅遮挡与常驻问题**：重构卸载完成提示为顶部轻量居中避让胶囊，彻底杜绝遮盖应用列表首行条目与阻断点击交互；增加 3.2 秒自动平滑淡出定时器，无需手动点击关闭。
+
+**优化**
+* **融合 MangoDisk 容器确定性溯源**：解析沙盒容器底层元数据（`.com.apple.containermanagerd.metadata.plist`），精准识别未知与 UUID 随机命名的孤儿残留，彻底消除沙盒盲猜。
+* **微信 4.x 渲染架构外科手术式清理**：针对微信 4.x 最新的 Chromium/Radium 渲染内核引入靶向修剪，在**绝对不碰任何聊天记录、SQLite 数据库 (`*.db`) 与文件的安全红线下**，安全释放数 GB 渲染着色器堆积。
+* **融合 Pearcleaner 70+ 底层保护目录避让防火墙**：将 70+ 个系统受限核心目录设为遍历禁区，并在扫描源头加入物理权限探针；清理时遇活跃独占文件实行静默容错，**彻底杜绝“因系统保护无法移除”负面报错打扰**，吞吐清爽确定。
+
+**MacAegis v1.1.0 Release Notes**
+
+⚠️ **Important Notice**: Due to macOS signature hash binding, overwriting an existing version may require resetting your Full Disk Access (FDA) permissions. It is strongly recommended to use the included Update Assistant utility. For first-time launches encountering Gatekeeper security notices, hold the Control key and click "Open".
+
+**Modifications**
+* **"Private Space" Transitioned to Public Beta**: During extensive stress testing across varied storage environments, rare edge-case inconsistencies were identified under specific boundary conditions. Crucially: **these occurrences have zero impact on the cryptographic safety or integrity of your concealed assets**. Upholding our commitment to data safety, this module is officially tagged as Beta while active stability testing continues.
+* **Overhauled Private Space Notifications**: Relocated Toast notifications to top-center to eliminate visual interference with bottom control docks; implemented semantic warning indicators (removing green checkmark contradictions for blocked files) with compound feedback for batch drops.
+* **Resolved Uninstaller Banner Clipping & Dismissal**: Redesigned the completion banner into a non-intrusive top-floating capsule to ensure the first application list item remains completely unobstructed and interactive; implemented a 3.2-second smooth spring fade-out timer.
+
+**Optimizations**
+* **Deterministic Sandbox Container Resolution**: Extracts metadata via `.com.apple.containermanagerd.metadata.plist` (inspired by MangoDisk) to accurately trace orphaned containers even when disguised under randomized UUID folder names.
+* **Targeted WeChat 4.x Chromium/Radium Cache Pruning**: Introduces surgical cleanup for modern Chromium/Radium renderers, GPU shaders, and web caches—**strictly isolating and safeguarding all chat databases (`*.db`) and conversation archives with zero data loss**.
+* **Pearcleaner-inspired 70+ System Directory Firewall**: Bypasses 70+ protected system paths (`Biome`, `IntelligencePlatform`, etc.) at the scan source with physical deletability pre-flight probes; silently handles locked runtime files to **completely eliminate annoying "cannot remove due to system protection" alerts**.
+
+---
+
 ## [v1.0.0]
 
 **MacAegis v1.0.0 更新说明**

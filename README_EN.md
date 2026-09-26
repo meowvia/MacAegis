@@ -34,6 +34,17 @@
 * **Deep Cleanup & Leftover Analysis**: Traverses sandboxes and caches to cleanly remove applications and uncover orphaned remnants left behind by uninstalled software.
 * **100% Offline with Zero Telemetry**: Operates strictly local. No network calls, zero data uploads, and **never reads or touches your private file contents**.
 
+<p align="center">
+  <br />
+  <a href="https://wise.com/pay/me/nongjinshui">
+    <img src="assets/wise_qr.png" width="130" alt="Support MacAegis on Wise" />
+  </a>
+  <br />
+  <sub>☕️ <strong>Buy the Indie Developer a Coffee / 请独立开发者喝杯咖啡</strong></sub><br />
+  <sub>Testing Wise cross-border channel workflows; any genuine support for continuous indie development is deeply appreciated ❤️</sub><br />
+  <sub>(作为初涉海外生态的独立开发者，目前正测试 Wise 跨境渠道；若本工具对您有所帮助，由衷感谢任何真实支持)</sub>
+</p>
+
 ---
 
 ## 📸 Feature Showcase

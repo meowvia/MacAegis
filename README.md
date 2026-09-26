@@ -34,6 +34,17 @@
 * **深层卸载与残留分析**：穿透系统沙盒，精准罗列已安装应用并自动追踪已卸载程序遗留的孤立配置与深层缓存。
 * **100% 离线纯净承诺**：零网络通信、零遥测回传、零私人文件内容读写，所有操作均在本地原地安全执行。
 
+<p align="center">
+  <br />
+  <a href="https://wise.com/pay/me/nongjinshui">
+    <img src="assets/wise_qr.png" width="130" alt="Support MacAegis on Wise" />
+  </a>
+  <br />
+  <sub>☕️ <strong>请独立开发者喝杯咖啡 / Buy me a coffee</strong></sub><br />
+  <sub>作为初涉海外生态的独立开发者，目前正测试 Wise 跨境渠道；若本工具对您有所帮助，由衷感谢任何真实支持 ❤️</sub><br />
+  <sub>(Testing Wise cross-border channel workflows; any genuine support for continuous indie development is deeply appreciated)</sub>
+</p>
+
 ---
 
 ## 📸 功能概览与界面预览 (Feature Showcase)

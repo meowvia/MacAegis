@@ -4,6 +4,26 @@
 
 ---
 
+## [v1.2.1]
+
+**MacAegis v1.2.1 更新说明**
+
+⚠️ **重要提示**：受 macOS 签名校验规则影响，覆盖升级后若遇到完全磁盘访问权限 (FDA) 状态未同步，建议运行安装镜像内置的「更新助手」一键重置授权；首次运行若遇未验证开发者提示，按住 Control 键点击“打开”即可。
+
+**修复与改进**
+* **修复残留扫描误识别问题**：全面加固残留清理防护机制，优化第三方浏览器及主流应用的识别规则，彻底解决特定应用数据可能被误判为残留的问题。
+* **提升清理安全等级**：调优应用支持数据的清理确认策略，默认取消自动全选，避免误操作风险，全方位守护用户数据安全。
+
+**MacAegis v1.2.1 Release Notes**
+
+⚠️ **Important Notice**: Due to macOS signature hash binding, overwriting an existing version may require resetting your Full Disk Access (FDA) permissions. It is strongly recommended to use the included Update Assistant utility. For first-time launches encountering Gatekeeper security notices, hold the Control key and click "Open".
+
+**Fixes & Improvements**
+* **Fixed False Detection in Leftover Scanning**: Strengthened the leftover cleanup protection system and refined recognition rules for third-party browsers and mainstream apps, resolving potential misidentification of active user data.
+* **Enhanced Cleanup Safety Standards**: Adjusted safety policies for application support data by disabling default automatic selection, preventing accidental deletion and ensuring total user data security.
+
+---
+
 ## [v1.2.0]
 
 **MacAegis v1.2.0 更新说明**

@@ -107,6 +107,11 @@ public final class WhitelistManager: @unchecked Sendable {
         "~/Library/Application Support/Obsidian",
         "~/Library/Application Support/Notion",
         "~/Library/Application Support/Telegram Desktop",
+        "~/Library/Application Support/BraveSoftware",
+        "~/Library/Application Support/Arc",
+        "~/Library/Application Support/Mozilla",
+        "~/Library/Application Support/Vivaldi",
+        "~/Library/Application Support/com.operasoftware.Opera",
         "~/Library/Containers/com.tencent.xinWeChat"
     ]
 

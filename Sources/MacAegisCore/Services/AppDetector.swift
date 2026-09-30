@@ -283,6 +283,16 @@ public final class AppDetector: @unchecked Sendable {
             return apps.contains { $0.bundleId?.lowercased().contains("logi") == true || $0.name.lowercased().contains("logi") }
         case "tencent":
             return apps.contains { $0.bundleId?.lowercased().contains("tencent") == true }
+        case "bravesoftware":
+            return apps.contains { $0.bundleId?.lowercased().contains("brave") == true || $0.name.lowercased().contains("brave") }
+        case "arc":
+            return apps.contains { $0.bundleId?.lowercased().contains("company.thebrowser.browser") == true || $0.name.lowercased() == "arc" }
+        case "mozilla":
+            return apps.contains { $0.bundleId?.lowercased().contains("mozilla") == true || $0.name.lowercased().contains("firefox") }
+        case "vivaldi":
+            return apps.contains { $0.bundleId?.lowercased().contains("vivaldi") == true }
+        case "opera", "com.operasoftware.opera":
+            return apps.contains { $0.bundleId?.lowercased().contains("opera") == true }
         default:
             return false
         }

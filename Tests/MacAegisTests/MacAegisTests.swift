@@ -30,9 +30,14 @@ import Foundation
     #expect(whitelist.isProtected(path: "/some/random/path/login.keychain"))
     #expect(whitelist.isProtected(path: "/some/random/path/cert.pem"))
 
-    // 4. Critical App Data (VS Code, Steam, etc.) must be protected
+    // 4. Critical App Data (VS Code, Steam, Browsers, etc.) must be protected
     #expect(whitelist.isProtected(path: "~/Library/Application Support/Code"))
     #expect(whitelist.isProtected(path: "~/Library/Application Support/Steam"))
+    #expect(whitelist.isProtected(path: "~/Library/Application Support/BraveSoftware"))
+    #expect(whitelist.isProtected(path: "~/Library/Application Support/Arc", mode: .cacheOnly))
+    #expect(whitelist.isProtected(path: "~/Library/Application Support/Mozilla", mode: .cacheOnly))
+    #expect(whitelist.isProtected(path: "~/Library/Application Support/Vivaldi", mode: .cacheOnly))
+    #expect(whitelist.isProtected(path: "~/Library/Application Support/com.operasoftware.Opera", mode: .cacheOnly))
 
     // 5. Non-protected safe temporary cache paths should return false
     #expect(!whitelist.isProtected(path: "~/Library/Caches/RandomTestAppCache12345/data.tmp"))
@@ -886,6 +891,10 @@ import Foundation
     let isGoogleActive = detector.isVendorDirectoryActive(vendorName: "Google")
     #expect(isGoogleActive == true)
 
+    // Brave vendor protection for installed Brave Browser
+    let isBraveActive = detector.isVendorDirectoryActive(vendorName: "BraveSoftware")
+    #expect(isBraveActive == true)
+
     // Completely bogus uninstalled group
     let isBogusInUse = detector.isGroupContainerInUse(groupName: "ZZ999XYZ.com.nonexistent.fakeapp999")
     #expect(isBogusInUse == false)
@@ -907,6 +916,17 @@ import Foundation
     // Critical: Apple internal daemon directories MUST NOT be flagged as orphan
     let hasCloudDocs = items.contains { $0.path.contains("CloudDocs") }
     #expect(hasCloudDocs == false, "CloudDocs system service must not be flagged as orphan")
+
+    // Critical: Major browser roots MUST NOT be flagged as orphan
+    let hasBrave = items.contains { $0.path.contains("BraveSoftware") }
+    #expect(hasBrave == false, "BraveSoftware must NEVER be flagged as orphan")
+
+    // Critical: Application Support items must have .caution safety level and never default selected
+    let appSupportItems = items.filter { $0.path.contains("/Library/Application Support") }
+    for item in appSupportItems {
+        #expect(item.safetyLevel == .caution, "Application Support leftover \(item.path) must be .caution")
+        #expect(item.isSelected == false, "Application Support leftover \(item.path) must never be pre-selected")
+    }
 }
 
 @Test func testPhantomXattrCrossAppFirewall() async throws {

@@ -34,7 +34,7 @@ public struct OrphanHunterRules: CleanRuleProtocol {
 
         // 14 candidate directories across macOS user & system Library (expanded path matrix)
         let candidateRoots: [(dir: String, nameSuffix: String, descSuffix: String, minBytes: Int64, safety: SafetyLevel)] = [
-            ("~/Library/Application Support", "配置与支持数据", "已卸载软件的历史配置与核心支持数据", 0, .safe),
+            ("~/Library/Application Support", "配置与支持数据", "已卸载软件的历史配置与核心支持数据", 0, .caution),
             ("/Library/Application Support", "系统级配置与数据", "已卸载软件在全局目录遗留的配置与服务数据", 0, .caution),
             ("~/Library/Containers", "沙盒残留容器", "沙盒应用或扩展插件卸载后未清理的独立运行沙盒目录", 0, .safe),
             ("~/Library/Preferences", "偏好设置残留", "已卸载软件的历史偏好设置属性文件", 0, .caution),

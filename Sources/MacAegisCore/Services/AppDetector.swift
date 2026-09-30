@@ -13,6 +13,8 @@ public final class AppDetector: @unchecked Sendable {
 
     private var cachedApps: [InstalledApp] = []
     private var lastIndexTime: Date = .distantPast
+    private var launchServicesCache: [String: Bool] = [:]
+    private var isAppInstalledCache: [String: Bool] = [:]
     private let lock = NSLock()
 
     // Common directory alias mapping to real applications
@@ -39,6 +41,11 @@ public final class AppDetector: @unchecked Sendable {
     public func indexInstalledApps(forceRefresh: Bool = false) -> [InstalledApp] {
         lock.lock()
         defer { lock.unlock() }
+
+        if forceRefresh {
+            launchServicesCache.removeAll()
+            isAppInstalledCache.removeAll()
+        }
 
         let now = Date()
         if !forceRefresh && !cachedApps.isEmpty && now.timeIntervalSince(lastIndexTime) < 5.0 {
@@ -114,12 +121,27 @@ public final class AppDetector: @unchecked Sendable {
 
     /// Check if a directory or bundle ID belongs to any currently installed app
     public func isAppInstalled(nameOrBundleId: String) -> Bool {
-        let apps = indexInstalledApps()
         let target = nameOrBundleId.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-
         if target.hasPrefix("com.apple.") || target.hasPrefix("apple.") || target == "apple" {
             return true
         }
+
+        lock.lock()
+        if let cached = isAppInstalledCache[target] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
+        let result = computeIsAppInstalled(target: target)
+        lock.lock()
+        isAppInstalledCache[target] = result
+        lock.unlock()
+        return result
+    }
+
+    private func computeIsAppInstalled(target: String) -> Bool {
+        let apps = indexInstalledApps()
 
         // Check alias mapping first
         for (aliasKey, aliasTargets) in knownAppAliases {
@@ -160,9 +182,20 @@ public final class AppDetector: @unchecked Sendable {
             }
         }
 
-        // System-Level LaunchServices Live Registration Check
+        // System-Level LaunchServices Live Registration Check with memory caching
         if target.contains(".") {
-            if NSWorkspace.shared.urlForApplication(withBundleIdentifier: target) != nil {
+            lock.lock()
+            if let cachedLS = launchServicesCache[target] {
+                lock.unlock()
+                return cachedLS
+            }
+            lock.unlock()
+
+            let isReg = NSWorkspace.shared.urlForApplication(withBundleIdentifier: target) != nil
+            lock.lock()
+            launchServicesCache[target] = isReg
+            lock.unlock()
+            if isReg {
                 return true
             }
         }

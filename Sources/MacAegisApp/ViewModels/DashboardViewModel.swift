@@ -151,9 +151,13 @@ public final class DashboardViewModel: ObservableObject {
 
         Task { [weak self] in
             guard let self = self else { return }
+            let throttle = ProgressThrottle()
+
             let result = await self.scanner.scan { [weak self] item in
-                Task { @MainActor in
-                    self?.scanProgressText = l10n("发现: \(item.name)", "Discovered: \(item.name)")
+                if throttle.shouldUpdate() {
+                    Task { @MainActor in
+                        self?.scanProgressText = l10n("发现: \(item.name)", "Discovered: \(item.name)")
+                    }
                 }
             }
 
@@ -333,5 +337,21 @@ public final class DashboardViewModel: ObservableObject {
                 }
             }
         }
+    }
+}
+
+private final class ProgressThrottle: @unchecked Sendable {
+    private let lock = NSLock()
+    private var lastUpdate = Date.distantPast
+
+    func shouldUpdate(interval: TimeInterval = 0.06) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let now = Date()
+        if now.timeIntervalSince(lastUpdate) >= interval {
+            lastUpdate = now
+            return true
+        }
+        return false
     }
 }

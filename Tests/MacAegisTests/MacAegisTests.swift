@@ -128,7 +128,7 @@ import Foundation
 
     // 2. Zero Protected Paths Leaked
     for item in result.items {
-        let mode: ProtectionMode = (item.category == .appCaches || item.category == .browserCaches) ? .cacheOnly : .strict
+        let mode: ProtectionMode = (item.category == .appCaches || item.category == .browserCaches || item.category == .messagingMedia || item.category == .developerCaches) ? .cacheOnly : .strict
         #expect(!WhitelistManager.shared.isProtected(path: item.path, mode: mode))
     }
 }

@@ -1,157 +1,150 @@
-# 🛡️ MacAegis
+# MacAegis
+
+A native, ultra-fast macOS deep cleaner and application uninstaller built specifically for Apple Silicon and macOS 14.0+.
 
 <p align="center">
-  <img src="assets/logo.png" width="100" height="100" alt="MacAegis Logo" />
-</p>
-
-<p align="center">
-  <strong>A Pure Swift Native macOS Utility for Instant File Stealth and Lightweight System Maintenance</strong>
+  <img src="assets/logo.png" width="96" height="96" alt="MacAegis Logo" />
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-macOS%2014.0%2B-blue?style=flat-square" alt="macOS" />
   <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-success?style=flat-square" alt="Architecture" />
   <img src="https://img.shields.io/badge/Language-Swift%206-orange?style=flat-square" alt="Swift" />
-  <img src="https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%200%20Telemetry-brightgreen?style=flat-square" alt="Privacy" />
-  <img src="https://img.shields.io/badge/License-Freeware-purple?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%20Zero%20Telemetry-brightgreen?style=flat-square" alt="Privacy" />
+  <img src="https://img.shields.io/badge/License-GPL--3.0-purple?style=flat-square" alt="License" />
 </p>
 
 <p align="center">
-  <a href="#-feature-showcase">Feature Showcase</a> •
-  <a href="#-installation--usage-guide">Installation Guide</a> •
-  <a href="#-download">Download</a> •
-  <a href="README.md">中文版本 (Chinese)</a>
+  <a href="#overview">Overview</a> •
+  <a href="#open-core-architecture">Open-Core Architecture</a> •
+  <a href="#feature-preview">Feature Preview</a> •
+  <a href="#building-from-source">Building</a> •
+  <a href="#contributing-rules">Contributing</a> •
+  <a href="README.md">中文版本</a>
 </p>
 
 ---
 
-## 📖 Introduction
+## Overview
 
-**MacAegis** is a lightweight, high-performance native macOS utility crafted for **instant file concealment, deep application uninstallation, and system maintenance**:
+MacAegis is a native macOS system maintenance utility engineered from the ground up with pure Swift 6.
 
-* **Liquid Glass Native Design**: Written entirely in pure Swift 6, tuned for Apple Silicon and Intel. The distribution DMG is merely **~1.7 MB** with near-zero background idle overhead.
-* **Instant Stealth Without Size Limits**: Features a "Private Space" workflow for instant, in-place concealment of files and multi-gigabyte directories, secured by Touch ID biometric auth and 64-char emergency keys.
-* **Deep Cleanup & Leftover Analysis**: Traverses sandboxes and caches to cleanly remove applications and uncover orphaned remnants left behind by uninstalled software.
-* **100% Offline with Zero Telemetry**: Operates strictly local. No network calls, zero data uploads, and **never reads or touches your private file contents**.
+To address industry-wide privacy concerns surrounding third-party cleaning tools, MacAegis makes its core cleaning engine and application uninstaller 100% open-source for public inspection and community verification.
+
+- Native Liquid Glass Aesthetics: Pure SwiftUI and Metal vector rendering aligned with macOS design principles. Zero Electron bloat, resulting in a lightweight ~1.9 MB package and near-zero memory footprint.
+- 0.05-Second Spotlight Traversal: Replaces legacy recursive enumeration, bypassing the notorious 50,000-file traversal cut-off bug to achieve instantaneous indexing across massive volumes.
+- Orphan Hunter: Unearths abandoned sandbox containers by inspecting underlying `.com.apple.containermanagerd.metadata.plist` files.
+- Surgical App Cache Trimming: Trims large web render caches (such as WeChat 4.x Chromium/Radium caches) without touching user chat records or SQLite databases.
+- Zero-Telemetry Guarantee: Operates strictly offline. Zero network calls, zero telemetry, zero access to private file contents.
 
 <p align="center">
-  <br />
   <a href="https://wise.com/pay/me/nongjinshui">
-    <img src="assets/wise_qr.png" width="130" alt="Support MacAegis on Wise" />
+    <img src="assets/wise_qr.png" width="120" alt="Support MacAegis on Wise" />
   </a>
   <br />
-  <sub>☕️ <strong>Buy the Indie Developer a Coffee / 请独立开发者喝杯咖啡</strong></sub><br />
-  <sub>Testing Wise cross-border channel workflows; any genuine support for continuous indie development is deeply appreciated ❤️</sub><br />
-  <sub>(作为初涉海外生态的独立开发者，目前正测试 Wise 跨境渠道；若本工具对您有所帮助，由衷感谢任何真实支持)</sub>
+  <sub>Buy me a coffee</sub><br />
+  <sub>Testing Wise cross-border channels; any genuine support for continuous indie development is deeply appreciated.</sub>
 </p>
 
 ---
 
-## 📸 Feature Showcase
+## Open-Core Architecture
+
+MacAegis employs an open-core licensing model:
+
+1. Open-Core (GPL-3.0):
+   - Smart scanning engine (`ScannerEngine`) and complete cleaning rules (`*Rules`);
+   - Application uninstaller (`AppUninstaller`) and orphan container detection (`OrphanHunterRules`);
+   - Real-time hardware telemetry (`HardwareTelemetry`) and menubar monitor (`MenuBarCardView`);
+   - Native macOS UI and Liquid Glass visual design system (`Theme`, `LiquidGlass`).
+   - Fully open for auditing, building, and rule contributions.
+
+2. Proprietary Component (Privacy Vault):
+   - Original concealment engine, algorithms, and Secure Enclave Touch ID biometric integration;
+   - Retained as a proprietary closed-source asset, free for all users, and excluded from this open-source repository.
+
+---
+
+## Feature Preview
 
 ### 1. Smart Clean Dashboard
-Provides an intuitive overview of storage health, offering one-click smart scanning for temporary caches, logs, and reclaimable junk, complete with large-file inspection.
+Provides clear overview of system storage and health, enabling one-click scanning of system caches, logs, and junk items.
 <p align="center">
   <img src="assets/screenshots_en/01_dashboard.png" width="800" alt="Smart Clean Dashboard" />
 </p>
 
-### 2. Installed Applications
-Clearly catalogs all installed applications on your Mac, displaying accurate physical disk footprints and bundle versions for quick search and Finder navigation.
+### 2. Installed Application Management
+Enumerates installed apps with physical package size, version metadata, and quick search.
 <p align="center">
-  <img src="assets/screenshots_en/02_uninstaller_apps.png" width="800" alt="Installed Applications" />
+  <img src="assets/screenshots_en/02_uninstaller_apps.png" width="800" alt="Installed Apps" />
 </p>
 
-### 3. Application Leftovers & Residual Cleanup
-Automatically tracks down orphaned configuration files, application support remnants, and sandbox caches left behind by uninstalled software to reclaim valuable space.
+### 3. Application Leftover Reclamation
+Tracks orphaned preferences and abandoned sandboxes from previously removed applications.
 <p align="center">
   <img src="assets/screenshots_en/03_uninstaller_leftovers.png" width="800" alt="Application Leftovers" />
 </p>
 
-### 4. Private Space Verification & Unlock Screen
-A minimalist, modern security gateway supporting native Apple Touch ID biometric authentication and master password access, with built-in recovery key reset support.
+### 4. Preferences and Permissions
+Configures launch-at-login and provides clear guidance on Full Disk Access (FDA) status.
 <p align="center">
-  <img src="assets/screenshots_en/04_vault_lock.png" width="800" alt="Private Space Verification & Unlock Screen" />
+  <img src="assets/screenshots_en/06_preferences.png" width="800" alt="Preferences" />
 </p>
 
-### 5. Private Space Ingestion & Ready State
-A clean ingestion canvas allowing you to drag and drop sensitive folders or files for instant in-place concealment, complete with a quick scan for existing hidden items.
-<p align="center">
-  <img src="assets/screenshots_en/05_vault_empty.png" width="800" alt="Private Space Ingestion" />
-</p>
-
-### 6. Preferences & Permission Controls
-Provides system-level preference toggles including launch at login and close-window behavior, along with clear status indicators for Full Disk Access (FDA) and App Management.
-<p align="center">
-  <img src="assets/screenshots_en/06_preferences.png" width="800" alt="Preferences & Permission Controls" />
-</p>
-
-### 7. Concealed Assets Management
-A structured repository displaying protected folders and files, item sizes (supporting massive 10GB–100GB+ directories), lock status capsules, and quick Finder reveals.
-<p align="center">
-  <img src="assets/screenshots_en/07_vault_concealed.png" width="800" alt="Concealed Assets Management" />
-</p>
-
-### 8. Batch Operations & Multi-Select
-A flexible multi-select action bar enabling you to unlock, lock, or release protection across multiple concealed assets simultaneously for effortless file management.
-<p align="center">
-  <img src="assets/screenshots_en/08_vault_batch.png" width="800" alt="Batch Operations & Multi-Select" />
-</p>
-
-### 9. Menubar Telemetry Card
-An ultra-lightweight status bar popup providing real-time hardware telemetry: SoC core temperature, fan speed, unified memory pressure, and mounted disk volume capacity.
+### 5. Menubar Telemetry Card
+Minimal-overhead menubar monitor reflecting chip temperature, fan speed, memory pressure, and volume usage.
 <p align="center">
   <img src="assets/screenshots_en/09_menubar.png" width="360" alt="Menubar Telemetry Card" />
 </p>
 
 ---
 
-## 🚀 Installation & Usage Guide
+## Building from Source
 
-### 1. Standard Installation
+### Prerequisites
+- macOS 14.0 (Sonoma) or later
+- Xcode 16.0+ or Swift 6.0+ Command Line Tools
+- Apple Silicon or Intel Mac
 
-#### Option A: Install via Homebrew Cask (Recommended)
+### Build Commands
 ```bash
-brew install meowvia/tap/macaegis
-```
+git clone https://github.com/meowvia/MacAegis.git
+cd MacAegis
 
-#### Option B: Manual DMG Download
-1. Download the latest `MacAegis-vX.Y.Z.dmg` installer package from the [Releases Page](https://github.com/meowvia/MacAegis/releases);
-2. **First-time Install**: Open the DMG image and drag **MacAegis** onto the "➡️ Drag to Install" shortcut;
-3. **Upgrading (Recommended)**: Double-click `Update Assistant (更新助手).command` inside the DMG. The assistant will safely terminate older instances, update the application in place, and exit gracefully;
-4. Launch MacAegis from Launchpad or Applications.
+# Run automated tests
+swift test
 
----
-
-### 2. First-Time Launch & Security Notice
-
-MacAegis is an independent freeware utility utilizing local Ad-Hoc code signing. If macOS Gatekeeper displays an "Unverified Developer" notice on initial launch:
-
-**Quick Resolution:**
-* In Finder's **Applications** folder, locate **MacAegis**, hold the **Control key** and click the icon, then select **"Open"** from the context menu and confirm;
-* Or run this single command in **Terminal** to clear the quarantine attribute:
-```bash
-sudo xattr -rd com.apple.quarantine /Applications/MacAegis.app
+# Build release binaries
+swift build -c release
 ```
 
 ---
 
-### 3. Full Disk Access (FDA) Permission Notice
+## Official Binary Releases (Including Privacy Vault)
 
-To allow deep inspection of system caches and app preferences, grant **Full Disk Access (FDA)** when prompted:
-1. Open macOS **System Settings** → **Privacy & Security** → **Full Disk Access**;
-2. Locate **MacAegis** in the list and toggle it on.
-3. **⚠️ Important Notice for Upgrades**: Under macOS security architecture, permissions are strictly bound to the unique code signature of each build. When overwriting or updating MacAegis, if scanning results appear empty, simply remove the old MacAegis entry [-] in Full Disk Access, and click [+] to re-add `/Applications/MacAegis.app`. Running the included Update Assistant can also guide you directly to this pane.
+To experience the pre-compiled official image or the full suite containing the proprietary Privacy Vault:
 
----
-
-## 📦 Download
-
-* **GitHub Official Releases**: [MacAegis Releases](https://github.com/meowvia/MacAegis/releases)
-* **System Requirements**: macOS 14.0 (Sonoma) or newer, natively compatible with Apple Silicon (M1/M2/M3/M4 series) and Intel Macs.
+1. Download the latest `MacAegis-vX.Y.Z.dmg` from the GitHub Releases page;
+2. Mount the DMG image and drag MacAegis into the Applications folder;
+3. Official Releases: https://github.com/meowvia/MacAegis/releases
 
 ---
 
-## 📄 Privacy & Licensing Notice
+## Contributing Rules
 
-MacAegis is free software. All operations execute 100% locally on your Mac. It contains zero networking capabilities, never uploads any data, and **never reads or modifies the contents of your personal files**. Pure, transparent, and respectful of your privacy. Feedback and suggestions are warmly welcomed!
+Community contributions for third-party application cleaning rules are warmly welcomed. Please consult CONTRIBUTING.md for implementation details and safety protocols.
 
+---
+
+## Privacy and Security Statement
+
+MacAegis adheres strictly to the principle of least privilege:
+- Completely free of network communication code;
+- Full Disk Access (FDA) is utilized solely for traversing cache folders to compute sizes;
+- For vulnerability reports, please consult SECURITY.md.
+
+---
+
+## License
+
+The open-core components are licensed under the GNU General Public License v3.0 (GPL-3.0). The Privacy Vault module is proprietary software owned by meowvia.

@@ -4,6 +4,102 @@
 
 ---
 
+## [v1.3.1]
+
+**MacAegis v1.3.1 更新说明**
+
+⚠️ **重要提示**：受 macOS 签名校验规则影响，覆盖升级后若遇到完全磁盘访问权限 (FDA) 状态未同步，建议运行安装镜像内置的「更新助手」一键重置授权；首次运行若遇未验证开发者提示，按住 Control 键点击“打开”即可。
+
+* **新增功能**：核心清理与卸载引擎正式开源（GPL-3.0）；支持自定义壁纸导入与等比自适应毛玻璃效果；彻底剥离预置素材膨胀，安装包恢复极简纯净；优化设置面板并新增作者其他作品推荐入口。
+* **修复残留扫描误识别问题**：重构应用检测机制，全面覆盖嵌套目录与正在运行的应用，解决部分特殊路径应用遗漏或识别不全的问题。
+* **提升清理安全等级**：开源规则透明可见并接受社区审计，严密隔离系统根目录与核心防区，杜绝误操作；坚持 100% 本地离线执行，不发起任何网络连接与数据回传，全方位守护用户数据安全。
+
+**MacAegis v1.3.1 Release Notes**
+
+⚠️ **Important Notice**: Due to macOS signature hash binding, overwriting an existing version may require resetting your Full Disk Access (FDA) permissions. It is strongly recommended to use the included Update Assistant utility. For first-time launches encountering Gatekeeper security notices, hold the Control key and click "Open".
+
+* **New Features**: Officially open-sourced the core clean and uninstaller engine under GPL-3.0; added custom wallpaper import with adaptive frosted glass styling; removed bundled assets to restore a lean, minimalist package; streamlined Settings with author project links (SilkPlayer, Phantom).
+* **Fixed Residual Scanning & App Detection**: Overhauled the application detection engine to thoroughly cover nested directories and running applications, resolving missed or incomplete detections across non-standard paths.
+* **Enhanced Cleanup Safety Standards**: Core rules made transparent and open for community audit while strictly shielding system directories from accidental deletion; maintained strict 100% local offline execution with zero network transmission to protect user data.
+
+---
+
+## [v1.2.1]
+
+**MacAegis v1.2.1 更新说明**
+
+⚠️ **重要提示**：受 macOS 签名校验规则影响，覆盖升级后若遇到完全磁盘访问权限 (FDA) 状态未同步，建议运行安装镜像内置的「更新助手」一键重置授权；首次运行若遇未验证开发者提示，按住 Control 键点击“打开”即可。
+
+**修复与改进**
+* **修复残留扫描误识别问题**：全面加固残留清理防护机制，优化第三方浏览器及主流应用的识别规则，彻底解决特定应用数据可能被误判为残留的问题。
+* **提升清理安全等级**：调优应用支持数据的清理确认策略，默认取消自动全选，避免误操作风险，全方位守护用户数据安全。
+
+**MacAegis v1.2.1 Release Notes**
+
+⚠️ **Important Notice**: Due to macOS signature hash binding, overwriting an existing version may require resetting your Full Disk Access (FDA) permissions. It is strongly recommended to use the included Update Assistant utility. For first-time launches encountering Gatekeeper security notices, hold the Control key and click "Open".
+
+**Fixes & Improvements**
+* **Fixed False Detection in Leftover Scanning**: Strengthened the leftover cleanup protection system and refined recognition rules for third-party browsers and mainstream apps, resolving potential misidentification of active user data.
+* **Enhanced Cleanup Safety Standards**: Adjusted safety policies for application support data by disabling default automatic selection, preventing accidental deletion and ensuring total user data security.
+
+---
+
+## [v1.2.0]
+
+**MacAegis v1.2.0 更新说明**
+
+⚠️ **重要提示**：受 macOS 签名校验规则影响，覆盖升级后若遇到完全磁盘访问权限 (FDA) 状态未同步，建议运行安装镜像内置的「更新助手」一键重置授权；首次运行若遇未验证开发者提示，按住 Control 键点击“打开”即可。
+
+**优化**
+* **系统扫描速度大幅跃升**：全面重构系统与磁盘扫描机制，扫描耗时由原先的十几秒缩短至一瞬间完成，提速十倍以上。
+* **局域网共享与备份数据安全避让**：自动识别并跳过局域网网络共享盘与历史系统备份盘，防止误扫误标私人重要资料，确保数据绝对安全。
+* **外置硬盘识别全面完整**：优化外置存储设备的扫描逻辑，彻底解决大容量硬盘中可能遗漏安装包或大文件的问题，识别更精准、无遗漏。
+* **扫描界面交互丝滑流畅**：优化扫描过程中的界面呈现机制，消除快速发现文件时的界面卡顿与掉帧现象，操作反馈更加细腻顺滑。
+
+**MacAegis v1.2.0 Release Notes**
+
+⚠️ **Important Notice**: Due to macOS signature hash binding, overwriting an existing version may require resetting your Full Disk Access (FDA) permissions. It is strongly recommended to use the included Update Assistant utility. For first-time launches encountering Gatekeeper security notices, hold the Control key and click "Open".
+
+**Optimizations**
+* **Dramatically Faster System Scan**: Fully upgraded the scanning architecture, reducing scan times from tens of seconds to nearly instantaneous—over ten times faster.
+* **Safe Isolation for Network Shares and Backups**: Automatically identifies and bypasses local network shares and system backup drives, safeguarding your personal files and eliminating redundant scanning.
+* **Comprehensive External Drive Detection**: Refined external storage scanning logic to thoroughly discover leftover installers and large files on high-capacity drives without omissions.
+* **Silky Smooth Scanning Interface**: Optimized interface rendering during scanning, eliminating UI stutter and frame drops when files are rapidly discovered for a consistently fluid experience.
+
+---
+
+## [v1.1.0]
+
+**MacAegis v1.1.0 更新说明**
+
+⚠️ **重要提示**：受 macOS 签名校验规则影响，覆盖升级后若遇到完全磁盘访问权限 (FDA) 状态未同步，建议运行安装镜像内置的「更新助手」一键重置授权；首次运行若遇未验证开发者提示，按住 Control 键点击“打开”即可。
+
+**修改**
+* **「独立空间」正式标注为 Beta 公测特性**：在近期大规模复杂场景与多介质兼容性测试中，发现特定极端边界下仍存在一定偶发 Bug 概率。需要特别说明的是：**该现象绝对不会对已隐匿项目的底层数据安全与完整性造成任何影响**；为保持严谨负责的工程态度，现将该模块打上 Beta 标识并继续开展底层稳定性攻坚。
+* **独立空间反馈体验重构**：Toast 通知迁移至顶部居中，彻底消除对底部主按钮与 Dock 栏的视线遮挡；引入类型化警告标识（消除拦截报错时的绿勾语义矛盾），并完善批量拖拽时的多项目复合反馈。
+* **修复应用卸载提示横幅遮挡与常驻问题**：重构卸载完成提示为顶部轻量居中避让胶囊，彻底杜绝遮盖应用列表首行条目与阻断点击交互；增加 3.2 秒自动平滑淡出定时器，无需手动点击关闭。
+
+**优化**
+* **融合 MangoDisk 容器确定性溯源**：解析沙盒容器底层元数据（`.com.apple.containermanagerd.metadata.plist`），精准识别未知与 UUID 随机命名的孤儿残留，彻底消除沙盒盲猜。
+* **微信 4.x 渲染架构外科手术式清理**：针对微信 4.x 最新的 Chromium/Radium 渲染内核引入靶向修剪，在**绝对不碰任何聊天记录、SQLite 数据库 (`*.db`) 与文件的安全红线下**，安全释放数 GB 渲染着色器堆积。
+* **融合 Pearcleaner 70+ 底层保护目录避让防火墙**：将 70+ 个系统受限核心目录设为遍历禁区，并在扫描源头加入物理权限探针；清理时遇活跃独占文件实行静默容错，**彻底杜绝“因系统保护无法移除”负面报错打扰**，吞吐清爽确定。
+
+**MacAegis v1.1.0 Release Notes**
+
+⚠️ **Important Notice**: Due to macOS signature hash binding, overwriting an existing version may require resetting your Full Disk Access (FDA) permissions. It is strongly recommended to use the included Update Assistant utility. For first-time launches encountering Gatekeeper security notices, hold the Control key and click "Open".
+
+**Modifications**
+* **"Private Space" Transitioned to Public Beta**: During extensive stress testing across varied storage environments, rare edge-case inconsistencies were identified under specific boundary conditions. Crucially: **these occurrences have zero impact on the cryptographic safety or integrity of your concealed assets**. Upholding our commitment to data safety, this module is officially tagged as Beta while active stability testing continues.
+* **Overhauled Private Space Notifications**: Relocated Toast notifications to top-center to eliminate visual interference with bottom control docks; implemented semantic warning indicators (removing green checkmark contradictions for blocked files) with compound feedback for batch drops.
+* **Resolved Uninstaller Banner Clipping & Dismissal**: Redesigned the completion banner into a non-intrusive top-floating capsule to ensure the first application list item remains completely unobstructed and interactive; implemented a 3.2-second smooth spring fade-out timer.
+
+**Optimizations**
+* **Deterministic Sandbox Container Resolution**: Extracts metadata via `.com.apple.containermanagerd.metadata.plist` (inspired by MangoDisk) to accurately trace orphaned containers even when disguised under randomized UUID folder names.
+* **Targeted WeChat 4.x Chromium/Radium Cache Pruning**: Introduces surgical cleanup for modern Chromium/Radium renderers, GPU shaders, and web caches—**strictly isolating and safeguarding all chat databases (`*.db`) and conversation archives with zero data loss**.
+* **Pearcleaner-inspired 70+ System Directory Firewall**: Bypasses 70+ protected system paths (`Biome`, `IntelligencePlatform`, etc.) at the scan source with physical deletability pre-flight probes; silently handles locked runtime files to **completely eliminate annoying "cannot remove due to system protection" alerts**.
+
+---
+
 ## [v1.0.0]
 
 **MacAegis v1.0.0 更新说明**

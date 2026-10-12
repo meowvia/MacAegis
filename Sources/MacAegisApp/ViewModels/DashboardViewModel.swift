@@ -1,0 +1,357 @@
+import Foundation
+import SwiftUI
+import Combine
+import AppKit
+import MacAegisCore
+
+@MainActor
+public final class DashboardViewModel: ObservableObject {
+    public static let shared = DashboardViewModel()
+
+    @Published public var isScanning: Bool = false
+    @Published public var scanProgressText: String = l10n("就绪", "Ready")
+    @Published public var scanResult: ScanResult?
+    @Published public var selectedItemIds: Set<String> = []
+    @Published public var systemMetrics: SystemMetrics
+    @Published public var mountedDrives: [MountedDriveInfo] = []
+    @Published public var powerInfo: PowerAndThermalInfo
+    @Published public var thermalAndFan: ThermalAndFanStatus
+    @Published public var isCleaning: Bool = false
+    @Published public var cleanReport: CleanExecutionReport?
+    @Published public var lastCleanReport: CleanExecutionReport?
+    @Published public var lastCleanUsedTrash: Bool = true
+    @Published public var isRefreshingMetrics: Bool = false
+    @Published public var isRefreshingScan: Bool = false
+    @Published public var actionToastMessage: String?
+    @Published public var showingCleanErrorsSheet: Bool = false
+
+    private let scanner = ScannerEngine()
+    private let cleaner = CleanerEngine()
+    private let diskDetector = DiskDetector.shared
+    private let powerMonitor = PowerMonitor.shared
+    private let thermalDetector = ThermalAndFanDetector.shared
+    private var telemetryTimer: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
+
+    public init() {
+        self.systemMetrics = HardwareTelemetry.shared.fetchMetrics()
+        self.mountedDrives = diskDetector.fetchMountedDrives()
+        self.powerInfo = powerMonitor.fetchInfo()
+        self.thermalAndFan = thermalDetector.fetchStatus()
+        setupDiskMountObservers()
+        startTelemetryPolling()
+    }
+
+    private func setupDiskMountObservers() {
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notif in
+                self?.refreshMountedDrives()
+                self?.checkInstallerMounted(notification: notif)
+            }
+            .store(in: &cancellables)
+
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didUnmountNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.refreshMountedDrives()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func checkInstallerMounted(notification: Notification) {
+        guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
+        let volumeName = volumeURL.lastPathComponent
+        if volumeName.localizedCaseInsensitiveContains("MacAegis") {
+            let runningBundlePath = Bundle.main.bundlePath
+            let fm = FileManager.default
+            let appInVolume = volumeURL.appendingPathComponent("MacAegis.app").path
+            let installerScript = volumeURL.appendingPathComponent("⚡️ 一键替换安装.command").path
+            let installerMarker = volumeURL.appendingPathComponent(".macaegis_installer").path
+            
+            // Strictly verify that this volume is an actual MacAegis installer DMG disk image,
+            // never accidentally kill the app when a regular storage drive is plugged in!
+            let isActualInstallerVolume = fm.fileExists(atPath: appInVolume) && 
+                (fm.fileExists(atPath: installerScript) || fm.fileExists(atPath: installerMarker))
+            
+            if isActualInstallerVolume && !runningBundlePath.hasPrefix(volumeURL.path) && runningBundlePath.contains("/Applications") {
+                NSLog("[MacAegis] Confirmed genuine MacAegis update installer mounted at %@. Gracefully terminating running instance.", volumeURL.path)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NSApp.terminate(nil)
+                }
+            }
+        }
+    }
+
+    public func refreshMountedDrives() {
+        let detector = self.diskDetector
+        Task.detached(priority: .utility) {
+            let drives = detector.fetchMountedDrives()
+            await MainActor.run {
+                DashboardViewModel.shared.mountedDrives = drives
+            }
+        }
+    }
+
+    private func startTelemetryPolling() {
+        // Offload telemetry computation completely to background utility queue (0ms main thread blocking)
+        // Hard constraint: Drives polling is COMPLETELY decoupled from 3.0s timer to preserve mechanical HDD lifetime
+        // Smart battery saving: Pause timer when app is inactive or all windows are minimized/hidden
+        telemetryTimer = Timer.publish(every: 3.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                guard NSApp.isActive && NSApp.windows.contains(where: { $0.isVisible && !$0.isMiniaturized }) else { return }
+                DispatchQueue.global(qos: .utility).async {
+                    let metrics = HardwareTelemetry.shared.fetchMetrics()
+                    let power = self.powerMonitor.fetchInfo()
+                    let thermal = self.thermalDetector.fetchStatus()
+
+                    Task { @MainActor in
+                        self.systemMetrics = metrics
+                        self.powerInfo = power
+                        self.thermalAndFan = thermal
+                    }
+                }
+            }
+    }
+
+    public func refreshTelemetry() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let metrics = HardwareTelemetry.shared.fetchMetrics()
+            let drives = self.diskDetector.fetchMountedDrives()
+            let power = self.powerMonitor.fetchInfo()
+            let thermal = self.thermalDetector.fetchStatus()
+
+            Task { @MainActor in
+                self.systemMetrics = metrics
+                self.mountedDrives = drives
+                self.powerInfo = power
+                self.thermalAndFan = thermal
+            }
+        }
+    }
+
+    public func manualRefresh() {
+        isRefreshingMetrics = true
+        refreshTelemetry()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            self?.isRefreshingMetrics = false
+        }
+    }
+
+    public func startScan() {
+        guard !isScanning else { return }
+        isScanning = true
+        isRefreshingScan = true
+        scanProgressText = l10n("正在扫描系统与应用缓存...", "Scanning system and application caches...")
+        scanResult = nil
+        cleanReport = nil
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            let throttle = ProgressThrottle()
+
+            let result = await self.scanner.scan { [weak self] item in
+                if throttle.shouldUpdate() {
+                    Task { @MainActor in
+                        self?.scanProgressText = l10n("发现: \(item.name)", "Discovered: \(item.name)")
+                    }
+                }
+            }
+
+            self.scanResult = result
+            self.selectedItemIds = Set(result.items.filter { $0.safetyLevel == .safe }.map { $0.id })
+            self.isScanning = false
+            self.isRefreshingScan = false
+            self.scanProgressText = l10n("扫描完成", "Scan Complete")
+        }
+    }
+
+    public var selectedTotalSizeBytes: Int64 {
+        guard let result = scanResult else { return 0 }
+        return result.items
+            .filter { selectedItemIds.contains($0.id) }
+            .reduce(0) { $0 + $1.sizeBytes }
+    }
+
+    public var selectedFormattedSize: String {
+        return ByteFormatter.format(selectedTotalSizeBytes)
+    }
+
+    public func toggleItemSelection(id: String) {
+        if selectedItemIds.contains(id) {
+            selectedItemIds.remove(id)
+        } else {
+            selectedItemIds.insert(id)
+        }
+    }
+
+    public func selectAll() {
+        guard let result = scanResult, !isCleaning else { return }
+        selectedItemIds = Set(result.items.map { $0.id })
+    }
+
+    public func deselectAll() {
+        selectedItemIds.removeAll()
+    }
+
+    /// Single item deletion (Non-blocking background execution)
+    public func cleanSingleItem(_ item: CleanItem) {
+        let useTrash = UserDefaults.standard.object(forKey: "cleanToTrash") as? Bool ?? true
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            let cleaner = CleanerEngine()
+            let report = await cleaner.clean(items: [item], dryRun: false, useTrash: useTrash)
+            await MainActor.run {
+                if report.successfulCount > 0 {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        if let currentResult = self.scanResult {
+                            let updatedItems = currentResult.items.filter { $0.id != item.id }
+                            self.scanResult = ScanResult(items: updatedItems, durationSeconds: currentResult.durationSeconds)
+                        }
+                        self.selectedItemIds.remove(item.id)
+                        self.showToast(useTrash ? "已将 \(item.name) 移至废纸篓" : "已彻底永久删除 \(item.name)")
+                    }
+                } else {
+                    let errMsg = report.errors.first ?? "清理未能成功：该项目可能正被运行中的程序占用或受系统保护"
+                    self.showToast(errMsg)
+                }
+            }
+        }
+    }
+
+    /// Reveal file in Finder (with parent directory traversal fallback)
+    public func revealInFinder(path: String) {
+        let expanded = FileUtils.expandPath(path)
+        let fm = FileManager.default
+
+        // 1. Direct match: If file or folder exists, highlight it in Finder
+        if fm.fileExists(atPath: expanded) {
+            NSWorkspace.shared.selectFile(expanded, inFileViewerRootedAtPath: (expanded as NSString).deletingLastPathComponent)
+            return
+        }
+
+        // 2. Parent directory traversal: If virtual/deleted path, find closest existing ancestor directory
+        var current = URL(fileURLWithPath: expanded).deletingLastPathComponent()
+        while current.path != "/" && !current.path.isEmpty {
+            if fm.fileExists(atPath: current.path) {
+                NSWorkspace.shared.open(current)
+                return
+            }
+            current = current.deletingLastPathComponent()
+        }
+
+        // 3. Fallback for APFS Snapshots / TimeMachine special items
+        if path.contains("TimeMachine") || path.contains("Snapshot") {
+            let cachesDir = URL(fileURLWithPath: FileUtils.expandPath("~/Library/Caches"))
+            NSWorkspace.shared.open(cachesDir)
+            return
+        }
+
+        // 4. Default fallback
+        NSWorkspace.shared.open(URL(fileURLWithPath: FileUtils.expandPath("~/Library")))
+    }
+
+    /// Add to custom whitelist
+    public func whitelistItem(_ item: CleanItem) {
+        try? WhitelistManager.shared.addToWhitelist(path: item.path)
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            if let currentResult = self.scanResult {
+                let updatedItems = currentResult.items.filter { $0.id != item.id }
+                self.scanResult = ScanResult(items: updatedItems, durationSeconds: currentResult.durationSeconds)
+            }
+            self.selectedItemIds.remove(item.id)
+            self.showToast("已将 \(item.name) 加入忽略白名单")
+        }
+    }
+
+    private func showToast(_ msg: String) {
+        self.actionToastMessage = msg
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+            if self?.actionToastMessage == msg {
+                self?.actionToastMessage = nil
+            }
+        }
+    }
+
+    public func openTrash() {
+        let trashPath = ("~/.Trash" as NSString).expandingTildeInPath
+        NSWorkspace.shared.open(URL(fileURLWithPath: trashPath))
+    }
+
+    public func dismissCleanReport() {
+        self.lastCleanReport = nil
+    }
+
+    public func executeClean() {
+        guard let result = scanResult, !isCleaning else { return }
+        isCleaning = true
+        let useTrash = UserDefaults.standard.object(forKey: "cleanToTrash") as? Bool ?? true
+
+        let itemsToClean = result.items.map { item -> CleanItem in
+            var updated = item
+            updated.isSelected = selectedItemIds.contains(item.id)
+            return updated
+        }
+
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            let cleaner = CleanerEngine()
+            let report = await cleaner.clean(items: itemsToClean, dryRun: false, useTrash: useTrash)
+            await MainActor.run {
+                self.cleanReport = report
+                self.lastCleanReport = report
+                self.lastCleanUsedTrash = useTrash
+                self.isCleaning = false
+                
+                if report.successfulCount > 0 {
+                    SoundSentinel.shared.playWaterDropletChime()
+                    if report.failedCount > 0 {
+                        self.showToast(l10n("已释放 \(report.formattedReclaimed)，但有 \(report.failedCount) 项因系统保护或运行中未清理", "Reclaimed \(report.formattedReclaimed), but \(report.failedCount) items were skipped due to system protection or running processes"))
+                    } else {
+                        self.showToast(l10n("已成功释放 \(report.formattedReclaimed) 空间", "Successfully reclaimed \(report.formattedReclaimed)"))
+                    }
+                    
+                    // In-place update remaining items to celebrate clean state smoothly
+                    let cleanedIds = Set(itemsToClean.filter { $0.isSelected }.map { $0.id })
+                    let remainingItems = self.scanResult?.items.filter { !cleanedIds.contains($0.id) } ?? []
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        self.scanResult = ScanResult(items: remainingItems, durationSeconds: self.scanResult?.durationSeconds ?? 0)
+                        self.selectedItemIds.subtract(cleanedIds)
+                    }
+                    self.refreshTelemetry()
+                } else if report.failedCount > 0 {
+                    let topError = report.errors.first ?? l10n("所选项目被系统保护或正被运行中软件占用", "Selected items are protected by system or in use")
+                    self.showToast(l10n("未能清理选定项目：\(topError)", "Failed to clean selected items: \(topError)"))
+                }
+
+                // Give users 8 seconds to view the clean results
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
+                    if self?.lastCleanReport?.totalReclaimedBytes == report.totalReclaimedBytes {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self?.lastCleanReport = nil
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private final class ProgressThrottle: @unchecked Sendable {
+    private let lock = NSLock()
+    private var lastUpdate = Date.distantPast
+
+    func shouldUpdate(interval: TimeInterval = 0.06) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let now = Date()
+        if now.timeIntervalSince(lastUpdate) >= interval {
+            lastUpdate = now
+            return true
+        }
+        return false
+    }
+}
